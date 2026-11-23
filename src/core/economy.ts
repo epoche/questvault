@@ -8,12 +8,20 @@ import {
   STARTER_COLLECTIBLE_ID,
 } from './packs';
 import { getMasteryKey, isItemDueForReview } from './mastery';
-import type { Collectible, PackId, PlayerState, Rarity, SubjectId } from './types';
+import type {
+  Collectible,
+  CritterRoomThemeId,
+  PackId,
+  PlayerState,
+  Rarity,
+  SubjectId,
+} from './types';
 
 export const STARTER_TOKENS = 25;
 export const SHINY_CRAFT_COPIES_REQUIRED = 3;
 export const FUSE_COPIES_REQUIRED = 5;
 export const MAX_FAVORITE_COLLECTIBLES = 6;
+export const CRITTER_ROOM_SLOT_COUNT = 8;
 export const DAILY_TRI_SUBJECT_BONUS = 30;
 export const BLITZ_DAILY_TOKEN_CAP = 120;
 export const ARCADE_DAILY_TOKEN_CAP = 150;
@@ -444,6 +452,93 @@ export function awardFishingSessionRewards(
         dateKey: todayKey,
         earned: prevArcade + tokensAwarded,
       },
+    },
+  };
+}
+
+export function awardBossSessionRewards(
+  state: PlayerState,
+  subjectId: 'english' | 'math' | 'chinese',
+  score: number,
+  rawTokensEarned: number,
+  todayKey: string,
+): { state: PlayerState; tokensAwarded: number; remainingDailyCap: number } {
+  const earnedSoFar = getTodayArcadeTokensEarned(state, todayKey);
+  const remainingBefore = Math.max(0, ARCADE_DAILY_TOKEN_CAP - earnedSoFar);
+  const safeEarned = Number.isFinite(rawTokensEarned) ? Math.max(0, Math.floor(rawTokensEarned)) : 0;
+  const safeScore = Number.isFinite(score) ? Math.max(0, Math.floor(score)) : 0;
+  const tokensAwarded = Math.min(remainingBefore, safeEarned);
+  const prevBest = state.bossHighScores?.[subjectId] ?? 0;
+  const prevArcade =
+    state.arcadeDailyTokens?.dateKey === todayKey ? state.arcadeDailyTokens.earned : 0;
+
+  return {
+    tokensAwarded,
+    remainingDailyCap: Math.max(0, remainingBefore - tokensAwarded),
+    state: {
+      ...state,
+      tokens: state.tokens + tokensAwarded,
+      bossHighScores: {
+        ...state.bossHighScores,
+        [subjectId]: Math.max(prevBest, safeScore),
+      },
+      arcadeDailyTokens: {
+        dateKey: todayKey,
+        earned: prevArcade + tokensAwarded,
+      },
+    },
+  };
+}
+
+export function updateCritterRoomTheme(
+  state: PlayerState,
+  themeId: CritterRoomThemeId,
+): PlayerState {
+  const prevSlots =
+    state.critterRoom?.slots && state.critterRoom.slots.length === CRITTER_ROOM_SLOT_COUNT
+      ? state.critterRoom.slots
+      : Array<string | null>(CRITTER_ROOM_SLOT_COUNT).fill(null);
+  return {
+    ...state,
+    critterRoom: {
+      themeId,
+      slots: prevSlots,
+    },
+  };
+}
+
+export function placeCritterInRoomSlot(
+  state: PlayerState,
+  slotIndex: number,
+  collectibleId: string | null,
+): PlayerState {
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= CRITTER_ROOM_SLOT_COUNT) {
+    return state;
+  }
+  if (collectibleId !== null) {
+    if ((state.vault[collectibleId] ?? 0) < 1 || !getCollectibleById(collectibleId)) {
+      return state;
+    }
+  }
+  const prevTheme: CritterRoomThemeId = state.critterRoom?.themeId ?? 'strawberry-cafe';
+  const prevSlots =
+    state.critterRoom?.slots && state.critterRoom.slots.length === CRITTER_ROOM_SLOT_COUNT
+      ? [...state.critterRoom.slots]
+      : Array<string | null>(CRITTER_ROOM_SLOT_COUNT).fill(null);
+
+  // If moving an already-placed critter to a new slot, vacate its previous slot cleanly
+  if (collectibleId !== null) {
+    for (let i = 0; i < prevSlots.length; i += 1) {
+      if (prevSlots[i] === collectibleId) prevSlots[i] = null;
+    }
+  }
+  prevSlots[slotIndex] = collectibleId;
+
+  return {
+    ...state,
+    critterRoom: {
+      themeId: prevTheme,
+      slots: prevSlots,
     },
   };
 }

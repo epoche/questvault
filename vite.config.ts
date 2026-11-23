@@ -45,7 +45,21 @@ export default defineConfig({
                 }
                 if (id.includes('/src/subjects/chinese/')) return 'subject-chinese';
                 if (id.includes('/src/subjects/math/')) return 'subject-math';
+                if (
+                  id.includes('/src/ui/artwork/BossArt') ||
+                  id.includes('/src/ui/artwork/CritterRoomArt')
+                ) {
+                  return 'artwork-phase4';
+                }
                 if (id.includes('/src/ui/artwork/')) return 'artwork-svg';
+                if (
+                  id.includes('/src/ui/views/BossBattleView') ||
+                  id.includes('/src/ui/views/FishingGameView') ||
+                  id.includes('/src/ui/views/CafeGameView') ||
+                  id.includes('/src/ui/views/BlitzView')
+                ) {
+                  return 'views-arcade';
+                }
                 return undefined;
               },
             },

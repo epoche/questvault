@@ -19,6 +19,7 @@ import {
   Puzzle,
   Ruler,
   Sparkles,
+  Swords,
   Trash2,
   Wrench,
   Zap,
@@ -95,6 +96,7 @@ interface HomeViewProps {
   onStartBlitz: (subjectId: SubjectId) => void;
   onStartCafe: (subjectId: SubjectId) => void;
   onStartFishing: (subjectId: SubjectId) => void;
+  onStartBossBattle: (subjectId: SubjectId) => void;
   onClaimDailyQuest: () => void;
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartEnglishRootFamily: (family: EnglishRootFamily) => void;
@@ -135,6 +137,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartBlitz,
   onStartCafe,
   onStartFishing,
+  onStartBossBattle,
   onClaimDailyQuest,
   onStartEnglishRun,
   onStartEnglishRootFamily,
@@ -393,6 +396,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
               >
                 <Fish className="h-4 w-4" />
                 <span>{activeSubjectId === 'chinese' ? '星海釣魚' : 'Star Fishing'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onStartBossBattle(activeSubjectId)}
+                className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#EF4444] px-4 py-3 font-display text-sm font-extrabold text-white"
+                style={{ borderBottomColor: '#991B1B' }}
+              >
+                <Swords className="h-4 w-4" />
+                <span>{activeSubjectId === 'chinese' ? '夥伴打魔王' : 'Boss Battle'}</span>
               </button>
 
               {activeSubjectId === 'chinese' && (

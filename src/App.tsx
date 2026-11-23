@@ -6,6 +6,7 @@ import { audioService } from './core/audio';
 import {
   applyQuestRewardMultiplier,
   awardBlitzSessionRewards,
+  awardBossSessionRewards,
   awardCafeSessionRewards,
   awardFishingSessionRewards,
   claimChapterSeriesChest,
@@ -17,10 +18,12 @@ import {
   getTodayArcadeTokensEarned,
   meltDuplicateForStarDust,
   openMysteryPack,
+  placeCritterInRoomSlot,
   recordDailyQuestClaim,
   recordDailySubjectCompletion,
   sellDuplicateCollectible,
   toggleFavoriteCollectible,
+  updateCritterRoomTheme,
   wishUnlockWithStarDust,
 } from './core/economy';
 import { recordWordOutcome } from './core/mastery';
@@ -28,6 +31,7 @@ import { createLocalStorageRepository } from './core/repository';
 import type { ReadingQuestSet } from './core/readingTypes';
 import type {
   Collectible,
+  CritterRoomThemeId,
   CustomWordSetRecord,
   DifficultyTier,
   PackId,
@@ -61,6 +65,10 @@ import {
 } from './ui/components/PackOpeningModal';
 import { type NavTab, TopBar } from './ui/components/TopBar';
 import { type BlitzCompletionPayload, BlitzView } from './ui/views/BlitzView';
+import {
+  type BossBattleCompletionPayload,
+  BossBattleView,
+} from './ui/views/BossBattleView';
 import { type CafeCompletionPayload, CafeGameView } from './ui/views/CafeGameView';
 import {
   type ChapterEpisodeCompletionPayload,
@@ -122,6 +130,7 @@ export const App: React.FC = () => {
   const [activeBlitzSubject, setActiveBlitzSubject] = useState<SubjectId | null>(null);
   const [activeCafeSubject, setActiveCafeSubject] = useState<SubjectId | null>(null);
   const [activeFishingSubject, setActiveFishingSubject] = useState<SubjectId | null>(null);
+  const [activeBossSubject, setActiveBossSubject] = useState<SubjectId | null>(null);
   const [parentOpen, setParentOpen] = useState(false);
 
   const [activePull, setActivePull] = useState<PackPullViewData | null>(null);
@@ -151,6 +160,7 @@ export const App: React.FC = () => {
       activeBlitzSubject ||
       activeCafeSubject ||
       activeFishingSubject ||
+      activeBossSubject ||
       parentOpen,
   );
 
@@ -181,6 +191,7 @@ export const App: React.FC = () => {
     activeBlitzSubject,
     activeCafeSubject,
     activeFishingSubject,
+    activeBossSubject,
     parentOpen,
   ]);
 
@@ -199,6 +210,7 @@ export const App: React.FC = () => {
     setActiveBlitzSubject(null);
     setActiveCafeSubject(null);
     setActiveFishingSubject(null);
+    setActiveBossSubject(null);
     setParentOpen(false);
   };
 
@@ -368,6 +380,37 @@ export const App: React.FC = () => {
       tokensAwarded: res.tokensAwarded,
       remainingDailyCap: res.remainingDailyCap,
     };
+  };
+
+  const handleCompleteBossBattle = (
+    payload: BossBattleCompletionPayload,
+  ): { tokensAwarded: number; remainingDailyCap: number } => {
+    const todayKey = getLocalDateKey();
+    const res = awardBossSessionRewards(
+      playerRef.current,
+      payload.subjectId,
+      payload.score,
+      payload.rawTokensEarned,
+      todayKey,
+    );
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    return {
+      tokensAwarded: res.tokensAwarded,
+      remainingDailyCap: res.remainingDailyCap,
+    };
+  };
+
+  const handleUpdateRoomTheme = (themeId: CritterRoomThemeId) => {
+    const next = updateCritterRoomTheme(playerRef.current, themeId);
+    playerRef.current = next;
+    setPlayer(next);
+  };
+
+  const handlePlaceRoomCritter = (slotIndex: number, collectibleId: string | null) => {
+    const next = placeCritterInRoomSlot(playerRef.current, slotIndex, collectibleId);
+    playerRef.current = next;
+    setPlayer(next);
   };
 
   const handleCompleteEnglishRun = (payload: RunCompletionPayload) => {
@@ -1038,6 +1081,27 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeBossSubject ? (
+            <BossBattleView
+              subjectId={activeBossSubject}
+              activeTier={
+                player.subjectTiers?.[activeBossSubject] ??
+                (activeBossSubject === 'english' ? player.activeTier : 2)
+              }
+              vault={player.vault}
+              shinyVault={player.shinyVault}
+              favoriteCollectibleIds={player.favoriteCollectibleIds}
+              highScore={player.bossHighScores?.[activeBossSubject] ?? 0}
+              arcadeTokensEarnedToday={getTodayArcadeTokensEarned(player, todayKey)}
+              showZhuyin={showZhuyin}
+              onToggleZhuyin={handleToggleZhuyin}
+              onCompleteBossBattle={handleCompleteBossBattle}
+              onExit={() => setActiveBossSubject(null)}
+              onGoToMarket={() => {
+                setActiveBossSubject(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeFishingSubject ? (
             <FishingGameView
               subjectId={activeFishingSubject}
@@ -1306,6 +1370,7 @@ export const App: React.FC = () => {
               onStartBlitz={(subj) => setActiveBlitzSubject(subj)}
               onStartCafe={(subj) => setActiveCafeSubject(subj)}
               onStartFishing={(subj) => setActiveFishingSubject(subj)}
+              onStartBossBattle={(subj) => setActiveBossSubject(subj)}
               onClaimDailyQuest={handleClaimDailyQuest}
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
               onStartEnglishRootFamily={(fam) => setActiveEnglishRootFamily(fam)}
@@ -1338,6 +1403,8 @@ export const App: React.FC = () => {
               onFuseFiveUp={handleFuseFiveUp}
               onToggleFavorite={handleToggleFavorite}
               onClaimAchievement={handleClaimAchievement}
+              onUpdateRoomTheme={handleUpdateRoomTheme}
+              onPlaceRoomCritter={handlePlaceRoomCritter}
             />
           ) : (
             <WritingLogView

@@ -147,6 +147,16 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     }
   }
 
+  const sanitizedBossHighScores: Partial<Record<'english' | 'math' | 'chinese', number>> = {};
+  if (isRecord(obj.bossHighScores)) {
+    for (const subj of ['english', 'math', 'chinese'] as const) {
+      const sc = obj.bossHighScores[subj];
+      if (typeof sc === 'number' && Number.isFinite(sc) && sc >= 0) {
+        sanitizedBossHighScores[subj] = Math.floor(sc);
+      }
+    }
+  }
+
   let sanitizedArcadeDailyTokens: PlayerState['arcadeDailyTokens'] = undefined;
   if (
     isRecord(obj.arcadeDailyTokens) &&
@@ -232,6 +242,36 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
       ).slice(0, 6)
     : [];
 
+  let sanitizedCritterRoom: PlayerState['critterRoom'] = undefined;
+  if (isRecord(obj.critterRoom)) {
+    const validThemes = new Set([
+      'strawberry-cafe',
+      'starlight-attic',
+      'boba-beach',
+      'fairy-treehouse',
+    ]);
+    const themeId =
+      typeof obj.critterRoom.themeId === 'string' && validThemes.has(obj.critterRoom.themeId)
+        ? (obj.critterRoom.themeId as NonNullable<PlayerState['critterRoom']>['themeId'])
+        : 'strawberry-cafe';
+    const rawSlots = Array.isArray(obj.critterRoom.slots) ? obj.critterRoom.slots : [];
+    const usedIds = new Set<string>();
+    const slots: (string | null)[] = Array.from({ length: 8 }, (_, idx) => {
+      const val = rawSlots[idx];
+      if (
+        typeof val === 'string' &&
+        !usedIds.has(val) &&
+        (sanitizedVault[val] ?? 0) > 0 &&
+        Boolean(getCollectibleById(val))
+      ) {
+        usedIds.add(val);
+        return val;
+      }
+      return null;
+    });
+    sanitizedCritterRoom = { themeId, slots };
+  }
+
   return {
     ...base,
     tokens: safeTokens,
@@ -245,6 +285,7 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     vault: sanitizedVault,
     shinyVault: sanitizedShinyVault,
     favoriteCollectibleIds: sanitizedFavorites,
+    ...(sanitizedCritterRoom ? { critterRoom: sanitizedCritterRoom } : {}),
     wordMastery: sanitizedMastery,
     completedQuestSetIds: Array.isArray(obj.completedQuestSetIds)
       ? obj.completedQuestSetIds.filter((id): id is string => typeof id === 'string')
@@ -324,6 +365,7 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     ...(sanitizedBlitzDailyTokens ? { blitzDailyTokens: sanitizedBlitzDailyTokens } : {}),
     cafeHighScores: sanitizedCafeHighScores,
     fishingHighScores: sanitizedFishingHighScores,
+    bossHighScores: sanitizedBossHighScores,
     ...(sanitizedArcadeDailyTokens ? { arcadeDailyTokens: sanitizedArcadeDailyTokens } : {}),
     ...(typeof obj.parentPinHash === 'string' && PARENT_PIN_HASH_RE.test(obj.parentPinHash)
       ? { parentPinHash: obj.parentPinHash }

@@ -159,6 +159,17 @@ export interface DailyQuestClaims {
   counts: Record<string, number>;
 }
 
+export type CritterRoomThemeId =
+  | 'strawberry-cafe'
+  | 'starlight-attic'
+  | 'boba-beach'
+  | 'fairy-treehouse';
+
+export interface CritterRoomState {
+  themeId: CritterRoomThemeId;
+  slots: (string | null)[];
+}
+
 export interface PlayerState {
   version: 1;
   displayName: string;
@@ -173,6 +184,7 @@ export interface PlayerState {
   vault: Record<string, number>;
   shinyVault?: Record<string, boolean>;
   favoriteCollectibleIds?: string[];
+  critterRoom?: CritterRoomState;
   wordMastery: Record<string, WordMasteryRecord>;
   completedQuestSetIds: string[];
   completedRadicalIds?: string[];
@@ -195,6 +207,7 @@ export interface PlayerState {
   blitzDailyTokens?: BlitzDailyTokens;
   cafeHighScores?: Partial<Record<SubjectId, number>>;
   fishingHighScores?: Partial<Record<SubjectId, number>>;
+  bossHighScores?: Partial<Record<SubjectId, number>>;
   arcadeDailyTokens?: BlitzDailyTokens;
   parentPinHash?: string;
   showZhuyin?: boolean;

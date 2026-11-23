@@ -4,6 +4,7 @@ import {
   Coins,
   Crown,
   Dices,
+  Home,
   Lock,
   Sparkles,
   Star,
@@ -30,9 +31,17 @@ import {
   PACK_CATEGORIES,
   RARITY_CONFIGS,
 } from '../../core/packs';
-import type { Collectible, PackCategory, PackId, PlayerState, Rarity } from '../../core/types';
+import type {
+  Collectible,
+  CritterRoomThemeId,
+  PackCategory,
+  PackId,
+  PlayerState,
+  Rarity,
+} from '../../core/types';
 import { CollectibleArt } from '../artwork/CollectibleArt';
 import { AchievementWall } from '../components/AchievementWall';
+import { CritterRoomPanel } from '../components/CritterRoomPanel';
 
 interface VaultViewProps {
   player: PlayerState;
@@ -44,6 +53,8 @@ interface VaultViewProps {
   onFuseFiveUp: (sourceRarity: Rarity) => { awarded: Collectible; isNew: boolean } | null;
   onToggleFavorite: (collectibleId: string) => void;
   onClaimAchievement?: (achievementId: string) => boolean;
+  onUpdateRoomTheme?: (themeId: CritterRoomThemeId) => void;
+  onPlaceRoomCritter?: (slotIndex: number, collectibleId: string | null) => void;
 }
 
 type PackFilter = 'all' | 'owned' | 'shiny' | 'unowned' | PackId;
@@ -60,8 +71,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onFuseFiveUp,
   onToggleFavorite,
   onClaimAchievement,
+  onUpdateRoomTheme,
+  onPlaceRoomCritter,
 }) => {
-  const [vaultSection, setVaultSection] = useState<'collection' | 'achievements'>('collection');
+  const [vaultSection, setVaultSection] = useState<'collection' | 'room' | 'achievements'>('collection');
   const [categoryFilter, setCategoryFilter] = useState<'all' | PackCategory>('all');
   const [filter, setFilter] = useState<PackFilter>('all');
   const [studioBanner, setStudioBanner] = useState<string | null>(null);
@@ -149,6 +162,18 @@ export const VaultView: React.FC<VaultViewProps> = ({
           </button>
           <button
             type="button"
+            onClick={() => setVaultSection('room')}
+            className={`qv-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-2xl border-2 px-3.5 py-1.5 font-display text-xs sm:text-sm font-extrabold ${
+              vaultSection === 'room'
+                ? 'border-[#1C1917] bg-[#DB2777] text-white'
+                : 'border-[#E5DFD3] bg-white text-[#57534E]'
+            }`}
+          >
+            <Home className="h-4 w-4" />
+            <span>盲盒小屋</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setVaultSection('achievements')}
             className={`qv-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-2xl border-2 px-3.5 py-1.5 font-display text-xs sm:text-sm font-extrabold ${
               vaultSection === 'achievements'
@@ -171,6 +196,12 @@ export const VaultView: React.FC<VaultViewProps> = ({
         <AchievementWall
           player={player}
           onClaimAchievement={(id) => onClaimAchievement?.(id) ?? false}
+        />
+      ) : vaultSection === 'room' ? (
+        <CritterRoomPanel
+          player={player}
+          onUpdateRoomTheme={(themeId) => onUpdateRoomTheme?.(themeId)}
+          onPlaceRoomCritter={(slotIdx, cid) => onPlaceRoomCritter?.(slotIdx, cid)}
         />
       ) : (
         <>

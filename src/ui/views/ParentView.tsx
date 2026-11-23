@@ -529,6 +529,16 @@ export const ParentView: React.FC<ParentViewProps> = ({
                 ).toLocaleString()}{' '}
                 lbs
               </div>
+              <div>
+                ⚔️ 夥伴打魔王最佳：
+                {Math.max(
+                  0,
+                  player.bossHighScores?.english ?? 0,
+                  player.bossHighScores?.math ?? 0,
+                  player.bossHighScores?.chinese ?? 0,
+                ).toLocaleString()}{' '}
+                分
+              </div>
             </div>
           </div>
         </div>
