@@ -40,8 +40,8 @@ function createSeededRng(seed: number): () => number {
 }
 
 describe('Phase 3C Layer 1: Chinese Chapter Story Series (4 Series x 5 Episodes = 20 Episodes / 60 Qs)', () => {
-  it('validates all 4 series, 20 episodes, 60 Qs, 1:1 CJK-to-MOE Zhuyin alignment, zero Simplified chars, and sequential unlock + one-time +40 chest', () => {
-    expect(BUILTIN_CHAPTER_SERIES).toHaveLength(4);
+  it('validates all 8 series (Season 1 + 2), 40 episodes, 120 Qs, 1:1 CJK-to-MOE Zhuyin alignment, zero Simplified chars, and sequential unlock + one-time +40 chest', () => {
+    expect(BUILTIN_CHAPTER_SERIES).toHaveLength(8);
     const seriesIds = new Set<string>();
     const episodeIds = new Set<string>();
     const questionIds = new Set<string>();
@@ -108,8 +108,8 @@ describe('Phase 3C Layer 1: Chinese Chapter Story Series (4 Series x 5 Episodes 
       }
     }
 
-    expect(episodeIds.size).toBe(20);
-    expect(totalQuestions).toBe(60);
+    expect(episodeIds.size).toBe(40);
+    expect(totalQuestions).toBe(120);
 
     // Sequential Episode Unlock + One-Time +40 Chest
     const firstSeries = BUILTIN_CHAPTER_SERIES[0];
@@ -193,12 +193,12 @@ describe('Phase 3C Layer 1: Star Sea Fishing Engine, Shared 150-Token Arcade Cap
     expect(snap.completedRadicalsCount).toBe(2);
     expect(snap.totalRadicalsCount).toBe(24);
     expect(snap.completedChapterEpisodesCount).toBe(5);
-    expect(snap.totalChapterEpisodesCount).toBe(20);
+    expect(snap.totalChapterEpisodesCount).toBe(40);
     expect(snap.completedChapterSeriesCount).toBe(1);
 
     const reportText = formatWeeklyReportText(enriched);
     expect(reportText).toContain('中文偏旁工廠：2 / 24 家族');
-    expect(reportText).toContain('章節微小說：5 / 20 集');
+    expect(reportText).toContain('章節微小說：5 / 40 集');
 
     const restored = importPlayerStateJson(exportPlayerStateJson(enriched));
     expect(restored.ok).toBe(true);

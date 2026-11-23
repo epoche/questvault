@@ -338,6 +338,13 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
           new Set(obj.completedBarModelIds.filter((id): id is string => typeof id === 'string')),
         )
       : [],
+    completedSentencePatternIds: Array.isArray(obj.completedSentencePatternIds)
+      ? Array.from(
+          new Set(
+            obj.completedSentencePatternIds.filter((id): id is string => typeof id === 'string'),
+          ),
+        )
+      : [],
     ...(() => {
       if (!isRecord(obj.mathFactMastery)) return {};
       const cleaned: NonNullable<PlayerState['mathFactMastery']> = {};

@@ -42,6 +42,12 @@ export default defineConfig({
                   return 'subject-english-phase4';
                 }
                 if (id.includes('/src/subjects/english/')) return 'subject-english';
+                if (
+                  id.includes('/src/subjects/chinese/sentencePattern') ||
+                  id.includes('/src/subjects/chinese/chapterStoriesSeason2')
+                ) {
+                  return 'subject-chinese-phase5';
+                }
                 if (id.includes('/src/subjects/chinese/chapterStories')) return 'subject-chinese-chapters';
                 if (
                   id.includes('/src/subjects/chinese/measureSets') ||

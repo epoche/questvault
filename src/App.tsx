@@ -49,6 +49,7 @@ import { customChineseRecordToWordSet } from './subjects/chinese/chineseCustomPa
 import { CHINESE_PLACEMENT_BONUS_TOKENS } from './subjects/chinese/chinesePlacement';
 import type { MeasureIdiomSet } from './subjects/chinese/measureIdiomSets';
 import type { RadicalFamily } from './subjects/chinese/radicalFamilies';
+import type { SentencePatternSet } from './subjects/chinese/sentencePatternTypes';
 import type { ChineseWordSet } from './subjects/chinese/types';
 import { customRecordToWordSet } from './subjects/english/customParser';
 import { PLACEMENT_BONUS_TOKENS } from './subjects/english/placement';
@@ -126,6 +127,10 @@ import {
 import { type ReadingCompletionPayload, ReadingRunView } from './ui/views/ReadingRunView';
 import { type RunCompletionPayload, RunView } from './ui/views/RunView';
 import {
+  type SentencePatternCompletionPayload,
+  SentencePatternView,
+} from './ui/views/SentencePatternView';
+import {
   type SpellingBeeCompletionPayload,
   SpellingBeeView,
 } from './ui/views/SpellingBeeView';
@@ -153,6 +158,8 @@ export const App: React.FC = () => {
   const [activeChineseListening, setActiveChineseListening] = useState(false);
   const [activeRadicalFamily, setActiveRadicalFamily] = useState<RadicalFamily | null>(null);
   const [activeMeasureSet, setActiveMeasureSet] = useState<MeasureIdiomSet | null>(null);
+  const [activeSentencePatternSet, setActiveSentencePatternSet] =
+    useState<SentencePatternSet | null>(null);
   const [activeChapterSeries, setActiveChapterSeries] = useState<ChapterSeries | null>(null);
   const [activeReadingSet, setActiveReadingSet] = useState<ReadingQuestSet | null>(null);
   const [placementSubject, setPlacementSubject] = useState<SubjectId | null>(null);
@@ -187,6 +194,7 @@ export const App: React.FC = () => {
       activeChineseListening ||
       activeRadicalFamily ||
       activeMeasureSet ||
+      activeSentencePatternSet ||
       activeChapterSeries ||
       activeReadingSet ||
       placementSubject ||
@@ -222,6 +230,7 @@ export const App: React.FC = () => {
     activeChineseListening,
     activeRadicalFamily,
     activeMeasureSet,
+    activeSentencePatternSet,
     activeChapterSeries,
     activeReadingSet,
     placementSubject,
@@ -245,6 +254,7 @@ export const App: React.FC = () => {
     setActiveChineseListening(false);
     setActiveRadicalFamily(null);
     setActiveMeasureSet(null);
+    setActiveSentencePatternSet(null);
     setActiveChapterSeries(null);
     setActiveReadingSet(null);
     setPlacementSubject(null);
@@ -1194,6 +1204,49 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleCompleteSentencePattern = (payload: SentencePatternCompletionPayload) => {
+    setPlayer((prev) => {
+      const todayKeyNow = getLocalDateKey();
+      const prevPatterns = prev.completedSentencePatternIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.setId,
+        kind: 'static',
+        subjectId: 'chinese',
+        todayKey: todayKeyNow,
+        completedIds: prevPatterns,
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.tokensEarned,
+        policy.multiplier,
+      );
+      const nextPatterns = prevPatterns.includes(payload.setId)
+        ? prevPatterns
+        : [...prevPatterns, payload.setId];
+
+      const summary = {
+        id: `zh-sp-${Date.now()}`,
+        subjectId: 'chinese' as const,
+        questSetId: payload.setId,
+        questSetTitle: `句型魔方：${payload.setTitle}`,
+        tokensEarned: awardedTokens,
+        maxCombo: payload.maxCombo,
+        accuracyPct: payload.accuracyPct,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + awardedTokens,
+        completedSentencePatternIds: nextPatterns,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.setId, todayKeyNow),
+        'chinese',
+        todayKeyNow,
+      );
+    });
+  };
+
   const handleSaveCustomSet = (record: CustomWordSetRecord) => {
     setPlayer((prev) => ({
       ...prev,
@@ -1685,6 +1738,28 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeSentencePatternSet ? (
+            <SentencePatternView
+              key={activeSentencePatternSet.id}
+              questSet={activeSentencePatternSet}
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              showZhuyin={showZhuyin}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeSentencePatternSet.id,
+                kind: 'static',
+                subjectId: 'chinese',
+                todayKey,
+                completedIds: player.completedSentencePatternIds ?? [],
+              })}
+              onToggleZhuyin={handleToggleZhuyin}
+              onComplete={handleCompleteSentencePattern}
+              onExit={() => setActiveSentencePatternSet(null)}
+              onGoToMarket={() => {
+                setActiveSentencePatternSet(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeChineseListening ? (
             <ChineseListeningView
               tier={player.subjectTiers?.chinese ?? 2}
@@ -1721,6 +1796,7 @@ export const App: React.FC = () => {
               onStartChineseListening={() => setActiveChineseListening(true)}
               onStartRadicalFamily={(fam) => setActiveRadicalFamily(fam)}
               onStartMeasureIdiomSet={(set) => setActiveMeasureSet(set)}
+              onStartSentencePatternSet={(set) => setActiveSentencePatternSet(set)}
               onStartChapterSeries={(series) => setActiveChapterSeries(series)}
               onStartReadingRun={(set) => setActiveReadingSet(set)}
               onOpenCustomImporter={(subj) => setImporterSubject(subj)}

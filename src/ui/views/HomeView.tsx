@@ -58,6 +58,10 @@ import {
   type RadicalFamily,
 } from '../../subjects/chinese/radicalFamilies';
 import { getChineseReadingByTier } from '../../subjects/chinese/readingQuests';
+import {
+  getSentencePatternSetsByTier,
+  type SentencePatternSet,
+} from '../../subjects/chinese/sentencePatternSets';
 import type { ChineseWordSet } from '../../subjects/chinese/types';
 import {
   BUILTIN_CHINESE_SETS,
@@ -123,6 +127,7 @@ interface HomeViewProps {
   onStartChineseListening: () => void;
   onStartRadicalFamily: (family: RadicalFamily) => void;
   onStartMeasureIdiomSet: (set: MeasureIdiomSet) => void;
+  onStartSentencePatternSet?: (set: SentencePatternSet) => void;
   onStartChapterSeries: (series: ChapterSeries) => void;
   onStartReadingRun: (questSet: ReadingQuestSet) => void;
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
@@ -168,6 +173,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartChineseListening,
   onStartRadicalFamily,
   onStartMeasureIdiomSet,
+  onStartSentencePatternSet,
   onStartChapterSeries,
   onStartReadingRun,
   onOpenCustomImporter,
@@ -183,6 +189,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     | 'enChapters'
     | 'radicals'
     | 'measures'
+    | 'patterns'
     | 'chapters'
     | 'barModels'
   >('words');
@@ -202,6 +209,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         : activeSubjectId === 'english' &&
             (questMode === 'radicals' ||
               questMode === 'measures' ||
+              questMode === 'patterns' ||
               questMode === 'chapters' ||
               questMode === 'barModels')
           ? 'words'
@@ -259,6 +267,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const zhSets = getChineseSetsByTier(activeTier);
   const zhRadicalFamilies = getRadicalFamiliesByTier(activeTier);
   const zhMeasureIdiomSets = getMeasureIdiomSetsByTier(activeTier);
+  const zhSentencePatterns = getSentencePatternSetsByTier(activeTier);
   const enReadingSets = getEnglishReadingByTier(activeTier);
   const zhReadingSets = getChineseReadingByTier(activeTier);
 
@@ -893,6 +902,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <Ruler className="h-4 w-4 text-[#4F46E5]" />
                   <span>量詞與成語 ({zhMeasureIdiomSets.length})</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setQuestMode('patterns')}
+                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                    effectiveQuestMode === 'patterns'
+                      ? 'bg-white text-[#1C1917] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4 text-[#EA580C]" />
+                  <span>句型魔方 ({zhSentencePatterns.length})</span>
+                </button>
               </>
             )}
             <button
@@ -1331,6 +1352,66 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         5 題挑戰
                       </span>
                     </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Phase 5C: Chinese Sentence Pattern Lab Grid */}
+        {activeSubjectId === 'chinese' && effectiveQuestMode === 'patterns' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {zhSentencePatterns.map((sp) => {
+              const done = (player.completedSentencePatternIds ?? []).includes(sp.id);
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: sp.id,
+                kind: 'static',
+                subjectId: 'chinese',
+                todayKey,
+                completedIds: player.completedSentencePatternIds ?? [],
+              });
+              return (
+                <button
+                  key={sp.id}
+                  type="button"
+                  onClick={() => onStartSentencePatternSet?.(sp)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: sp.bgHex }}
+                  >
+                    <CollectibleArt
+                      id={sp.emblemCollectibleId}
+                      size={60}
+                      className="border-2 border-[#1C1917]"
+                    />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: sp.accentHex }}
+                      >
+                        🧱 {sp.patternBadge}
+                      </span>
+                      {done ? (
+                        renderDoneRewardBadge(policy, true, '已過關')
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
+                          <Coins className="h-3.5 w-3.5" />
+                          +35–50
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2">
+                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
+                      {sp.title}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">{sp.subtitle}</p>
+                    <p className="text-[11px] font-extrabold text-[#EA580C]">
+                      ✨ 關聯詞填空 ＋ 句型積木重組（5 題雙關卡）
+                    </p>
                   </div>
                 </button>
               );

@@ -209,6 +209,7 @@ export interface PlayerState {
   completedEnglishChapterIds?: string[];
   claimedEnglishChapterSeriesIds?: string[];
   completedBarModelIds?: string[];
+  completedSentencePatternIds?: string[];
   completedChapterEpisodeIds?: string[];
   claimedChapterSeriesIds?: string[];
   claimedAchievementIds?: string[];

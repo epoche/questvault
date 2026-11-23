@@ -1,5 +1,7 @@
 import { CHAPTER_SERIES_PART1 } from './chapterStoriesPart1';
 import { CHAPTER_SERIES_PART2 } from './chapterStoriesPart2';
+import { CHAPTER_SERIES_SEASON2_PART1 } from './chapterStoriesSeason2Part1';
+import { CHAPTER_SERIES_SEASON2_PART2 } from './chapterStoriesSeason2Part2';
 import {
   CHAPTER_EPISODE_BASE_TOKENS,
   CHAPTER_EPISODE_PERFECT_BONUS,
@@ -23,6 +25,8 @@ export type {
 export const BUILTIN_CHAPTER_SERIES: ChapterSeries[] = [
   ...CHAPTER_SERIES_PART1,
   ...CHAPTER_SERIES_PART2,
+  ...CHAPTER_SERIES_SEASON2_PART1,
+  ...CHAPTER_SERIES_SEASON2_PART2,
 ];
 
 export function getChapterSeriesById(id: string): ChapterSeries | undefined {

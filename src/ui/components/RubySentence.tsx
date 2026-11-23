@@ -43,7 +43,11 @@ export const RubySentence: React.FC<RubySentenceProps> = ({
     if (CJK_CHAR_RE.test(ch)) {
       groups.push({ ch, syl: syllables[sylIdx], trailing: '' });
       sylIdx += 1;
-    } else if (TRAILING_PUNCT_RE.test(ch) && groups.length > 0) {
+    } else if (
+      TRAILING_PUNCT_RE.test(ch) &&
+      groups.length > 0 &&
+      Boolean(groups[groups.length - 1].syl)
+    ) {
       groups[groups.length - 1].trailing += ch;
     } else {
       groups.push({ ch, trailing: '' });
@@ -68,6 +72,7 @@ export const RubySentence: React.FC<RubySentenceProps> = ({
         ) : (
           <span key={`p-${idx}`} className="leading-none">
             {g.ch}
+            {g.trailing}
           </span>
         ),
       )}

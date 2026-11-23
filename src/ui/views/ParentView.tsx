@@ -768,11 +768,11 @@ export const ParentView: React.FC<ParentViewProps> = ({
             <div className="text-xs font-bold text-[#0F766E]">🧩 中文偏旁・量詞 & ⚡ 數學專訓</div>
             <div className="mt-1 font-display text-base font-extrabold text-[#115E59] tabular-nums">
               偏旁 {snapshot.completedRadicalsCount}/{snapshot.totalRadicalsCount} · 量詞{' '}
-              {(player.completedMeasureIds ?? []).length}/24 · 圖解{' '}
-              {(player.completedBarModelIds ?? []).length}/8
+              {(player.completedMeasureIds ?? []).length}/24 · 句型{' '}
+              {(player.completedSentencePatternIds ?? []).length}/16
             </div>
             <div className="mt-0.5 text-[11px] font-semibold text-[#0F766E] tabular-nums">
-              12×12 心算熱力圖精熟{' '}
+              數學圖解 {(player.completedBarModelIds ?? []).length}/8 · 12×12 心算精熟{' '}
               {(() => {
                 let m = 0;
                 for (let a = 2; a <= 12; a += 1) {
@@ -784,7 +784,7 @@ export const ParentView: React.FC<ParentViewProps> = ({
                 }
                 return m;
               })()}
-              /121 格 · 解鎖 {snapshot.completedRadicalsCount * 5} 偏旁字
+              /121 格
             </div>
           </div>
 
