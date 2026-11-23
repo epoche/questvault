@@ -180,6 +180,8 @@ export interface PlayerState {
   lastActiveDate?: string;
   blitzHighScores?: Partial<Record<SubjectId, number>>;
   blitzDailyTokens?: BlitzDailyTokens;
+  cafeHighScores?: Partial<Record<SubjectId, number>>;
+  arcadeDailyTokens?: BlitzDailyTokens;
   showZhuyin?: boolean;
   muted: boolean;
 }

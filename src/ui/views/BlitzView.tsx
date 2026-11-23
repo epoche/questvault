@@ -12,16 +12,10 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import { type ArcadeQuestion, generateArcadeQuestion } from '../../core/arcadeQuestions';
 import { audioService } from '../../core/audio';
 import { BLITZ_DAILY_TOKEN_CAP } from '../../core/economy';
 import type { DifficultyTier, SubjectId } from '../../core/types';
-import type { ChineseTargetWord } from '../../subjects/chinese/types';
-import { BUILTIN_CHINESE_SETS } from '../../subjects/chinese/wordSets';
-import type { TargetWord } from '../../subjects/english/types';
-import { BUILTIN_WORD_SETS } from '../../subjects/english/wordSets';
-import { generateDynamicMathItem } from '../../subjects/math/mathGenerator';
-import { BUILTIN_MATH_SETS } from '../../subjects/math/questSets';
-import type { MathVisualSpec } from '../../subjects/math/types';
 import { CollectibleArt } from '../artwork/CollectibleArt';
 import { MathVisual } from '../artwork/MathVisual';
 import { RubyWord } from '../components/RubyWord';
@@ -49,18 +43,7 @@ interface BlitzViewProps {
   onGoToMarket: () => void;
 }
 
-interface BlitzQuestion {
-  id: string;
-  prompt: string;
-  subHint?: string;
-  speakText?: string;
-  speakLang?: 'en-US' | 'zh-TW';
-  visual?: MathVisualSpec;
-  revealVisualOnFeedback?: boolean;
-  correctAnswer: string;
-  choices: { label: string; zhuyin?: string }[];
-  explanation: string;
-}
+type BlitzQuestion = ArcadeQuestion;
 
 const BLITZ_DURATION_SEC = 60;
 
@@ -71,126 +54,8 @@ const CHOICE_STYLES = [
   { bg: '#059669', border: '#065F46', shape: '■' },
 ];
 
-function shuffle<T>(arr: T[]): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
-function buildEnglishBlitzQuestion(activeTier: DifficultyTier, seq: number): BlitzQuestion {
-  const allSets = BUILTIN_WORD_SETS;
-  const preferredSets = allSets.filter((s) => Math.abs(s.tier - activeTier) <= 1);
-  const chosenSet =
-    preferredSets.length > 0 && Math.random() < 0.78
-      ? preferredSets[Math.floor(Math.random() * preferredSets.length)]
-      : allSets[Math.floor(Math.random() * allSets.length)];
-
-  const target: TargetWord = chosenSet.words[Math.floor(Math.random() * chosenSet.words.length)];
-  const allWords = allSets.flatMap((s) => s.words);
-
-  const picked: string[] = [];
-  const tryPush = (pool: TargetWord[]) => {
-    for (const w of shuffle(pool)) {
-      if (picked.length >= 3) break;
-      if (w.word.toLowerCase() === target.word.toLowerCase()) continue;
-      if (picked.some((p) => p.toLowerCase() === w.word.toLowerCase())) continue;
-      picked.push(w.word);
-    }
-  };
-
-  if (target.partOfSpeech === 'word') {
-    tryPush(chosenSet.words);
-  } else {
-    tryPush(chosenSet.words.filter((w) => w.partOfSpeech === target.partOfSpeech));
-    tryPush(allWords.filter((w) => w.partOfSpeech === target.partOfSpeech && Math.abs(w.tier - target.tier) <= 1));
-    tryPush(allWords.filter((w) => w.partOfSpeech === target.partOfSpeech));
-  }
-  if (picked.length < 3) tryPush(allWords);
-
-  const promptText = target.sprintSentence ?? target.contextSentence;
-  return {
-    id: `en-blitz-${seq}-${target.word}`,
-    prompt: promptText,
-    subHint: `Hint: ${target.plainBridge}`,
-    speakText: promptText.replace(/___/g, 'blank'),
-    speakLang: 'en-US',
-    correctAnswer: target.word,
-    choices: shuffle([target.word, ...picked]).map((w) => ({ label: w })),
-    explanation: `"${target.word}" means ${target.plainBridge} (${target.definition}).`,
-  };
-}
-
-function buildMathBlitzQuestion(activeTier: DifficultyTier, seq: number): BlitzQuestion {
-  const preferredSets = BUILTIN_MATH_SETS.filter((s) => Math.abs(s.tier - activeTier) <= 1);
-  const chosenSet =
-    preferredSets.length > 0 && Math.random() < 0.8
-      ? preferredSets[Math.floor(Math.random() * preferredSets.length)]
-      : BUILTIN_MATH_SETS[Math.floor(Math.random() * BUILTIN_MATH_SETS.length)];
-
-  const baseSkill = chosenSet.items[Math.floor(Math.random() * chosenSet.items.length)];
-  const dynamic = generateDynamicMathItem(baseSkill);
-
-  return {
-    id: `math-blitz-${seq}-${dynamic.id}`,
-    prompt: dynamic.sprintPrompt,
-    subHint: `${chosenSet.title} · Tier ${dynamic.tier}`,
-    visual: dynamic.sprintVisual,
-    revealVisualOnFeedback: dynamic.revealVisualOnFeedback,
-    correctAnswer: dynamic.correctAnswer,
-    choices: shuffle([dynamic.correctAnswer, ...dynamic.distractors]).map((c) => ({ label: c })),
-    explanation: dynamic.explanation,
-  };
-}
-
-function buildChineseBlitzQuestion(activeTier: DifficultyTier, seq: number): BlitzQuestion {
-  const preferredSets = BUILTIN_CHINESE_SETS.filter((s) => Math.abs(s.tier - activeTier) <= 1);
-  const chosenSet =
-    preferredSets.length > 0 && Math.random() < 0.78
-      ? preferredSets[Math.floor(Math.random() * preferredSets.length)]
-      : BUILTIN_CHINESE_SETS[Math.floor(Math.random() * BUILTIN_CHINESE_SETS.length)];
-
-  const target: ChineseTargetWord =
-    chosenSet.words[Math.floor(Math.random() * chosenSet.words.length)];
-  const allWords = BUILTIN_CHINESE_SETS.flatMap((s) => s.words);
-
-  const picked: { label: string; zhuyin: string }[] = [];
-  const tryPush = (pool: ChineseTargetWord[]) => {
-    for (const w of shuffle(pool)) {
-      if (picked.length >= 3) break;
-      if (w.word === target.word) continue;
-      if (picked.some((p) => p.label === w.word)) continue;
-      picked.push({ label: w.word, zhuyin: w.zhuyin });
-    }
-  };
-
-  if (target.partOfSpeech === 'word') {
-    tryPush(chosenSet.words);
-  } else {
-    tryPush(chosenSet.words.filter((w) => w.partOfSpeech === target.partOfSpeech));
-    tryPush(allWords.filter((w) => w.partOfSpeech === target.partOfSpeech && Math.abs(w.tier - target.tier) <= 1));
-    tryPush(allWords.filter((w) => w.partOfSpeech === target.partOfSpeech));
-  }
-  if (picked.length < 3) tryPush(allWords);
-
-  return {
-    id: `zh-blitz-${seq}-${target.word}`,
-    prompt: target.sprintSentence,
-    subHint: `${target.englishBridge} · ${target.plainBridge}`,
-    speakText: target.sprintSentence.replace(/___/g, '什麼'),
-    speakLang: 'zh-TW',
-    correctAnswer: target.word,
-    choices: shuffle([{ label: target.word, zhuyin: target.zhuyin }, ...picked]),
-    explanation: `「${target.word}」＝ ${target.plainBridge}（${target.englishBridge}）`,
-  };
-}
-
 function generateQuestion(subjectId: SubjectId, activeTier: DifficultyTier, seq: number): BlitzQuestion {
-  if (subjectId === 'math') return buildMathBlitzQuestion(activeTier, seq);
-  if (subjectId === 'chinese') return buildChineseBlitzQuestion(activeTier, seq);
-  return buildEnglishBlitzQuestion(activeTier, seq);
+  return generateArcadeQuestion(subjectId, activeTier, seq);
 }
 
 export const BlitzView: React.FC<BlitzViewProps> = ({

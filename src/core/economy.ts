@@ -15,6 +15,7 @@ export const FUSE_COPIES_REQUIRED = 5;
 export const MAX_FAVORITE_COLLECTIBLES = 6;
 export const DAILY_TRI_SUBJECT_BONUS = 30;
 export const BLITZ_DAILY_TOKEN_CAP = 120;
+export const ARCADE_DAILY_TOKEN_CAP = 150;
 const MAX_COMBO_BONUS = 5;
 
 export const STAR_DUST_MELT_VALUE: Record<Rarity, number> = {
@@ -343,7 +344,12 @@ export function awardBlitzSessionRewards(
 ): { state: PlayerState; tokensAwarded: number; remainingDailyCap: number } {
   const prevDaily =
     state.blitzDailyTokens?.dateKey === todayKey ? state.blitzDailyTokens.earned : 0;
-  const remainingBefore = Math.max(0, BLITZ_DAILY_TOKEN_CAP - prevDaily);
+  const remainingBlitz = Math.max(0, BLITZ_DAILY_TOKEN_CAP - prevDaily);
+  const remainingArcade = Math.max(
+    0,
+    ARCADE_DAILY_TOKEN_CAP - getTodayArcadeTokensEarned(state, todayKey),
+  );
+  const remainingBefore = Math.min(remainingBlitz, remainingArcade);
   const safeEarned = Math.max(0, Math.floor(rawTokensEarned));
   const tokensAwarded = Math.min(remainingBefore, safeEarned);
   const prevBest = state.blitzHighScores?.[subjectId] ?? 0;
@@ -361,6 +367,45 @@ export function awardBlitzSessionRewards(
       blitzDailyTokens: {
         dateKey: todayKey,
         earned: prevDaily + tokensAwarded,
+      },
+    },
+  };
+}
+
+export function getTodayArcadeTokensEarned(state: PlayerState, todayKey: string): number {
+  const blitz = state.blitzDailyTokens?.dateKey === todayKey ? state.blitzDailyTokens.earned : 0;
+  const arcade = state.arcadeDailyTokens?.dateKey === todayKey ? state.arcadeDailyTokens.earned : 0;
+  return blitz + arcade;
+}
+
+export function awardCafeSessionRewards(
+  state: PlayerState,
+  subjectId: 'english' | 'math' | 'chinese',
+  coinsScore: number,
+  rawTokensEarned: number,
+  todayKey: string,
+): { state: PlayerState; tokensAwarded: number; remainingDailyCap: number } {
+  const earnedSoFar = getTodayArcadeTokensEarned(state, todayKey);
+  const remainingBefore = Math.max(0, ARCADE_DAILY_TOKEN_CAP - earnedSoFar);
+  const safeEarned = Math.max(0, Math.floor(rawTokensEarned));
+  const tokensAwarded = Math.min(remainingBefore, safeEarned);
+  const prevBest = state.cafeHighScores?.[subjectId] ?? 0;
+  const prevArcade =
+    state.arcadeDailyTokens?.dateKey === todayKey ? state.arcadeDailyTokens.earned : 0;
+
+  return {
+    tokensAwarded,
+    remainingDailyCap: Math.max(0, remainingBefore - tokensAwarded),
+    state: {
+      ...state,
+      tokens: state.tokens + tokensAwarded,
+      cafeHighScores: {
+        ...state.cafeHighScores,
+        [subjectId]: Math.max(prevBest, Math.max(0, Math.floor(coinsScore))),
+      },
+      arcadeDailyTokens: {
+        dateKey: todayKey,
+        earned: prevArcade + tokensAwarded,
       },
     },
   };

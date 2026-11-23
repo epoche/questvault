@@ -3,10 +3,12 @@ import { MotionConfig } from 'motion/react';
 import { audioService } from './core/audio';
 import {
   awardBlitzSessionRewards,
+  awardCafeSessionRewards,
   claimDailyTriSubjectReward,
   craftShinyCollectible,
   equipCollectibleAvatar,
   fuseFiveDuplicatesUp,
+  getTodayArcadeTokensEarned,
   meltDuplicateForStarDust,
   openMysteryPack,
   recordDailySubjectCompletion,
@@ -42,6 +44,7 @@ import {
 } from './ui/components/PackOpeningModal';
 import { type NavTab, TopBar } from './ui/components/TopBar';
 import { type BlitzCompletionPayload, BlitzView } from './ui/views/BlitzView';
+import { type CafeCompletionPayload, CafeGameView } from './ui/views/CafeGameView';
 import {
   type ChineseListeningCompletionPayload,
   ChineseListeningView,
@@ -73,6 +76,7 @@ export const App: React.FC = () => {
   const [activeReadingSet, setActiveReadingSet] = useState<ReadingQuestSet | null>(null);
   const [placementSubject, setPlacementSubject] = useState<SubjectId | null>(null);
   const [activeBlitzSubject, setActiveBlitzSubject] = useState<SubjectId | null>(null);
+  const [activeCafeSubject, setActiveCafeSubject] = useState<SubjectId | null>(null);
   const [parentOpen, setParentOpen] = useState(false);
 
   const [activePull, setActivePull] = useState<PackPullViewData | null>(null);
@@ -95,6 +99,7 @@ export const App: React.FC = () => {
       activeReadingSet ||
       placementSubject ||
       activeBlitzSubject ||
+      activeCafeSubject ||
       parentOpen,
   );
 
@@ -118,6 +123,7 @@ export const App: React.FC = () => {
     activeReadingSet,
     placementSubject,
     activeBlitzSubject,
+    activeCafeSubject,
     parentOpen,
   ]);
 
@@ -129,6 +135,7 @@ export const App: React.FC = () => {
     setActiveReadingSet(null);
     setPlacementSubject(null);
     setActiveBlitzSubject(null);
+    setActiveCafeSubject(null);
     setParentOpen(false);
   };
 
@@ -247,26 +254,37 @@ export const App: React.FC = () => {
     payload: BlitzCompletionPayload,
   ): { tokensAwarded: number; remainingDailyCap: number } => {
     const todayKey = getLocalDateKey();
-    const preview = awardBlitzSessionRewards(
-      player,
+    const res = awardBlitzSessionRewards(
+      playerRef.current,
       payload.subjectId,
       payload.score,
       payload.rawTokensEarned,
       todayKey,
     );
-    setPlayer((prev) => {
-      const updated = awardBlitzSessionRewards(
-        prev,
-        payload.subjectId,
-        payload.score,
-        payload.rawTokensEarned,
-        todayKey,
-      );
-      return updated.state;
-    });
+    playerRef.current = res.state;
+    setPlayer(res.state);
     return {
-      tokensAwarded: preview.tokensAwarded,
-      remainingDailyCap: preview.remainingDailyCap,
+      tokensAwarded: res.tokensAwarded,
+      remainingDailyCap: res.remainingDailyCap,
+    };
+  };
+
+  const handleCompleteCafe = (
+    payload: CafeCompletionPayload,
+  ): { tokensAwarded: number; remainingDailyCap: number } => {
+    const todayKey = getLocalDateKey();
+    const res = awardCafeSessionRewards(
+      playerRef.current,
+      payload.subjectId,
+      payload.coinsScore,
+      payload.rawTokensEarned,
+      todayKey,
+    );
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    return {
+      tokensAwarded: res.tokensAwarded,
+      remainingDailyCap: res.remainingDailyCap,
     };
   };
 
@@ -553,6 +571,29 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeCafeSubject ? (
+            <CafeGameView
+              subjectId={activeCafeSubject}
+              activeTier={
+                player.subjectTiers?.[activeCafeSubject] ??
+                (activeCafeSubject === 'english' ? player.activeTier : 2)
+              }
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              vault={player.vault}
+              shinyVault={player.shinyVault}
+              favoriteCollectibleIds={player.favoriteCollectibleIds}
+              highScore={player.cafeHighScores?.[activeCafeSubject] ?? 0}
+              arcadeTokensEarnedToday={getTodayArcadeTokensEarned(player, todayKey)}
+              showZhuyin={showZhuyin}
+              onToggleZhuyin={handleToggleZhuyin}
+              onCompleteCafe={handleCompleteCafe}
+              onExit={() => setActiveCafeSubject(null)}
+              onGoToMarket={() => {
+                setActiveCafeSubject(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeBlitzSubject ? (
             <BlitzView
               subjectId={activeBlitzSubject}
@@ -669,6 +710,7 @@ export const App: React.FC = () => {
               onToggleZhuyin={handleToggleZhuyin}
               onStartPlacement={() => setPlacementSubject(activeSubjectId)}
               onStartBlitz={(subj) => setActiveBlitzSubject(subj)}
+              onStartCafe={(subj) => setActiveCafeSubject(subj)}
               onClaimDailyQuest={handleClaimDailyQuest}
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
               onStartMathRun={(set) => setActiveMathSet(set)}

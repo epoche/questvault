@@ -126,6 +126,29 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     };
   }
 
+  const sanitizedCafeHighScores: Partial<Record<'english' | 'math' | 'chinese', number>> = {};
+  if (isRecord(obj.cafeHighScores)) {
+    for (const subj of ['english', 'math', 'chinese'] as const) {
+      const sc = obj.cafeHighScores[subj];
+      if (typeof sc === 'number' && Number.isFinite(sc) && sc >= 0) {
+        sanitizedCafeHighScores[subj] = Math.floor(sc);
+      }
+    }
+  }
+
+  let sanitizedArcadeDailyTokens: PlayerState['arcadeDailyTokens'] = undefined;
+  if (
+    isRecord(obj.arcadeDailyTokens) &&
+    typeof obj.arcadeDailyTokens.dateKey === 'string' &&
+    typeof obj.arcadeDailyTokens.earned === 'number' &&
+    Number.isFinite(obj.arcadeDailyTokens.earned)
+  ) {
+    sanitizedArcadeDailyTokens = {
+      dateKey: obj.arcadeDailyTokens.dateKey,
+      earned: Math.max(0, Math.floor(obj.arcadeDailyTokens.earned)),
+    };
+  }
+
   const activeSubjectId =
     obj.activeSubjectId === 'english' ||
     obj.activeSubjectId === 'math' ||
@@ -228,6 +251,8 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     ...(typeof obj.lastActiveDate === 'string' ? { lastActiveDate: obj.lastActiveDate } : {}),
     blitzHighScores: sanitizedBlitzHighScores,
     ...(sanitizedBlitzDailyTokens ? { blitzDailyTokens: sanitizedBlitzDailyTokens } : {}),
+    cafeHighScores: sanitizedCafeHighScores,
+    ...(sanitizedArcadeDailyTokens ? { arcadeDailyTokens: sanitizedArcadeDailyTokens } : {}),
     showZhuyin: Boolean(obj.showZhuyin),
     muted: Boolean(obj.muted),
   };

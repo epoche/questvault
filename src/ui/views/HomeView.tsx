@@ -5,6 +5,7 @@ import {
   Brain,
   Calculator,
   CheckCircle2,
+  ChefHat,
   Coins,
   Flame,
   Gift,
@@ -62,6 +63,7 @@ interface HomeViewProps {
   onToggleZhuyin: () => void;
   onStartPlacement: () => void;
   onStartBlitz: (subjectId: SubjectId) => void;
+  onStartCafe: (subjectId: SubjectId) => void;
   onClaimDailyQuest: () => void;
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartMathRun: (questSet: MathQuestSet) => void;
@@ -95,6 +97,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onToggleZhuyin,
   onStartPlacement,
   onStartBlitz,
+  onStartCafe,
   onClaimDailyQuest,
   onStartEnglishRun,
   onStartMathRun,
@@ -274,6 +277,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
               >
                 <Zap className="h-4 w-4 fill-current" />
                 <span>{activeSubjectId === 'chinese' ? '60秒無盡衝分' : '60s Blitz'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onStartCafe(activeSubjectId)}
+                className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#EA580C] px-4 py-3 font-display text-sm font-extrabold text-white"
+                style={{ borderBottomColor: '#9A3412' }}
+              >
+                <ChefHat className="h-4 w-4" />
+                <span>{activeSubjectId === 'chinese' ? 'Boba Café 小店' : 'Boba Café'}</span>
               </button>
 
               {activeSubjectId === 'chinese' && (
