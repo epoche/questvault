@@ -1,0 +1,279 @@
+import { createInitialPlayerState } from './economy';
+import { getCollectibleById, STARTER_COLLECTIBLE_ID } from './packs';
+import type { PlayerState } from './types';
+
+export const STORAGE_KEY = 'questvault.player.v1';
+
+export interface KeyValueStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+export interface PlayerRepository {
+  load(): PlayerState;
+  save(state: PlayerState): void;
+}
+
+function sanitizePlayerState(raw: unknown): PlayerState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  if (obj.version !== 1 || typeof obj.tokens !== 'number' || !obj.vault || typeof obj.vault !== 'object') {
+    return null;
+  }
+
+  const base = createInitialPlayerState(
+    typeof obj.displayName === 'string' ? obj.displayName : 'Player',
+  );
+
+  const sanitizedVault: Record<string, number> = { [STARTER_COLLECTIBLE_ID]: 1 };
+  for (const [id, count] of Object.entries(obj.vault as Record<string, unknown>)) {
+    if (typeof count === 'number' && count > 0 && Number.isFinite(count) && getCollectibleById(id)) {
+      sanitizedVault[id] = Math.floor(count);
+    }
+  }
+
+  const equipped =
+    typeof obj.equippedCollectibleId === 'string' && (sanitizedVault[obj.equippedCollectibleId] ?? 0) > 0
+      ? obj.equippedCollectibleId
+      : STARTER_COLLECTIBLE_ID;
+
+  const safeTokens =
+    Number.isFinite(obj.tokens) && obj.tokens >= 0 ? Math.floor(obj.tokens) : base.tokens;
+
+  const isRecord = (v: unknown): v is Record<string, unknown> => Boolean(v && typeof v === 'object');
+  const rawTier = obj.activeTier;
+  const activeTier =
+    rawTier === 1 || rawTier === 2 || rawTier === 3 || rawTier === 4 ? rawTier : base.activeTier;
+
+  const sanitizedMastery: PlayerState['wordMastery'] = {};
+  if (isRecord(obj.wordMastery)) {
+    for (const [k, v] of Object.entries(obj.wordMastery)) {
+      if (
+        isRecord(v) &&
+        typeof v.word === 'string' &&
+        typeof v.seen === 'number' &&
+        typeof v.correctFirstTry === 'number' &&
+        typeof v.missed === 'number'
+      ) {
+        const recTier = v.tier === 1 || v.tier === 2 || v.tier === 3 || v.tier === 4 ? v.tier : 2;
+        const recSubject =
+          v.subjectId === 'english' || v.subjectId === 'math' || v.subjectId === 'chinese'
+            ? v.subjectId
+            : 'english';
+        sanitizedMastery[k] = {
+          word: v.word,
+          subjectId: recSubject,
+          tier: recTier,
+          seen: Math.max(0, Math.floor(v.seen)),
+          correctFirstTry: Math.max(0, Math.floor(v.correctFirstTry)),
+          missed: Math.max(0, Math.floor(v.missed)),
+          usedInWriting: typeof v.usedInWriting === 'number' ? Math.max(0, Math.floor(v.usedInWriting)) : 0,
+          lastSeenAt: typeof v.lastSeenAt === 'string' ? v.lastSeenAt : new Date().toISOString(),
+          ...(typeof v.lastMissedAt === 'string' ? { lastMissedAt: v.lastMissedAt } : {}),
+          ...(typeof v.srsLevel === 'number' && Number.isFinite(v.srsLevel)
+            ? { srsLevel: Math.max(0, Math.min(4, Math.floor(v.srsLevel))) }
+            : {}),
+          ...(typeof v.nextReviewAt === 'string' ? { nextReviewAt: v.nextReviewAt } : {}),
+        };
+      }
+    }
+  }
+
+  const sanitizedShinyVault: Record<string, boolean> = {};
+  if (isRecord(obj.shinyVault)) {
+    for (const [id, isShiny] of Object.entries(obj.shinyVault)) {
+      if (isShiny === true && (sanitizedVault[id] ?? 0) > 0 && getCollectibleById(id)) {
+        sanitizedShinyVault[id] = true;
+      }
+    }
+  }
+
+  let sanitizedDailyQuest: PlayerState['dailyQuest'] = undefined;
+  if (isRecord(obj.dailyQuest) && typeof obj.dailyQuest.dateKey === 'string') {
+    const rawSubs = Array.isArray(obj.dailyQuest.completedSubjects)
+      ? obj.dailyQuest.completedSubjects.filter(
+          (s): s is 'english' | 'math' | 'chinese' =>
+            s === 'english' || s === 'math' || s === 'chinese',
+        )
+      : [];
+    sanitizedDailyQuest = {
+      dateKey: obj.dailyQuest.dateKey,
+      completedSubjects: Array.from(new Set(rawSubs)),
+      rewardClaimed: Boolean(obj.dailyQuest.rewardClaimed),
+    };
+  }
+
+  const sanitizedBlitzHighScores: Partial<Record<'english' | 'math' | 'chinese', number>> = {};
+  if (isRecord(obj.blitzHighScores)) {
+    for (const subj of ['english', 'math', 'chinese'] as const) {
+      const sc = obj.blitzHighScores[subj];
+      if (typeof sc === 'number' && Number.isFinite(sc) && sc >= 0) {
+        sanitizedBlitzHighScores[subj] = Math.floor(sc);
+      }
+    }
+  }
+
+  let sanitizedBlitzDailyTokens: PlayerState['blitzDailyTokens'] = undefined;
+  if (
+    isRecord(obj.blitzDailyTokens) &&
+    typeof obj.blitzDailyTokens.dateKey === 'string' &&
+    typeof obj.blitzDailyTokens.earned === 'number' &&
+    Number.isFinite(obj.blitzDailyTokens.earned)
+  ) {
+    sanitizedBlitzDailyTokens = {
+      dateKey: obj.blitzDailyTokens.dateKey,
+      earned: Math.max(0, Math.floor(obj.blitzDailyTokens.earned)),
+    };
+  }
+
+  const activeSubjectId =
+    obj.activeSubjectId === 'english' ||
+    obj.activeSubjectId === 'math' ||
+    obj.activeSubjectId === 'chinese'
+      ? obj.activeSubjectId
+      : 'english';
+
+  const sanitizeTier = (val: unknown, fallback: 1 | 2 | 3 | 4): 1 | 2 | 3 | 4 =>
+    val === 1 || val === 2 || val === 3 || val === 4 ? val : fallback;
+
+  const rawSubjTiers = isRecord(obj.subjectTiers) ? obj.subjectTiers : {};
+  const subjectTiers = {
+    english: sanitizeTier(rawSubjTiers.english, activeTier),
+    math: sanitizeTier(rawSubjTiers.math, 2),
+    chinese: sanitizeTier(rawSubjTiers.chinese, 2),
+  };
+
+  const rawSubjPlacement = isRecord(obj.subjectPlacementCompleted)
+    ? obj.subjectPlacementCompleted
+    : {};
+  const subjectPlacementCompleted = {
+    english:
+      typeof rawSubjPlacement.english === 'boolean'
+        ? rawSubjPlacement.english
+        : Boolean(obj.placementCompleted),
+    math: Boolean(rawSubjPlacement.math),
+    chinese: Boolean(rawSubjPlacement.chinese),
+  };
+
+  const rawSubjBoss = isRecord(obj.subjectBossRematchDate) ? obj.subjectBossRematchDate : {};
+  const subjectBossRematchDate: Partial<Record<'english' | 'math' | 'chinese', string>> = {};
+  if (typeof rawSubjBoss.english === 'string') subjectBossRematchDate.english = rawSubjBoss.english;
+  else if (typeof obj.lastBossRematchDate === 'string') {
+    subjectBossRematchDate.english = obj.lastBossRematchDate;
+  }
+  if (typeof rawSubjBoss.math === 'string') subjectBossRematchDate.math = rawSubjBoss.math;
+  if (typeof rawSubjBoss.chinese === 'string') subjectBossRematchDate.chinese = rawSubjBoss.chinese;
+
+  return {
+    ...base,
+    tokens: safeTokens,
+    activeSubjectId,
+    activeTier: subjectTiers.english,
+    subjectTiers,
+    placementCompleted: subjectPlacementCompleted.english,
+    subjectPlacementCompleted,
+    equippedCollectibleId: equipped,
+    vault: sanitizedVault,
+    shinyVault: sanitizedShinyVault,
+    wordMastery: sanitizedMastery,
+    completedQuestSetIds: Array.isArray(obj.completedQuestSetIds)
+      ? obj.completedQuestSetIds.filter((id): id is string => typeof id === 'string')
+      : [],
+    runHistory: Array.isArray(obj.runHistory)
+      ? (obj.runHistory.filter(
+          (r) => isRecord(r) && typeof r.id === 'string' && typeof r.tokensEarned === 'number',
+        ) as PlayerState['runHistory'])
+      : [],
+    writingLog: Array.isArray(obj.writingLog)
+      ? (obj.writingLog.filter(
+          (w) => isRecord(w) && typeof w.id === 'string' && typeof w.sentence === 'string',
+        ) as PlayerState['writingLog'])
+      : [],
+    customWordSets: Array.isArray(obj.customWordSets)
+      ? (obj.customWordSets.filter(
+          (c) =>
+            isRecord(c) &&
+            typeof c.id === 'string' &&
+            typeof c.title === 'string' &&
+            Array.isArray(c.words),
+        ) as PlayerState['customWordSets'])
+      : [],
+    ...(typeof subjectBossRematchDate.english === 'string'
+      ? { lastBossRematchDate: subjectBossRematchDate.english }
+      : {}),
+    subjectBossRematchDate,
+    ...(sanitizedDailyQuest ? { dailyQuest: sanitizedDailyQuest } : {}),
+    streakDays:
+      typeof obj.streakDays === 'number' && Number.isFinite(obj.streakDays) && obj.streakDays >= 0
+        ? Math.floor(obj.streakDays)
+        : 0,
+    ...(typeof obj.lastActiveDate === 'string' ? { lastActiveDate: obj.lastActiveDate } : {}),
+    blitzHighScores: sanitizedBlitzHighScores,
+    ...(sanitizedBlitzDailyTokens ? { blitzDailyTokens: sanitizedBlitzDailyTokens } : {}),
+    showZhuyin: Boolean(obj.showZhuyin),
+    muted: Boolean(obj.muted),
+  };
+}
+
+export function exportPlayerStateJson(state: PlayerState): string {
+  return JSON.stringify(state, null, 2);
+}
+
+export function importPlayerStateJson(
+  rawJson: string,
+): { ok: true; state: PlayerState } | { ok: false; error: string } {
+  try {
+    const parsed = JSON.parse(rawJson);
+    const state = sanitizePlayerState(parsed);
+    if (!state) {
+      return { ok: false, error: 'That file does not look like a valid QuestVault backup.' };
+    }
+    return { ok: true, state };
+  } catch {
+    return { ok: false, error: 'Could not read that JSON backup file.' };
+  }
+}
+
+function resolveDefaultStorage(): KeyValueStorage | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const ls = window.localStorage;
+    if (!ls) return null;
+    // Probe access in case iframe sandbox blocks storage reads/writes
+    ls.getItem(STORAGE_KEY);
+    return ls;
+  } catch {
+    return null;
+  }
+}
+
+export function createLocalStorageRepository(
+  storage?: KeyValueStorage | null,
+): PlayerRepository {
+  const resolvedStorage: KeyValueStorage | null =
+    storage !== undefined ? storage : resolveDefaultStorage();
+  let memoryFallback: PlayerState | null = null;
+
+  return {
+    load(): PlayerState {
+      if (!resolvedStorage) return memoryFallback ?? createInitialPlayerState();
+      try {
+        const raw = resolvedStorage.getItem(STORAGE_KEY);
+        if (!raw) return createInitialPlayerState();
+        const imported = importPlayerStateJson(raw);
+        return imported.ok ? imported.state : createInitialPlayerState();
+      } catch {
+        return memoryFallback ?? createInitialPlayerState();
+      }
+    },
+    save(state: PlayerState): void {
+      memoryFallback = state;
+      if (!resolvedStorage) return;
+      try {
+        resolvedStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch {
+        // Ignore storage quota or sandbox errors cleanly
+      }
+    },
+  };
+}

@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+:root {
+  --qv-canvas: #faf7f2;
+  --qv-surface: #ffffff;
+  --qv-surface-subtle: #f3efe7;
+  --qv-ink: #1c1917;
+  --qv-ink-muted: #57534e;
+  --qv-border: #e7e2d8;
+  --qv-cobalt: #2563eb;
+  --qv-gold: #f59e0b;
+  --qv-emerald: #059669;
+  --qv-coral: #e11d48;
+  --qv-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+  background-color: var(--qv-canvas);
+  color: var(--qv-ink);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: var(--qv-canvas);
+  color: var(--qv-ink);
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-display {
+  font-family: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.025em;
+}
+
+::selection {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+input, textarea, select {
+  font-size: 16px;
+  caret-color: var(--qv-cobalt);
+}
+
+button, a, [role="button"] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+:focus-visible {
+  outline: 2.5px solid var(--qv-cobalt);
+  outline-offset: 2px;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tactile studio surface & press physics */
+.qv-surface {
+  background: var(--qv-surface);
+  border: 1.5px solid var(--qv-border);
+  box-shadow: 0 2px 0 #e5dfd3, 0 8px 24px -14px rgba(28, 25, 23, 0.14);
+}
+
+.qv-btn {
+  transition: transform 110ms var(--qv-ease-out), box-shadow 110ms var(--qv-ease-out), background-color 140ms ease;
+}
+
+.qv-btn:active:not(:disabled) {
+  transform: translateY(1.5px) scale(0.985);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .qv-hover-lift {
+    transition: transform 150ms var(--qv-ease-out), box-shadow 150ms var(--qv-ease-out), border-color 150ms ease;
+  }
+  .qv-hover-lift:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 0 #dcd4c5, 0 14px 28px -14px rgba(28, 25, 23, 0.18);
+  }
+}
+
+/* Iridescent Chroma foil accent — used exclusively for Chroma rarity */
+@keyframes qv-chroma-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.qv-chroma-bg {
+  background: linear-gradient(125deg, #ec4899, #8b5cf6, #06b6d4, #f59e0b, #ec4899);
+  background-size: 260% 260%;
+  animation: qv-chroma-shift 4.5s ease infinite;
+}
+
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d6cfc2;
+  border-radius: 999px;
+}
+
+@keyframes qv-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+.qv-float {
+  animation: qv-float 3.2s ease-in-out infinite;
+}
+
+@keyframes qv-hop {
+  0%, 100% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-12px) scale(1.06); }
+  70% { transform: translateY(2px) scale(0.97); }
+}
+.qv-hop {
+  animation: qv-hop 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.qv-arcade-btn {
+  border-bottom-width: 5px;
+  transition: transform 90ms var(--qv-ease-out), filter 120ms ease;
+}
+.qv-arcade-btn:active:not(:disabled) {
+  transform: translateY(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qv-chroma-bg,
+  .qv-float,
+  .qv-hop {
+    animation: none;
+  }
+  .qv-btn,
+  .qv-hover-lift,
+  .qv-arcade-btn {
+    transition: none;
+  }
+}

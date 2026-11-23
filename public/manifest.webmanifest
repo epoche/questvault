@@ -1,0 +1,10 @@
+{
+  "name": "QuestVault — English, Math & Traditional Chinese",
+  "short_name": "QuestVault",
+  "description": "Grade 4 learning studio for English ELA, dynamic Common Core Math, Traditional Chinese with MOE Zhuyin, SRS review, Endless Blitz, and 18 Mystery Packs.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FAF7F2",
+  "theme_color": "#FAF7F2",
+  "orientation": "any"
+}
