@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MotionConfig } from 'motion/react';
+import { hashParentPin } from './core/analytics';
 import { audioService } from './core/audio';
 import {
   awardBlitzSessionRewards,
@@ -687,9 +688,9 @@ export const App: React.FC = () => {
                 setPlayer((prev) => {
                   const next: PlayerState = { ...prev };
                   if (pin && /^\d{4}$/.test(pin)) {
-                    next.parentPin = pin;
+                    next.parentPinHash = hashParentPin(pin);
                   } else {
-                    delete next.parentPin;
+                    delete next.parentPinHash;
                   }
                   return next;
                 })

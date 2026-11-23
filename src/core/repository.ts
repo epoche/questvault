@@ -1,3 +1,4 @@
+import { hashParentPin, PARENT_PIN_HASH_RE } from './analytics';
 import { createInitialPlayerState } from './economy';
 import { getCollectibleById, STARTER_COLLECTIBLE_ID } from './packs';
 import type { PlayerState } from './types';
@@ -283,16 +284,21 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     cafeHighScores: sanitizedCafeHighScores,
     fishingHighScores: sanitizedFishingHighScores,
     ...(sanitizedArcadeDailyTokens ? { arcadeDailyTokens: sanitizedArcadeDailyTokens } : {}),
-    ...(typeof obj.parentPin === 'string' && /^\d{4}$/.test(obj.parentPin)
-      ? { parentPin: obj.parentPin }
-      : {}),
+    ...(typeof obj.parentPinHash === 'string' && PARENT_PIN_HASH_RE.test(obj.parentPinHash)
+      ? { parentPinHash: obj.parentPinHash }
+      : typeof obj.parentPin === 'string' && /^\d{4}$/.test(obj.parentPin)
+        ? { parentPinHash: hashParentPin(obj.parentPin) }
+        : {}),
     showZhuyin: Boolean(obj.showZhuyin),
     muted: Boolean(obj.muted),
   };
 }
 
 export function exportPlayerStateJson(state: PlayerState): string {
-  return JSON.stringify(state, null, 2);
+  // Never include the parent PIN or PIN hash in portable JSON backups
+  const { parentPinHash: _omittedPinHash, ...exportable } = state;
+  void _omittedPinHash;
+  return JSON.stringify(exportable, null, 2);
 }
 
 export function importPlayerStateJson(

@@ -50,6 +50,43 @@ export interface ParentGateChallenge {
   choices: number[];
 }
 
+export const PARENT_PIN_HASH_RE = /^v1:[0-9a-f]{16}$/;
+
+/**
+ * Pure synchronous salted one-way hash for the 4-digit Parent PIN.
+ * Works identically inside strict offline <iframe sandbox="allow-scripts"> where crypto.subtle
+ * may be unavailable, so plaintext PIN digits are never written to localStorage or backups.
+ */
+export function hashParentPin(pin: string): string {
+  const input = `qv::parent-pin::v1::${pin}::salt#9f4c`;
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  for (let round = 0; round < 64; round += 1) {
+    for (let i = 0; i < input.length; i += 1) {
+      const ch = input.charCodeAt(i) ^ ((round * 31 + i * 17) & 0xff);
+      h1 = Math.imul(h1 ^ ch, 0x01000193) >>> 0;
+      h2 = Math.imul(h2 ^ ((h1 >>> 13) ^ ch), 0x85ebca6b) >>> 0;
+    }
+    h1 = (Math.imul(h1 ^ (h1 >>> 16), 0x85ebca6b) ^ h2) >>> 0;
+    h2 = (Math.imul(h2 ^ (h2 >>> 13), 0xc2b2ae35) ^ h1) >>> 0;
+  }
+  const hex1 = (h1 >>> 0).toString(16).padStart(8, '0');
+  const hex2 = (h2 >>> 0).toString(16).padStart(8, '0');
+  return `v1:${hex1}${hex2}`;
+}
+
+export function verifyParentPin(pin: string, storedHash: string | undefined): boolean {
+  if (!/^\d{4}$/.test(pin) || !storedHash || !PARENT_PIN_HASH_RE.test(storedHash)) {
+    return false;
+  }
+  const candidate = hashParentPin(pin);
+  let diff = 0;
+  for (let i = 0; i < candidate.length; i += 1) {
+    diff |= candidate.charCodeAt(i) ^ storedHash.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 function pickInt(min: number, max: number, rng: () => number): number {
   const clamped = Math.max(0, Math.min(0.999999, rng()));
   return min + Math.floor(clamped * (max - min + 1));

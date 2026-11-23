@@ -6,6 +6,8 @@ import {
   createParentGateChallenge,
   formatWeeklyReportText,
   getWeakSpotRadar,
+  hashParentPin,
+  verifyParentPin,
 } from '../src/core/analytics';
 import { createInitialPlayerState } from '../src/core/economy';
 import { recordWordOutcome } from '../src/core/mastery';
@@ -152,7 +154,7 @@ describe('Phase 2B Layer 1: English & Traditional Chinese Story Quests (32 Passa
 });
 
 describe('Phase 2B Layer 1: Parent Corner Analytics, Parent Gate, Weekly Review & v1 Compat', () => {
-  it('generates valid middle-school Parent Gate challenges across all 5 categories and sanitizes 4-digit parentPin in v1 JSON backup', () => {
+  it('generates valid middle-school Parent Gate challenges across all 5 categories, hashes 4-digit PIN one-way, and omits PIN from exported JSON backups', () => {
     const categories = new Set<string>();
     for (let i = 0; i < 40; i += 1) {
       const ch = createParentGateChallenge(() => ((i * 0.173) % 1));
@@ -167,18 +169,35 @@ describe('Phase 2B Layer 1: Parent Corner Analytics, Parent Gate, Weekly Review 
     }
     expect(categories.size).toBe(5);
 
-    const withPin = { ...createInitialPlayerState('Chloe'), parentPin: '0824' };
-    const restored = importPlayerStateJson(exportPlayerStateJson(withPin));
-    expect(restored.ok).toBe(true);
-    if (restored.ok) {
-      expect(restored.state.parentPin).toBe('0824');
+    // One-way salted hash verifies matching PIN and rejects others
+    const hashed = hashParentPin('0824');
+    expect(hashed).toMatch(/^v1:[0-9a-f]{16}$/);
+    expect(hashed).not.toContain('0824');
+    expect(verifyParentPin('0824', hashed)).toBe(true);
+    expect(verifyParentPin('0825', hashed)).toBe(false);
+
+    // Exported JSON backup MUST NOT contain parentPinHash or plaintext PIN
+    const withHash = { ...createInitialPlayerState('Chloe'), parentPinHash: hashed };
+    const exportedJson = exportPlayerStateJson(withHash);
+    expect(exportedJson).not.toContain('parentPinHash');
+    expect(exportedJson).not.toContain(hashed);
+    expect(exportedJson).not.toContain('0824');
+
+    // Legacy plaintext parentPin migrates cleanly to one-way parentPinHash on import
+    const legacyRaw = JSON.stringify({ ...createInitialPlayerState('Chloe'), parentPin: '0824' });
+    const migrated = importPlayerStateJson(legacyRaw);
+    expect(migrated.ok).toBe(true);
+    if (migrated.ok) {
+      expect(migrated.state.parentPinHash).toBe(hashed);
+      expect(verifyParentPin('0824', migrated.state.parentPinHash)).toBe(true);
     }
 
-    const withBadPin = { ...createInitialPlayerState('Chloe'), parentPin: 'abc' };
-    const restoredBad = importPlayerStateJson(exportPlayerStateJson(withBadPin));
+    // Invalid PIN values are cleanly dropped
+    const badRaw = JSON.stringify({ ...createInitialPlayerState('Chloe'), parentPinHash: 'plain-1234' });
+    const restoredBad = importPlayerStateJson(badRaw);
     expect(restoredBad.ok).toBe(true);
     if (restoredBad.ok) {
-      expect(restoredBad.state.parentPin).toBeUndefined();
+      expect(restoredBad.state.parentPinHash).toBeUndefined();
     }
   });
 

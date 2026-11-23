@@ -186,7 +186,7 @@ export interface PlayerState {
   cafeHighScores?: Partial<Record<SubjectId, number>>;
   fishingHighScores?: Partial<Record<SubjectId, number>>;
   arcadeDailyTokens?: BlitzDailyTokens;
-  parentPin?: string;
+  parentPinHash?: string;
   showZhuyin?: boolean;
   muted: boolean;
 }

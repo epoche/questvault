@@ -23,6 +23,8 @@ import {
   createParentGateChallenge,
   formatWeeklyReportText,
   getWeakSpotRadar,
+  PARENT_PIN_HASH_RE,
+  verifyParentPin,
 } from '../../core/analytics';
 import type { PlayerState, SubjectId } from '../../core/types';
 import { customChineseRecordToWordSet } from '../../subjects/chinese/chineseCustomParser';
@@ -51,7 +53,9 @@ export const ParentView: React.FC<ParentViewProps> = ({
   onDeleteCustomSet,
   onSetParentPin,
 }) => {
-  const hasSavedPin = Boolean(player.parentPin && /^\d{4}$/.test(player.parentPin));
+  const hasSavedPin = Boolean(
+    player.parentPinHash && PARENT_PIN_HASH_RE.test(player.parentPinHash),
+  );
   const [unlocked, setUnlocked] = useState(false);
   const [gateMode, setGateMode] = useState<'pin' | 'math'>(() => (hasSavedPin ? 'pin' : 'math'));
   const [challenge, setChallenge] = useState(() => createParentGateChallenge());
@@ -130,7 +134,7 @@ export const ParentView: React.FC<ParentViewProps> = ({
       setGateError('請輸入 4 位數字 PIN 碼！');
       return;
     }
-    if (pinInput === player.parentPin) {
+    if (verifyParentPin(pinInput, player.parentPinHash)) {
       setGateError(null);
       setWrongCount(0);
       setUnlocked(true);
@@ -775,7 +779,7 @@ export const ParentView: React.FC<ParentViewProps> = ({
         <p className="text-xs sm:text-sm font-semibold text-[#57534E]">
           {unlockedViaMathReset
             ? '您剛才透過國中數學題解鎖！現在可以直接設定新的 4 位數 PIN 碼，或清除舊 PIN 碼改回數學題驗證。'
-            : '設定 4 位數專屬 PIN 碼後，下次點開家長檢視室可直接快速輸入解鎖；忘記時隨時可透過國中數學題重設。'}
+            : '設定 4 位數專屬 PIN 碼後，下次點開家長檢視室可直接快速輸入解鎖；PIN 碼僅以單向雜湊存於本機瀏覽器，且不會寫入匯出的備份檔。'}
         </p>
 
         <div className="flex flex-wrap items-center gap-2.5">
