@@ -1,11 +1,12 @@
 import { PHASE2D_COLLECTIBLES, PHASE2D_PACKS } from './packsPhase2D';
+import { PHASE6_COLLECTIBLES, PHASE6_PACKS } from './packsPhase6';
 import type { Collectible, MysteryPack, PackCategory, PackId, Rarity, RarityConfig } from './types';
 
 export const PACK_COST = 25;
 export const MIN_PACK_COST = 20;
 
 export const PACK_CATEGORIES: { id: 'all' | PackCategory; label: string }[] = [
-  { id: 'all', label: 'All 38' },
+  { id: 'all', label: 'All 44' },
   { id: 'holidays', label: 'Holidays' },
   { id: 'pets', label: 'Cute Animals' },
   { id: 'squishy', label: 'Squishy & Fairytale' },
@@ -363,6 +364,7 @@ export const MYSTERY_PACKS: MysteryPack[] = [
     surfaceHex: '#FAF5FF',
   },
   ...PHASE2D_PACKS,
+  ...PHASE6_PACKS,
 ];
 
 export const COLLECTIBLES: Collectible[] = [
@@ -666,6 +668,7 @@ export const COLLECTIBLES: Collectible[] = [
   { id: 'fairyland-dream-pegasus', name: 'Cloudspire Alicorn', packId: 'fairyland', rarity: 'legendary', tagline: 'Weaves glowing dreams from moonbeams and cloud fluff.', accentHex: '#9333EA', bgHex: '#F3E8FF' },
   { id: 'fairyland-chroma-queen', name: 'Aurora Fairy Sovereign', packId: 'fairyland', rarity: 'chroma', tagline: 'Crowned in northern lights across the entire starlight realm.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
   ...PHASE2D_COLLECTIBLES,
+  ...PHASE6_COLLECTIBLES,
 ];
 
 export const STARTER_COLLECTIBLE_ID = 'critter-sprout-bunny';

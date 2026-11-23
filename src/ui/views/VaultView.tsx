@@ -55,6 +55,7 @@ interface VaultViewProps {
   onClaimAchievement?: (achievementId: string) => boolean;
   onUpdateRoomTheme?: (themeId: CritterRoomThemeId) => void;
   onPlaceRoomCritter?: (slotIndex: number, collectibleId: string | null) => void;
+  onToggleRoomDecor?: (decorId: string) => void;
 }
 
 type PackFilter = 'all' | 'owned' | 'shiny' | 'unowned' | PackId;
@@ -73,6 +74,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onClaimAchievement,
   onUpdateRoomTheme,
   onPlaceRoomCritter,
+  onToggleRoomDecor,
 }) => {
   const [vaultSection, setVaultSection] = useState<'collection' | 'room' | 'achievements'>('collection');
   const [categoryFilter, setCategoryFilter] = useState<'all' | PackCategory>('all');
@@ -202,6 +204,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
           player={player}
           onUpdateRoomTheme={(themeId) => onUpdateRoomTheme?.(themeId)}
           onPlaceRoomCritter={(slotIdx, cid) => onPlaceRoomCritter?.(slotIdx, cid)}
+          onToggleRoomDecor={(decorId) => onToggleRoomDecor?.(decorId)}
         />
       ) : (
         <>

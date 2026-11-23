@@ -1,7 +1,12 @@
 import { hashParentPin, ISO_WEEK_KEY_RE, PARENT_PIN_HASH_RE } from './analytics';
 import { createInitialPlayerState } from './economy';
 import { getCollectibleById, STARTER_COLLECTIBLE_ID } from './packs';
-import type { PlayerState } from './types';
+import {
+  CRITTER_ROOM_MAX_DECOR,
+  VALID_CRITTER_ROOM_THEME_IDS,
+  VALID_ROOM_DECOR_IDS,
+} from './roomCatalog';
+import type { CritterRoomThemeId, PlayerState } from './types';
 
 export const STORAGE_KEY = 'questvault.player.v1';
 
@@ -254,15 +259,11 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
 
   let sanitizedCritterRoom: PlayerState['critterRoom'] = undefined;
   if (isRecord(obj.critterRoom)) {
-    const validThemes = new Set([
-      'strawberry-cafe',
-      'starlight-attic',
-      'boba-beach',
-      'fairy-treehouse',
-    ]);
-    const themeId =
-      typeof obj.critterRoom.themeId === 'string' && validThemes.has(obj.critterRoom.themeId)
-        ? (obj.critterRoom.themeId as NonNullable<PlayerState['critterRoom']>['themeId'])
+    const rawTheme = obj.critterRoom.themeId;
+    const themeId: CritterRoomThemeId =
+      typeof rawTheme === 'string' &&
+      VALID_CRITTER_ROOM_THEME_IDS.has(rawTheme as CritterRoomThemeId)
+        ? (rawTheme as CritterRoomThemeId)
         : 'strawberry-cafe';
     const rawSlots = Array.isArray(obj.critterRoom.slots) ? obj.critterRoom.slots : [];
     const usedIds = new Set<string>();
@@ -279,7 +280,19 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
       }
       return null;
     });
-    sanitizedCritterRoom = { themeId, slots };
+    const rawDecorIds = Array.isArray(obj.critterRoom.decorIds) ? obj.critterRoom.decorIds : [];
+    const sanitizedDecorIds = Array.from(
+      new Set(
+        rawDecorIds.filter(
+          (id): id is string => typeof id === 'string' && VALID_ROOM_DECOR_IDS.has(id),
+        ),
+      ),
+    ).slice(0, CRITTER_ROOM_MAX_DECOR);
+    sanitizedCritterRoom = {
+      themeId,
+      slots,
+      ...(sanitizedDecorIds.length > 0 ? { decorIds: sanitizedDecorIds } : {}),
+    };
   }
 
   return {

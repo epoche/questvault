@@ -25,6 +25,7 @@ import {
   recordDailyQuestClaim,
   recordDailySubjectCompletion,
   sellDuplicateCollectible,
+  toggleCritterRoomDecor,
   toggleFavoriteCollectible,
   updateCritterRoomTheme,
   wishUnlockWithStarDust,
@@ -488,6 +489,12 @@ export const App: React.FC = () => {
 
   const handlePlaceRoomCritter = (slotIndex: number, collectibleId: string | null) => {
     const next = placeCritterInRoomSlot(playerRef.current, slotIndex, collectibleId);
+    playerRef.current = next;
+    setPlayer(next);
+  };
+
+  const handleToggleRoomDecor = (decorId: string) => {
+    const next = toggleCritterRoomDecor(playerRef.current, decorId);
     playerRef.current = next;
     setPlayer(next);
   };
@@ -1873,6 +1880,7 @@ export const App: React.FC = () => {
               onClaimAchievement={handleClaimAchievement}
               onUpdateRoomTheme={handleUpdateRoomTheme}
               onPlaceRoomCritter={handlePlaceRoomCritter}
+              onToggleRoomDecor={handleToggleRoomDecor}
             />
           ) : (
             <WritingLogView

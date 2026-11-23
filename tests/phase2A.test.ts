@@ -39,9 +39,9 @@ const PHASE2_PACK_IDS: PackId[] = [
 
 describe('Phase 2A Layer 1: 12 New Packs (96 Original SVGs), Copyright Safety & Economy', () => {
   it('ships 12 new packs (96 collectibles) across holidays, pets, and squishy categories with 100% SVG coverage', () => {
-    expect(MYSTERY_PACKS).toHaveLength(38);
-    expect(COLLECTIBLES).toHaveLength(310);
-    expect(PACK_CATEGORIES.find((c) => c.id === 'all')?.label).toBe('All 38');
+    expect(MYSTERY_PACKS).toHaveLength(44);
+    expect(COLLECTIBLES).toHaveLength(358);
+    expect(PACK_CATEGORIES.find((c) => c.id === 'all')?.label).toBe('All 44');
 
     let phase2Count = 0;
     for (const packId of PHASE2_PACK_IDS) {

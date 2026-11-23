@@ -104,7 +104,7 @@ describe('Phase 4C: Critter Boss Battle & My Critter Room', () => {
   });
 
   it('supports My Critter Room themes, 8 tap-to-place slots, moving without duplicates, and rejects unowned critters', () => {
-    expect(CRITTER_ROOM_THEMES).toHaveLength(4);
+    expect(CRITTER_ROOM_THEMES).toHaveLength(8);
     expect(ROOM_SLOT_POSITIONS).toHaveLength(CRITTER_ROOM_SLOT_COUNT);
 
     const ownedA = COLLECTIBLES[0].id;

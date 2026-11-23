@@ -58,7 +58,13 @@ export type PackId =
   | 'puppypark'
   | 'dessertsquishy'
   | 'fairycottage'
-  | 'starunicorn';
+  | 'starunicorn'
+  | 'nightmarket'
+  | 'stationery'
+  | 'unicorns'
+  | 'mermaids'
+  | 'patisserie'
+  | 'fairies';
 
 export interface RarityConfig {
   id: Rarity;
@@ -163,11 +169,17 @@ export type CritterRoomThemeId =
   | 'strawberry-cafe'
   | 'starlight-attic'
   | 'boba-beach'
-  | 'fairy-treehouse';
+  | 'fairy-treehouse'
+  | 'sakura-teahouse'
+  | 'rainbow-cloud-castle'
+  | 'coral-pearl-palace'
+  | 'winter-cocoa-igloo';
 
 export interface CritterRoomState {
   themeId: CritterRoomThemeId;
   slots: (string | null)[];
+  /** Up to 6 free cute furniture/decor sticker IDs placed in My Critter Room */
+  decorIds?: string[];
 }
 
 export interface WeeklyGoalConfig {

@@ -9,6 +9,11 @@ import {
 } from './packs';
 import { getMasteryKey, isItemDueForReview } from './mastery';
 import { FACT_FLUENCY_DAILY_TOKEN_CAP } from '../subjects/math/factFluencyEngine';
+import {
+  CRITTER_ROOM_MAX_DECOR,
+  VALID_CRITTER_ROOM_THEME_IDS,
+  VALID_ROOM_DECOR_IDS,
+} from './roomCatalog';
 import type {
   Collectible,
   CritterRoomThemeId,
@@ -18,6 +23,7 @@ import type {
   SubjectId,
 } from './types';
 
+export { CRITTER_ROOM_MAX_DECOR };
 export const STARTER_TOKENS = 25;
 export const SHINY_CRAFT_COPIES_REQUIRED = 3;
 export const FUSE_COPIES_REQUIRED = 5;
@@ -560,15 +566,20 @@ export function updateCritterRoomTheme(
   state: PlayerState,
   themeId: CritterRoomThemeId,
 ): PlayerState {
+  if (!VALID_CRITTER_ROOM_THEME_IDS.has(themeId)) {
+    return state;
+  }
   const prevSlots =
     state.critterRoom?.slots && state.critterRoom.slots.length === CRITTER_ROOM_SLOT_COUNT
-      ? state.critterRoom.slots
+      ? [...state.critterRoom.slots]
       : Array<string | null>(CRITTER_ROOM_SLOT_COUNT).fill(null);
+  const prevDecorIds = state.critterRoom?.decorIds;
   return {
     ...state,
     critterRoom: {
       themeId,
       slots: prevSlots,
+      ...(prevDecorIds && prevDecorIds.length > 0 ? { decorIds: [...prevDecorIds] } : {}),
     },
   };
 }
@@ -591,6 +602,7 @@ export function placeCritterInRoomSlot(
     state.critterRoom?.slots && state.critterRoom.slots.length === CRITTER_ROOM_SLOT_COUNT
       ? [...state.critterRoom.slots]
       : Array<string | null>(CRITTER_ROOM_SLOT_COUNT).fill(null);
+  const prevDecorIds = state.critterRoom?.decorIds;
 
   // If moving an already-placed critter to a new slot, vacate its previous slot cleanly
   if (collectibleId !== null) {
@@ -605,6 +617,45 @@ export function placeCritterInRoomSlot(
     critterRoom: {
       themeId: prevTheme,
       slots: prevSlots,
+      ...(prevDecorIds && prevDecorIds.length > 0 ? { decorIds: [...prevDecorIds] } : {}),
+    },
+  };
+}
+
+export function toggleCritterRoomDecor(
+  state: PlayerState,
+  decorId: string,
+): PlayerState {
+  if (!VALID_ROOM_DECOR_IDS.has(decorId)) {
+    return state;
+  }
+  const prevTheme: CritterRoomThemeId = state.critterRoom?.themeId ?? 'strawberry-cafe';
+  const prevSlots =
+    state.critterRoom?.slots && state.critterRoom.slots.length === CRITTER_ROOM_SLOT_COUNT
+      ? [...state.critterRoom.slots]
+      : Array<string | null>(CRITTER_ROOM_SLOT_COUNT).fill(null);
+  const prevDecorIds = Array.from(
+    new Set(
+      (state.critterRoom?.decorIds ?? []).filter((id) => VALID_ROOM_DECOR_IDS.has(id)),
+    ),
+  ).slice(0, CRITTER_ROOM_MAX_DECOR);
+
+  let nextDecorIds: string[];
+  if (prevDecorIds.includes(decorId)) {
+    nextDecorIds = prevDecorIds.filter((id) => id !== decorId);
+  } else {
+    if (prevDecorIds.length >= CRITTER_ROOM_MAX_DECOR) {
+      return state;
+    }
+    nextDecorIds = [...prevDecorIds, decorId];
+  }
+
+  return {
+    ...state,
+    critterRoom: {
+      themeId: prevTheme,
+      slots: prevSlots,
+      ...(nextDecorIds.length > 0 ? { decorIds: nextDecorIds } : {}),
     },
   };
 }

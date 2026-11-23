@@ -1,13 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { Home, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { audioService } from '../../core/audio';
-import { CRITTER_ROOM_SLOT_COUNT } from '../../core/economy';
+import {
+  CRITTER_ROOM_MAX_DECOR,
+  CRITTER_ROOM_SLOT_COUNT,
+} from '../../core/economy';
 import { COLLECTIBLES, getCollectibleById } from '../../core/packs';
 import type { CritterRoomThemeId, PlayerState } from '../../core/types';
 import { CollectibleArt } from '../artwork/CollectibleArt';
 import {
   CRITTER_ROOM_THEMES,
   CritterRoomBackdrop,
+  ROOM_DECOR_ITEMS,
   ROOM_SLOT_POSITIONS,
 } from '../artwork/CritterRoomArt';
 
@@ -15,6 +19,7 @@ interface CritterRoomPanelProps {
   player: PlayerState;
   onUpdateRoomTheme: (themeId: CritterRoomThemeId) => void;
   onPlaceRoomCritter: (slotIndex: number, collectibleId: string | null) => void;
+  onToggleRoomDecor?: (decorId: string) => void;
 }
 
 const CHEER_LINES = [
@@ -30,11 +35,14 @@ export const CritterRoomPanel: React.FC<CritterRoomPanelProps> = ({
   player,
   onUpdateRoomTheme,
   onPlaceRoomCritter,
+  onToggleRoomDecor,
 }) => {
   const room = player.critterRoom ?? {
     themeId: 'strawberry-cafe' as CritterRoomThemeId,
     slots: Array.from({ length: CRITTER_ROOM_SLOT_COUNT }, () => null),
+    decorIds: [],
   };
+  const activeDecorIds = room.decorIds ?? [];
 
   const [pickingSlot, setPickingSlot] = useState<number | null>(null);
   const [cheerBubble, setCheerBubble] = useState<{
@@ -92,15 +100,20 @@ export const CritterRoomPanel: React.FC<CritterRoomPanelProps> = ({
               <span>🏠 My Critter Room 我的盲盒小屋</span>
             </h2>
             <p className="text-xs sm:text-sm font-semibold text-[#57534E]">
-              Tap any empty <strong className="text-[#1C1917]">+</strong> spot to place your critters, or tap a critter to make it jump & cheer!
+              Tap any empty <strong className="text-[#1C1917]">+</strong> spot to place your critters, switch between 8 free themes, or add cute decor stickers!
             </p>
           </div>
-          <span className="rounded-full bg-[#FDF2F8] border border-[#F9A8D4] px-3 py-1 text-xs font-extrabold text-[#BE185D] tabular-nums">
-            {placedCount} / {CRITTER_ROOM_SLOT_COUNT} Placed
-          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full bg-[#FDF2F8] border border-[#F9A8D4] px-3 py-1 text-xs font-extrabold text-[#BE185D] tabular-nums">
+              {placedCount} / {CRITTER_ROOM_SLOT_COUNT} Placed
+            </span>
+            <span className="rounded-full bg-[#EEF2FF] border border-[#C7D2FE] px-3 py-1 text-xs font-extrabold text-[#4338CA] tabular-nums">
+              ✨ {activeDecorIds.length} / {CRITTER_ROOM_MAX_DECOR} Decor
+            </span>
+          </div>
         </div>
 
-        {/* 4 Free Dreamy Room Themes */}
+        {/* 8 Free Dreamy Room Themes */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {CRITTER_ROOM_THEMES.map((theme) => {
             const isSelected = theme.id === activeTheme.id;
@@ -132,46 +145,44 @@ export const CritterRoomPanel: React.FC<CritterRoomPanelProps> = ({
         </div>
       </div>
 
+      {/* Cheer Speech Banner (placed cleanly above the stage so top decor stickers & upper slots are never covered) */}
+      {cheerBubble && (
+        <div className="rounded-2xl border-2 border-[#1C1917] bg-white px-3.5 py-2.5 shadow-[0_3px_0_#1C1917] flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold text-[#DB2777] truncate">
+              ✨ {cheerBubble.name} says:
+            </p>
+            <p className="text-xs sm:text-sm font-bold text-[#1C1917] leading-snug">
+              {cheerBubble.line}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPickingSlot(cheerBubble.slotIndex)}
+              className="qv-btn rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-2.5 py-1 text-[11px] font-extrabold text-[#4338CA]"
+            >
+              Swap 換隻
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onPlaceRoomCritter(cheerBubble.slotIndex, null);
+                setCheerBubble(null);
+                audioService.playToken();
+              }}
+              aria-label="Remove critter from slot"
+              className="qv-btn rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-1.5 text-[#DC2626]"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Interactive Room Stage */}
       <div className="relative overflow-hidden rounded-3xl border-3 border-[#1C1917] shadow-[0_6px_0_#1C1917] aspect-[16/10] sm:aspect-[16/9] select-none">
-        <CritterRoomBackdrop themeId={activeTheme.id} />
-
-        {/* Cheer Speech Bubble */}
-        {cheerBubble && (
-          <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 w-[90%] max-w-md">
-            <div className="rounded-2xl border-2 border-[#1C1917] bg-white/95 px-3.5 py-2 shadow-[0_3px_0_#1C1917] flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-xs font-extrabold text-[#DB2777] truncate">
-                  ✨ {cheerBubble.name} says:
-                </p>
-                <p className="text-xs sm:text-sm font-bold text-[#1C1917] leading-snug">
-                  {cheerBubble.line}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setPickingSlot(cheerBubble.slotIndex)}
-                  className="qv-btn rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-2.5 py-1 text-[11px] font-extrabold text-[#4338CA]"
-                >
-                  Swap 換隻
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onPlaceRoomCritter(cheerBubble.slotIndex, null);
-                    setCheerBubble(null);
-                    audioService.playToken();
-                  }}
-                  aria-label="Remove critter from slot"
-                  className="qv-btn rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-1.5 text-[#DC2626]"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <CritterRoomBackdrop themeId={activeTheme.id} decorIds={activeDecorIds} />
 
         {/* 8 Interactive Placement Slots */}
         {ROOM_SLOT_POSITIONS.map((pos) => {
@@ -204,7 +215,9 @@ export const CritterRoomPanel: React.FC<CritterRoomPanelProps> = ({
                 top: `${pos.topPct}%`,
               }}
               className={`absolute -translate-x-1/2 z-10 flex flex-col items-center justify-center transition-transform duration-200 ${
-                isBouncing ? 'scale-110 -translate-y-[60%]' : '-translate-y-1/2 hover:scale-105'
+                isBouncing
+                  ? 'scale-95 sm:scale-110 -translate-y-[60%]'
+                  : 'scale-[0.82] sm:scale-100 -translate-y-1/2 hover:scale-90 sm:hover:scale-105'
               }`}
             >
               {cid && item ? (
@@ -296,6 +309,60 @@ export const CritterRoomPanel: React.FC<CritterRoomPanelProps> = ({
           )}
         </div>
       )}
+      {/* Free Furniture & Decor Stickers Drawer (12 items, max 6 active) */}
+      <div className="rounded-3xl border-2 border-[#E5DFD3] bg-white p-4 sm:p-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display text-base font-extrabold text-[#1C1917]">
+              ✨ Free Room Decor 免費小屋擺飾貼紙（12 件）
+            </h3>
+            <p className="text-xs font-semibold text-[#78716C]">
+              Tap to place or remove up to {CRITTER_ROOM_MAX_DECOR} cute stickers in your room — 100% free!
+            </p>
+          </div>
+          <span className="rounded-full bg-[#EEF2FF] border border-[#C7D2FE] px-2.5 py-0.5 text-xs font-extrabold text-[#4338CA] tabular-nums">
+            {activeDecorIds.length} / {CRITTER_ROOM_MAX_DECOR}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          {ROOM_DECOR_ITEMS.map((decor) => {
+            const isPlaced = activeDecorIds.includes(decor.id);
+            const isAtLimit = !isPlaced && activeDecorIds.length >= CRITTER_ROOM_MAX_DECOR;
+            return (
+              <button
+                key={decor.id}
+                type="button"
+                disabled={isAtLimit}
+                onClick={() => {
+                  onToggleRoomDecor?.(decor.id);
+                  audioService.playToken();
+                }}
+                className={`qv-btn min-h-[42px] rounded-2xl border-2 px-2.5 py-1.5 text-left transition-all disabled:opacity-45 ${
+                  isPlaced
+                    ? 'border-[#1C1917] bg-[#EEF2FF] shadow-[0_2px_0_#1C1917]'
+                    : 'border-[#E5DFD3] bg-[#FAF8F4]'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-base shrink-0">{decor.emoji}</span>
+                    <span className="font-display text-xs font-extrabold text-[#1C1917] truncate">
+                      {decor.zhName}
+                    </span>
+                  </span>
+                  {isPlaced && (
+                    <span className="rounded-full bg-[#4338CA] px-1.5 py-0.5 text-[9px] font-extrabold text-white shrink-0">
+                      ON
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] font-bold text-[#78716C] truncate">{decor.name}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

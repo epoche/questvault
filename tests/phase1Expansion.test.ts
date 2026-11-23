@@ -188,10 +188,10 @@ describe('Layer 1: 800-Word Full-Catalog Quality Gate (400 English + 400 Traditi
   });
 });
 
-describe('Layer 1: 38 Mystery Packs (310 Collectibles), Shiny 3-to-1 Craft, SRS, Daily Quest, Blitz Cap & v1 Compat', () => {
-  it('ships 38 unique variable-size packs (310 unique collectibles) across valid categories and enforces 3-to-1 Shiny crafting', () => {
-    expect(MYSTERY_PACKS).toHaveLength(38);
-    expect(COLLECTIBLES).toHaveLength(310);
+describe('Layer 1: 44 Mystery Packs (358 Collectibles), Shiny 3-to-1 Craft, SRS, Daily Quest, Blitz Cap & v1 Compat', () => {
+  it('ships 44 unique variable-size packs (358 unique collectibles) across valid categories and enforces 3-to-1 Shiny crafting', () => {
+    expect(MYSTERY_PACKS).toHaveLength(44);
+    expect(COLLECTIBLES).toHaveLength(358);
     const validCategories = new Set(PACK_CATEGORIES.map((c) => c.id));
     const seenIds = new Set<string>();
 
