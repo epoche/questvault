@@ -20,10 +20,13 @@ import {
   Ruler,
   Sparkles,
   Swords,
+  Target,
   Trash2,
   Wrench,
+  X,
   Zap,
 } from 'lucide-react';
+import { computeWeeklyGoalProgress } from '../../core/analytics';
 import {
   DAILY_TRI_SUBJECT_BONUS,
   getQuestRewardPolicy,
@@ -156,6 +159,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [questMode, setQuestMode] = useState<
     'words' | 'stories' | 'roots' | 'grammar' | 'radicals' | 'measures' | 'chapters'
   >('words');
+  const [voucherOpen, setVoucherOpen] = useState(false);
   const effectiveQuestMode =
     activeSubjectId === 'chinese' && (questMode === 'roots' || questMode === 'grammar')
       ? 'words'
@@ -165,6 +169,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         : questMode;
   const packsReady = Math.floor(player.tokens / MIN_PACK_COST);
   const todayKey = getLocalDateKey();
+  const weeklyGoalProgress = computeWeeklyGoalProgress(player);
 
   const renderDoneRewardBadge = (policy: QuestRewardPolicy, isZh: boolean, defaultLabel: string) => {
     if (policy.tier === 'practice-0') {
@@ -549,6 +554,134 @@ export const HomeView: React.FC<HomeViewProps> = ({
           )}
         </div>
       </section>
+
+      {/* Phase 4D: Weekly Goal Progress Bar & Real-World Reward Voucher */}
+      {weeklyGoalProgress.enabled && (
+        <section className="qv-surface rounded-2xl px-4 py-3 sm:px-5 border-2 border-[#FDE68A] bg-[#FFFDF8] space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] border border-[#F59E0B] px-2.5 py-0.5 font-display text-xs font-extrabold text-[#B45309]">
+                <Target className="h-3.5 w-3.5" />
+                {activeSubjectId === 'chinese' ? '本週目標' : 'Weekly Goal'}
+              </span>
+              <span className="text-xs sm:text-sm font-extrabold text-[#1C1917] tabular-nums">
+                {weeklyGoalProgress.enTarget > 0 && `EN ${weeklyGoalProgress.enDone}/${weeklyGoalProgress.enTarget}`}
+                {weeklyGoalProgress.enTarget > 0 && (weeklyGoalProgress.zhTarget > 0 || weeklyGoalProgress.mathTarget > 0) ? ' · ' : ''}
+                {weeklyGoalProgress.zhTarget > 0 && `中文 ${weeklyGoalProgress.zhDone}/${weeklyGoalProgress.zhTarget}`}
+                {weeklyGoalProgress.zhTarget > 0 && weeklyGoalProgress.mathTarget > 0 ? ' · ' : ''}
+                {weeklyGoalProgress.mathTarget > 0 && `Math ${weeklyGoalProgress.mathDone}/${weeklyGoalProgress.mathTarget}`}
+              </span>
+            </div>
+
+            {weeklyGoalProgress.isMet && !weeklyGoalProgress.isRedeemed ? (
+              <button
+                type="button"
+                onClick={() => setVoucherOpen(true)}
+                className="qv-arcade-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border-2 border-[#1C1917] bg-[#F59E0B] px-3.5 py-1.5 font-display text-xs sm:text-sm font-extrabold text-white"
+                style={{ borderBottomColor: '#B45309' }}
+              >
+                <Gift className="h-4 w-4" />
+                <span>🎉 打開本週真實獎勵券！</span>
+              </button>
+            ) : weeklyGoalProgress.isMet && weeklyGoalProgress.isRedeemed ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF5] border border-[#10B981] px-3 py-1 text-xs font-extrabold text-[#047857]">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                🏆 本週獎勵已兌換！
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-[#92400E] truncate max-w-[260px]">
+                🎁 {weeklyGoalProgress.rewardText}
+              </span>
+            )}
+          </div>
+
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#FEF3C7] border border-[#F59E0B]/40">
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${weeklyGoalProgress.pct}%`,
+                backgroundColor: weeklyGoalProgress.isMet ? '#10B981' : '#F59E0B',
+              }}
+            />
+          </div>
+        </section>
+      )}
+
+      {/* Real-World Reward Voucher Modal (Kid celebrates; Parent Corner redeems) */}
+      {voucherOpen && weeklyGoalProgress.isMet && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Weekly Real-World Reward Voucher"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setVoucherOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#1C1917]/65 p-4"
+        >
+          <div className="relative w-full max-w-md rounded-3xl border-3 border-[#1C1917] bg-[#FFFDF8] p-6 shadow-[0_8px_0_#1C1917] text-center space-y-4">
+            <button
+              type="button"
+              onClick={() => setVoucherOpen(false)}
+              aria-label="Close reward voucher"
+              className="qv-btn absolute right-3.5 top-3.5 inline-flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#E5DFD3] bg-white text-[#57534E]"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FEF3C7] border border-[#F59E0B] px-3.5 py-1 text-xs font-extrabold text-[#B45309]">
+              <Gift className="h-4 w-4" />
+              OFFICIAL REWARD VOUCHER · {weeklyGoalProgress.weekKey}
+            </span>
+
+            <div className="space-y-1">
+              <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-[#1C1917]">
+                🎉 {player.displayName} 達標成功！
+              </h2>
+              <p className="text-xs font-bold text-[#57534E]">
+                You finished all your weekly quests! Show this golden voucher to Mom or Dad!
+              </p>
+            </div>
+
+            <div className="rounded-2xl border-2 border-dashed border-[#F59E0B] bg-[#FFFBEB] p-5 space-y-2">
+              <p className="text-xs font-extrabold uppercase tracking-wider text-[#B45309]">
+                本週真實獎勵 Real-World Reward
+              </p>
+              <p className="font-display text-xl sm:text-2xl font-extrabold text-[#1C1917]">
+                {weeklyGoalProgress.rewardText}
+              </p>
+              <div className="pt-2 flex flex-wrap justify-center gap-1.5 text-xs font-extrabold text-[#047857]">
+                {weeklyGoalProgress.enTarget > 0 && (
+                  <span className="rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-0.5">
+                    ✓ EN {weeklyGoalProgress.enDone}/{weeklyGoalProgress.enTarget}
+                  </span>
+                )}
+                {weeklyGoalProgress.zhTarget > 0 && (
+                  <span className="rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-0.5">
+                    ✓ 中文 {weeklyGoalProgress.zhDone}/{weeklyGoalProgress.zhTarget}
+                  </span>
+                )}
+                {weeklyGoalProgress.mathTarget > 0 && (
+                  <span className="rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-0.5">
+                    ✓ Math {weeklyGoalProgress.mathDone}/{weeklyGoalProgress.mathTarget}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p className="text-xs font-semibold text-[#78716C]">
+              🔒 請由爸爸媽媽進入右上角「家長檢視室」核銷此兌換券。
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setVoucherOpen(false)}
+              className="qv-btn w-full min-h-[46px] rounded-2xl border-2 border-[#1C1917] bg-[#1C1917] text-white font-display text-sm font-extrabold"
+            >
+              Yay! Close Voucher
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Spaced-Repetition (SRS) Daily Memory Review Banner */}
       {(enSrs || mathSrs || zhSrs) && (

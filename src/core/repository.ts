@@ -1,4 +1,4 @@
-import { hashParentPin, PARENT_PIN_HASH_RE } from './analytics';
+import { hashParentPin, ISO_WEEK_KEY_RE, PARENT_PIN_HASH_RE } from './analytics';
 import { createInitialPlayerState } from './economy';
 import { getCollectibleById, STARTER_COLLECTIBLE_ID } from './packs';
 import type { PlayerState } from './types';
@@ -367,6 +367,34 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     fishingHighScores: sanitizedFishingHighScores,
     bossHighScores: sanitizedBossHighScores,
     ...(sanitizedArcadeDailyTokens ? { arcadeDailyTokens: sanitizedArcadeDailyTokens } : {}),
+    ...(() => {
+      if (!obj.weeklyGoal || typeof obj.weeklyGoal !== 'object' || Array.isArray(obj.weeklyGoal)) {
+        return {};
+      }
+      const wg = obj.weeklyGoal as Record<string, unknown>;
+      const clampTarget = (v: unknown) =>
+        typeof v === 'number' && Number.isFinite(v)
+          ? Math.max(0, Math.min(14, Math.floor(v)))
+          : 0;
+      const rewardText =
+        typeof wg.rewardText === 'string' ? wg.rewardText.trim().slice(0, 80) : '';
+      const redeemedWeekKey =
+        typeof wg.redeemedWeekKey === 'string' && ISO_WEEK_KEY_RE.test(wg.redeemedWeekKey)
+          ? wg.redeemedWeekKey
+          : undefined;
+      return {
+        weeklyGoal: {
+          enTarget: clampTarget(wg.enTarget),
+          zhTarget: clampTarget(wg.zhTarget),
+          mathTarget: clampTarget(wg.mathTarget),
+          rewardText,
+          ...(redeemedWeekKey ? { redeemedWeekKey } : {}),
+        },
+      };
+    })(),
+    ...(typeof obj.lastBackupAt === 'string' && Number.isFinite(Date.parse(obj.lastBackupAt))
+      ? { lastBackupAt: obj.lastBackupAt }
+      : {}),
     ...(typeof obj.parentPinHash === 'string' && PARENT_PIN_HASH_RE.test(obj.parentPinHash)
       ? { parentPinHash: obj.parentPinHash }
       : typeof obj.parentPin === 'string' && /^\d{4}$/.test(obj.parentPin)

@@ -170,6 +170,14 @@ export interface CritterRoomState {
   slots: (string | null)[];
 }
 
+export interface WeeklyGoalConfig {
+  enTarget: number;
+  zhTarget: number;
+  mathTarget: number;
+  rewardText: string;
+  redeemedWeekKey?: string;
+}
+
 export interface PlayerState {
   version: 1;
   displayName: string;
@@ -209,6 +217,8 @@ export interface PlayerState {
   fishingHighScores?: Partial<Record<SubjectId, number>>;
   bossHighScores?: Partial<Record<SubjectId, number>>;
   arcadeDailyTokens?: BlitzDailyTokens;
+  weeklyGoal?: WeeklyGoalConfig;
+  lastBackupAt?: string;
   parentPinHash?: string;
   showZhuyin?: boolean;
   muted: boolean;

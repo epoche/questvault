@@ -5,7 +5,9 @@ import {
   BookOpen,
   Check,
   Copy,
+  Download,
   Flame,
+  Gift,
   KeyRound,
   Lock,
   Play,
@@ -14,19 +16,24 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  Target,
   Trash2,
 } from 'lucide-react';
 import {
   buildWeeklyReviewChineseSet,
   buildWeeklyReviewEnglishSet,
+  computeWeeklyGoalProgress,
   computeWeeklySnapshot,
   createParentGateChallenge,
   formatWeeklyReportText,
   getWeakSpotRadar,
+  isBackupOverdue,
   PARENT_PIN_HASH_RE,
   verifyParentPin,
+  WEEKLY_REWARD_PRESETS,
 } from '../../core/analytics';
-import type { PlayerState, SubjectId } from '../../core/types';
+import { exportPlayerStateJson } from '../../core/repository';
+import type { PlayerState, SubjectId, WeeklyGoalConfig } from '../../core/types';
 import { customChineseRecordToWordSet } from '../../subjects/chinese/chineseCustomParser';
 import type { ChineseWordSet } from '../../subjects/chinese/types';
 import { customRecordToWordSet } from '../../subjects/english/customParser';
@@ -40,6 +47,9 @@ interface ParentViewProps {
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
   onDeleteCustomSet: (id: string) => void;
   onSetParentPin: (pin: string | undefined) => void;
+  onUpdateWeeklyGoal?: (goal: WeeklyGoalConfig) => void;
+  onRedeemWeeklyReward?: (weekKey: string) => void;
+  onRecordBackup?: () => void;
 }
 
 const GATE_COOLDOWN_SEC = 8;
@@ -52,6 +62,9 @@ export const ParentView: React.FC<ParentViewProps> = ({
   onOpenCustomImporter,
   onDeleteCustomSet,
   onSetParentPin,
+  onUpdateWeeklyGoal,
+  onRedeemWeeklyReward,
+  onRecordBackup,
 }) => {
   const hasSavedPin = Boolean(
     player.parentPinHash && PARENT_PIN_HASH_RE.test(player.parentPinHash),
@@ -70,6 +83,19 @@ export const ParentView: React.FC<ParentViewProps> = ({
   const [newPinInput, setNewPinInput] = useState('');
   const [pinStatusMsg, setPinStatusMsg] = useState<string | null>(null);
 
+  // Phase 4D: Weekly Goal & Real-World Reward Voucher state
+  const [goalEn, setGoalEn] = useState<number>(() => player.weeklyGoal?.enTarget ?? 3);
+  const [goalZh, setGoalZh] = useState<number>(() => player.weeklyGoal?.zhTarget ?? 3);
+  const [goalMath, setGoalMath] = useState<number>(() => player.weeklyGoal?.mathTarget ?? 3);
+  const [goalRewardText, setGoalRewardText] = useState<string>(
+    () => player.weeklyGoal?.rewardText ?? WEEKLY_REWARD_PRESETS[0],
+  );
+  const [goalSavedMsg, setGoalSavedMsg] = useState<string | null>(null);
+  const [backupSavedNotice, setBackupSavedNotice] = useState<{
+    tone: 'ok' | 'warn';
+    text: string;
+  } | null>(null);
+
   const [radarSubject, setRadarSubject] = useState<'all' | SubjectId>('all');
   const [copied, setCopied] = useState(false);
   const [copyFallbackText, setCopyFallbackText] = useState<string | null>(null);
@@ -81,6 +107,8 @@ export const ParentView: React.FC<ParentViewProps> = ({
   }, [cooldownSec]);
 
   const snapshot = useMemo(() => computeWeeklySnapshot(player), [player]);
+  const weeklyGoalProgress = useMemo(() => computeWeeklyGoalProgress(player), [player]);
+  const backupStatus = useMemo(() => isBackupOverdue(player), [player]);
   const weakSpots = useMemo(
     () =>
       getWeakSpotRadar(
@@ -91,6 +119,46 @@ export const ParentView: React.FC<ParentViewProps> = ({
     [player.wordMastery, radarSubject],
   );
   const reportText = useMemo(() => formatWeeklyReportText(player), [player]);
+
+  const handleSaveWeeklyGoal = () => {
+    const cleanReward = goalRewardText.trim().slice(0, 80) || WEEKLY_REWARD_PRESETS[0];
+    const en = Math.max(0, Math.min(14, Math.floor(goalEn)));
+    const zh = Math.max(0, Math.min(14, Math.floor(goalZh)));
+    const math = Math.max(0, Math.min(14, Math.floor(goalMath)));
+    onUpdateWeeklyGoal?.({
+      enTarget: en,
+      zhTarget: zh,
+      mathTarget: math,
+      rewardText: cleanReward,
+      redeemedWeekKey: player.weeklyGoal?.redeemedWeekKey,
+    });
+    setGoalSavedMsg(
+      en + zh + math === 0
+        ? '✅ 已暫停每週目標（首頁進度條已隱藏）。'
+        : '✅ 本週目標與獎勵券已儲存！小朋友可在首頁看到即時進度條。',
+    );
+  };
+
+  const handleQuickExportBackup = () => {
+    try {
+      const nowIso = new Date().toISOString();
+      const json = exportPlayerStateJson({ ...player, lastBackupAt: nowIso });
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `questvault-backup-${player.displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      onRecordBackup?.();
+      setBackupSavedNotice({ tone: 'ok', text: '✅ JSON 備份檔已下載！本機備份日期已更新。' });
+    } catch {
+      setBackupSavedNotice({
+        tone: 'warn',
+        text: '⚠️ 當前沙盒環境限制自動下載，可於「Progress」分頁手動匯出。',
+      });
+    }
+  };
 
   const registerGateMiss = (msg: string, rotateMath: boolean) => {
     const nextMiss = wrongCount + 1;
@@ -417,6 +485,224 @@ export const ParentView: React.FC<ParentViewProps> = ({
           />
         </div>
       )}
+
+      {/* Phase 4D: 7-Day Backup Reminder Banner */}
+      {(backupStatus.overdue || backupSavedNotice) && (
+        <section
+          className={`rounded-3xl border-2 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+            backupSavedNotice?.tone === 'ok'
+              ? 'border-[#10B981] bg-[#ECFDF5]'
+              : 'border-[#F59E0B] bg-[#FFFBEB]'
+          }`}
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-display text-sm sm:text-base font-extrabold text-[#1C1917]">
+              <AlertTriangle
+                className={`h-4 w-4 shrink-0 ${
+                  backupSavedNotice?.tone === 'ok' ? 'text-[#059669]' : 'text-[#D97706]'
+                }`}
+              />
+              <span>
+                {backupSavedNotice
+                  ? backupSavedNotice.text
+                  : backupStatus.daysSinceBackup === null
+                    ? `貼心提醒：孩子已完成 ${player.runHistory.length} 關，尚未建立本機 JSON 備份檔喔！`
+                    : `貼心提醒：距離上次匯出備份已經過 ${backupStatus.daysSinceBackup} 天了！`}
+              </span>
+            </div>
+            {!backupSavedNotice && (
+              <p className="text-xs font-semibold text-[#92400E]">
+                iPad Safari 久未開啟可能清理快取，建議每週順手點一下下載備份檔存進「檔案」或 iCloud。
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleQuickExportBackup}
+            className="qv-btn shrink-0 inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#F59E0B] px-4 py-2 text-xs sm:text-sm font-extrabold text-white"
+          >
+            <Download className="h-4 w-4" />
+            <span>一鍵匯出 JSON 備份</span>
+          </button>
+        </section>
+      )}
+
+      {/* Phase 4D: Weekly Goal & Real-World Reward Voucher */}
+      <section className="qv-surface rounded-3xl p-5 sm:p-6 space-y-4 border-2 border-[#FDE68A] bg-[#FFFDF8]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-[#D97706]" />
+            <h2 className="font-display text-lg font-extrabold text-[#1C1917]">
+              🎯 每週目標與真實獎勵券（{weeklyGoalProgress.weekKey}）
+            </h2>
+          </div>
+          {weeklyGoalProgress.enabled && (
+            <span className="rounded-full bg-[#FEF3C7] border border-[#F59E0B] px-3 py-1 text-xs font-extrabold text-[#B45309] tabular-nums">
+              本週達成：{weeklyGoalProgress.totalDone} / {weeklyGoalProgress.totalTarget} 關（{weeklyGoalProgress.pct}%）
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs sm:text-sm font-semibold text-[#57534E]">
+          設定本週（週一至週日）三科有效通關目標與真實世界獎勵！達標後首頁會解鎖專屬兌換券按鈕，由家長於此處核銷。
+        </p>
+
+        {/* Subject target steppers */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            {
+              key: 'en',
+              label: 'English 英文目標',
+              done: weeklyGoalProgress.enDone,
+              val: goalEn,
+              setVal: setGoalEn,
+              tint: 'bg-[#EFF6FF] border-[#BFDBFE] text-[#1D4ED8]',
+            },
+            {
+              key: 'zh',
+              label: '中文・繁體目標',
+              done: weeklyGoalProgress.zhDone,
+              val: goalZh,
+              setVal: setGoalZh,
+              tint: 'bg-[#FDF2F8] border-[#FBCFE8] text-[#BE185D]',
+            },
+            {
+              key: 'math',
+              label: 'Math 數學目標',
+              done: weeklyGoalProgress.mathDone,
+              val: goalMath,
+              setVal: setGoalMath,
+              tint: 'bg-[#ECFDF5] border-[#A7F3D0] text-[#047857]',
+            },
+          ].map((row) => (
+            <div
+              key={row.key}
+              className={`rounded-2xl border p-3.5 flex items-center justify-between gap-2 ${row.tint}`}
+            >
+              <div>
+                <div className="text-xs font-extrabold">{row.label}</div>
+                <div className="text-[11px] font-bold opacity-80 tabular-nums">
+                  本週已完成 {row.done} 關
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  aria-label={`減少${row.label}`}
+                  onClick={() => {
+                    row.setVal((v) => Math.max(0, v - 1));
+                    setGoalSavedMsg(null);
+                  }}
+                  className="qv-btn h-8 w-8 rounded-xl border border-[#1C1917]/20 bg-white font-display text-base font-extrabold text-[#1C1917]"
+                >
+                  −
+                </button>
+                <span className="w-7 text-center font-display text-lg font-extrabold text-[#1C1917] tabular-nums">
+                  {row.val}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`增加${row.label}`}
+                  onClick={() => {
+                    row.setVal((v) => Math.min(14, v + 1));
+                    setGoalSavedMsg(null);
+                  }}
+                  className="qv-btn h-8 w-8 rounded-xl border border-[#1C1917]/20 bg-white font-display text-base font-extrabold text-[#1C1917]"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Real-world reward presets + custom input */}
+        <div className="space-y-2">
+          <div className="text-xs font-extrabold text-[#1C1917]">
+            🎁 達標真實獎勵（點選範本或自行輸入）
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {WEEKLY_REWARD_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => {
+                  setGoalRewardText(preset);
+                  setGoalSavedMsg(null);
+                }}
+                className={`qv-btn rounded-full border px-3 py-1 text-xs font-extrabold ${
+                  goalRewardText === preset
+                    ? 'border-[#1C1917] bg-[#FEF3C7] text-[#92400E]'
+                    : 'border-[#E5DFD3] bg-white text-[#57534E]'
+                }`}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              maxLength={80}
+              value={goalRewardText}
+              onChange={(e) => {
+                setGoalRewardText(e.target.value);
+                setGoalSavedMsg(null);
+              }}
+              placeholder="例如：週末喝一杯珍珠奶茶"
+              aria-label="本週真實獎勵內容"
+              className="flex-1 rounded-xl border-2 border-[#1C1917] bg-white px-3.5 py-2 text-sm font-bold text-[#1C1917] focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleSaveWeeklyGoal}
+              className="qv-btn min-h-[42px] rounded-xl border-2 border-[#1C1917] bg-[#D97706] px-5 py-2 text-xs sm:text-sm font-extrabold text-white"
+            >
+              儲存每週目標
+            </button>
+          </div>
+          {goalSavedMsg && (
+            <p className="text-xs font-extrabold text-[#047857]">{goalSavedMsg}</p>
+          )}
+        </div>
+
+        {/* Parent-only Reward Voucher Redemption Strip */}
+        {weeklyGoalProgress.enabled && weeklyGoalProgress.isMet && (
+          <div
+            className={`rounded-2xl border-2 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+              weeklyGoalProgress.isRedeemed
+                ? 'border-[#10B981] bg-[#ECFDF5]'
+                : 'border-[#F59E0B] bg-[#FEF3C7]'
+            }`}
+          >
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1.5 font-display text-sm sm:text-base font-extrabold text-[#1C1917]">
+                <Gift className="h-4 w-4 text-[#D97706]" />
+                <span>
+                  {weeklyGoalProgress.isRedeemed
+                    ? `🏆 本週獎勵已於 ${weeklyGoalProgress.weekKey} 核銷兌換！`
+                    : `🎉 ${player.displayName} 已達成本週目標！待兌換：${weeklyGoalProgress.rewardText}`}
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-[#57534E]">
+                {weeklyGoalProgress.isRedeemed
+                  ? '下週一凌晨系統會自動重置本週進度與新獎勵券。'
+                  : '確認給孩子真實獎勵後，點擊右側按鈕即可核銷本週兌換券（僅家長室可操作）。'}
+              </p>
+            </div>
+            {!weeklyGoalProgress.isRedeemed && (
+              <button
+                type="button"
+                onClick={() => onRedeemWeeklyReward?.(weeklyGoalProgress.weekKey)}
+                className="qv-btn shrink-0 inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#059669] px-4 py-2 text-xs sm:text-sm font-extrabold text-white"
+              >
+                <Check className="h-4 w-4" />
+                <span>核銷本週獎勵券（已兌換）</span>
+              </button>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* 1. Weekly Snapshot */}
       <section className="qv-surface rounded-3xl p-5 sm:p-6 space-y-4">

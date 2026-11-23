@@ -48,6 +48,7 @@ interface WritingLogViewProps {
   activeSubjectId: SubjectId;
   onSelectSubject: (subjectId: SubjectId) => void;
   onImportState: (nextState: PlayerState) => void;
+  onRecordBackup?: () => void;
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartMathRun: (questSet: MathQuestSet) => void;
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
@@ -70,6 +71,7 @@ export const WritingLogView: React.FC<WritingLogViewProps> = ({
   activeSubjectId,
   onSelectSubject,
   onImportState,
+  onRecordBackup,
   onStartEnglishRun,
   onStartMathRun,
   onStartChineseRun,
@@ -153,15 +155,24 @@ export const WritingLogView: React.FC<WritingLogViewProps> = ({
   const unitLabel = selectedSubject === 'math' ? 'skills' : selectedSubject === 'chinese' ? '詞' : 'words';
 
   const handleExport = () => {
-    const json = exportPlayerStateJson(player);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `questvault-backup-${player.displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setBackupNotice({ tone: 'ok', text: 'Backup saved! Restore anytime on any iPad or Chromebook.' });
+    try {
+      const nowIso = new Date().toISOString();
+      const json = exportPlayerStateJson({ ...player, lastBackupAt: nowIso });
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `questvault-backup-${player.displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      onRecordBackup?.();
+      setBackupNotice({ tone: 'ok', text: 'Backup saved! Restore anytime on any iPad or Chromebook.' });
+    } catch {
+      setBackupNotice({
+        tone: 'err',
+        text: 'Export is restricted in this sandbox browser. Please open QuestVault directly in Safari/Chrome to save a backup.',
+      });
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

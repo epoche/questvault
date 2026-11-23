@@ -443,3 +443,145 @@ export function formatWeeklyReportText(
 
   return lines.join('\n');
 }
+
+export interface WeeklyGoalProgress {
+  enabled: boolean;
+  weekKey: string;
+  enDone: number;
+  enTarget: number;
+  zhDone: number;
+  zhTarget: number;
+  mathDone: number;
+  mathTarget: number;
+  totalDone: number;
+  totalTarget: number;
+  pct: number;
+  isMet: boolean;
+  isRedeemed: boolean;
+  rewardText: string;
+}
+
+export const WEEKLY_REWARD_PRESETS = [
+  '🧋 週末喝一杯珍珠奶茶',
+  '🍦 挑一球最愛的冰淇淋',
+  '🎬 週末家庭電影夜挑片權',
+  '📚 書店挑一本喜歡的新書',
+] as const;
+
+export const ISO_WEEK_KEY_RE = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/;
+
+/**
+ * Computes the local Monday-to-Sunday ISO week key (e.g., "2026-W48") so weekly goals
+ * automatically reset cleanly every Monday at local midnight.
+ * Uses UTC arithmetic over the local calendar date so Daylight Saving Time (DST) transitions
+ * never shift the week number.
+ */
+export function getIsoWeekKey(now: Date = new Date()): string {
+  const utcDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  // Thursday in current week determines the ISO week-year
+  const dayNum = utcDate.getUTCDay() || 7; // Mon=1 .. Sun=7
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = Date.UTC(utcDate.getUTCFullYear(), 0, 1);
+  const weekNo = Math.ceil(((utcDate.getTime() - yearStart) / 86_400_000 + 1) / 7);
+  return `${utcDate.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+export function getWeekStartTimestamp(now: Date = new Date()): number {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayNum = d.getDay() || 7; // Mon=1 .. Sun=7
+  d.setDate(d.getDate() - (dayNum - 1));
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+export function getNextWeekStartTimestamp(now: Date = new Date()): number {
+  const start = new Date(getWeekStartTimestamp(now));
+  start.setDate(start.getDate() + 7);
+  start.setHours(0, 0, 0, 0);
+  return start.getTime();
+}
+
+/**
+ * Counts valid rewarded quest runs (tokensEarned > 0) within the current local Mon-Sun week
+ * against the parent's configured Weekly Goal targets.
+ */
+export function computeWeeklyGoalProgress(
+  player: PlayerState,
+  now: Date = new Date(),
+): WeeklyGoalProgress {
+  const weekKey = getIsoWeekKey(now);
+  const goal = player.weeklyGoal;
+  const enTarget = goal ? Math.max(0, Math.min(14, Math.floor(goal.enTarget))) : 0;
+  const zhTarget = goal ? Math.max(0, Math.min(14, Math.floor(goal.zhTarget))) : 0;
+  const mathTarget = goal ? Math.max(0, Math.min(14, Math.floor(goal.mathTarget))) : 0;
+  const totalTarget = enTarget + zhTarget + mathTarget;
+  const enabled = totalTarget > 0;
+
+  const weekStartMs = getWeekStartTimestamp(now);
+  const weekEndMs = getNextWeekStartTimestamp(now);
+
+  let enDone = 0;
+  let zhDone = 0;
+  let mathDone = 0;
+
+  for (const run of player.runHistory) {
+    if (run.tokensEarned <= 0) continue; // Exclude 0-token practice replays from weekly goal credit
+    const ts = Date.parse(run.completedAt);
+    if (!Number.isFinite(ts) || ts < weekStartMs || ts >= weekEndMs) continue;
+    if (run.subjectId === 'english') enDone += 1;
+    else if (run.subjectId === 'chinese') zhDone += 1;
+    else if (run.subjectId === 'math') mathDone += 1;
+  }
+
+  const cappedTotalDone =
+    Math.min(enDone, enTarget) + Math.min(zhDone, zhTarget) + Math.min(mathDone, mathTarget);
+  const pct = totalTarget > 0 ? Math.min(100, Math.round((cappedTotalDone / totalTarget) * 100)) : 0;
+  const isMet = enabled && enDone >= enTarget && zhDone >= zhTarget && mathDone >= mathTarget;
+  const isRedeemed = Boolean(goal?.redeemedWeekKey && goal.redeemedWeekKey === weekKey);
+
+  return {
+    enabled,
+    weekKey,
+    enDone,
+    enTarget,
+    zhDone,
+    zhTarget,
+    mathDone,
+    mathTarget,
+    totalDone: cappedTotalDone,
+    totalTarget,
+    pct,
+    isMet,
+    isRedeemed,
+    rewardText: goal?.rewardText?.trim() || WEEKLY_REWARD_PRESETS[0],
+  };
+}
+
+export const BACKUP_REMINDER_MIN_RUNS = 3;
+export const BACKUP_REMINDER_DAYS = 7;
+
+/**
+ * Triggers a gentle backup reminder in Parent Corner once the player has completed >= 3 runs
+ * and has never exported a backup or hasn't backed up in more than 7 days.
+ */
+export function isBackupOverdue(
+  player: PlayerState,
+  nowMs: number = Date.now(),
+): { overdue: boolean; daysSinceBackup: number | null } {
+  if (player.runHistory.length < BACKUP_REMINDER_MIN_RUNS) {
+    return { overdue: false, daysSinceBackup: null };
+  }
+  if (!player.lastBackupAt) {
+    return { overdue: true, daysSinceBackup: null };
+  }
+  const ts = Date.parse(player.lastBackupAt);
+  if (!Number.isFinite(ts)) {
+    return { overdue: true, daysSinceBackup: null };
+  }
+  const diffDays = Math.floor(Math.max(0, nowMs - ts) / 86_400_000);
+  return {
+    overdue: nowMs - ts > BACKUP_REMINDER_DAYS * 86_400_000,
+    daysSinceBackup: diffDays,
+  };
+}
+

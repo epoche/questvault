@@ -1037,6 +1037,30 @@ export const App: React.FC = () => {
                   return next;
                 })
               }
+              onUpdateWeeklyGoal={(goal) =>
+                setPlayer((prev) => ({
+                  ...prev,
+                  weeklyGoal: goal,
+                }))
+              }
+              onRedeemWeeklyReward={(weekKey) =>
+                setPlayer((prev) => ({
+                  ...prev,
+                  weeklyGoal: {
+                    enTarget: prev.weeklyGoal?.enTarget ?? 0,
+                    zhTarget: prev.weeklyGoal?.zhTarget ?? 0,
+                    mathTarget: prev.weeklyGoal?.mathTarget ?? 0,
+                    rewardText: prev.weeklyGoal?.rewardText ?? '',
+                    redeemedWeekKey: weekKey,
+                  },
+                }))
+              }
+              onRecordBackup={() =>
+                setPlayer((prev) => ({
+                  ...prev,
+                  lastBackupAt: new Date().toISOString(),
+                }))
+              }
             />
           ) : activeReadingSet ? (
             <ReadingRunView
@@ -1414,6 +1438,12 @@ export const App: React.FC = () => {
                 setPlayer((prev) => ({ ...prev, activeSubjectId: subj }))
               }
               onImportState={(nextState) => setPlayer(nextState)}
+              onRecordBackup={() =>
+                setPlayer((prev) => ({
+                  ...prev,
+                  lastBackupAt: new Date().toISOString(),
+                }))
+              }
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
               onStartMathRun={(set) => setActiveMathSet(set)}
               onStartChineseRun={(set) => setActiveChineseSet(set)}
