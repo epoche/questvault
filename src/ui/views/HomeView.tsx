@@ -6,6 +6,7 @@ import {
   BookText,
   Brain,
   Calculator,
+  Castle,
   CheckCircle2,
   ChefHat,
   Coins,
@@ -114,6 +115,7 @@ interface HomeViewProps {
   onStartCafe: (subjectId: SubjectId) => void;
   onStartFishing: (subjectId: SubjectId) => void;
   onStartBossBattle: (subjectId: SubjectId) => void;
+  onStartTowerDefense?: (subjectId: SubjectId) => void;
   onClaimDailyQuest: () => void;
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartEnglishRootFamily: (family: EnglishRootFamily) => void;
@@ -160,6 +162,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartCafe,
   onStartFishing,
   onStartBossBattle,
+  onStartTowerDefense,
   onClaimDailyQuest,
   onStartEnglishRun,
   onStartEnglishRootFamily,
@@ -461,6 +464,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <Swords className="h-4 w-4" />
                 <span>{activeSubjectId === 'chinese' ? '夥伴打魔王' : 'Boss Battle'}</span>
               </button>
+
+              {onStartTowerDefense && (
+                <button
+                  type="button"
+                  onClick={() => onStartTowerDefense(activeSubjectId)}
+                  className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#4F46E5] px-4 py-3 font-display text-sm font-extrabold text-white"
+                  style={{ borderBottomColor: '#312E81' }}
+                >
+                  <Castle className="h-4 w-4" />
+                  <span>{activeSubjectId === 'chinese' ? '夥伴塔防' : 'Tower Defense'}</span>
+                </button>
+              )}
 
               {activeSubjectId === 'math' && onStartFactFluency && (
                 <button

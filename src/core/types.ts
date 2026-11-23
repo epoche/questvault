@@ -229,6 +229,7 @@ export interface PlayerState {
   cafeHighScores?: Partial<Record<SubjectId, number>>;
   fishingHighScores?: Partial<Record<SubjectId, number>>;
   bossHighScores?: Partial<Record<SubjectId, number>>;
+  towerHighScores?: Partial<Record<SubjectId, number>>;
   arcadeDailyTokens?: BlitzDailyTokens;
   weeklyGoal?: WeeklyGoalConfig;
   lastBackupAt?: string;

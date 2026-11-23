@@ -64,7 +64,10 @@ export default defineConfig({
                 ) {
                   return 'artwork-phase4';
                 }
-                if (id.includes('/src/ui/artwork/phase6Collectibles')) {
+                if (
+                  id.includes('/src/ui/artwork/phase6Collectibles') ||
+                  id.includes('/src/ui/artwork/TowerDefenseSvg')
+                ) {
                   return 'artwork-phase6';
                 }
                 if (id.includes('/src/ui/artwork/')) return 'artwork-svg';

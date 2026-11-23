@@ -491,6 +491,40 @@ export function awardBossSessionRewards(
   };
 }
 
+export function awardTowerSessionRewards(
+  state: PlayerState,
+  subjectId: 'english' | 'math' | 'chinese',
+  score: number,
+  rawTokensEarned: number,
+  todayKey: string,
+): { state: PlayerState; tokensAwarded: number; remainingDailyCap: number } {
+  const earnedSoFar = getTodayArcadeTokensEarned(state, todayKey);
+  const remainingBefore = Math.max(0, ARCADE_DAILY_TOKEN_CAP - earnedSoFar);
+  const safeEarned = Number.isFinite(rawTokensEarned) ? Math.max(0, Math.floor(rawTokensEarned)) : 0;
+  const safeScore = Number.isFinite(score) ? Math.max(0, Math.floor(score)) : 0;
+  const tokensAwarded = Math.min(remainingBefore, safeEarned);
+  const prevBest = state.towerHighScores?.[subjectId] ?? 0;
+  const prevArcade =
+    state.arcadeDailyTokens?.dateKey === todayKey ? state.arcadeDailyTokens.earned : 0;
+
+  return {
+    tokensAwarded,
+    remainingDailyCap: Math.max(0, remainingBefore - tokensAwarded),
+    state: {
+      ...state,
+      tokens: state.tokens + tokensAwarded,
+      towerHighScores: {
+        ...state.towerHighScores,
+        [subjectId]: Math.max(prevBest, safeScore),
+      },
+      arcadeDailyTokens: {
+        dateKey: todayKey,
+        earned: prevArcade + tokensAwarded,
+      },
+    },
+  };
+}
+
 export const MATH_FLUENCY_DAILY_CAP = FACT_FLUENCY_DAILY_TOKEN_CAP;
 
 export function awardMathFluencyRewards(

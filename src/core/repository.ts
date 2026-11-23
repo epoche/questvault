@@ -157,6 +157,16 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     }
   }
 
+  const sanitizedTowerHighScores: Partial<Record<'english' | 'math' | 'chinese', number>> = {};
+  if (isRecord(obj.towerHighScores)) {
+    for (const subj of ['english', 'math', 'chinese'] as const) {
+      const sc = obj.towerHighScores[subj];
+      if (typeof sc === 'number' && Number.isFinite(sc) && sc >= 0) {
+        sanitizedTowerHighScores[subj] = Math.floor(sc);
+      }
+    }
+  }
+
   let sanitizedArcadeDailyTokens: PlayerState['arcadeDailyTokens'] = undefined;
   if (
     isRecord(obj.arcadeDailyTokens) &&
@@ -445,6 +455,7 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     cafeHighScores: sanitizedCafeHighScores,
     fishingHighScores: sanitizedFishingHighScores,
     bossHighScores: sanitizedBossHighScores,
+    towerHighScores: sanitizedTowerHighScores,
     ...(sanitizedArcadeDailyTokens ? { arcadeDailyTokens: sanitizedArcadeDailyTokens } : {}),
     ...(() => {
       if (!obj.weeklyGoal || typeof obj.weeklyGoal !== 'object' || Array.isArray(obj.weeklyGoal)) {

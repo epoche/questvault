@@ -10,6 +10,7 @@ import {
   awardCafeSessionRewards,
   awardFishingSessionRewards,
   awardMathFluencyRewards,
+  awardTowerSessionRewards,
   claimChapterSeriesChest,
   claimDailyTriSubjectReward,
   claimEnglishChapterSeriesChest,
@@ -134,6 +135,10 @@ import {
   type SpellingBeeCompletionPayload,
   SpellingBeeView,
 } from './ui/views/SpellingBeeView';
+import {
+  type TowerDefenseCompletionPayload,
+  TowerDefenseView,
+} from './ui/views/TowerDefenseView';
 import { VaultView } from './ui/views/VaultView';
 import { WritingLogView } from './ui/views/WritingLogView';
 
@@ -167,6 +172,7 @@ export const App: React.FC = () => {
   const [activeCafeSubject, setActiveCafeSubject] = useState<SubjectId | null>(null);
   const [activeFishingSubject, setActiveFishingSubject] = useState<SubjectId | null>(null);
   const [activeBossSubject, setActiveBossSubject] = useState<SubjectId | null>(null);
+  const [activeTowerSubject, setActiveTowerSubject] = useState<SubjectId | null>(null);
   const [parentOpen, setParentOpen] = useState(false);
 
   const [activePull, setActivePull] = useState<PackPullViewData | null>(null);
@@ -202,6 +208,7 @@ export const App: React.FC = () => {
       activeCafeSubject ||
       activeFishingSubject ||
       activeBossSubject ||
+      activeTowerSubject ||
       parentOpen,
   );
 
@@ -238,6 +245,7 @@ export const App: React.FC = () => {
     activeCafeSubject,
     activeFishingSubject,
     activeBossSubject,
+    activeTowerSubject,
     parentOpen,
   ]);
 
@@ -262,6 +270,7 @@ export const App: React.FC = () => {
     setActiveCafeSubject(null);
     setActiveFishingSubject(null);
     setActiveBossSubject(null);
+    setActiveTowerSubject(null);
     setParentOpen(false);
   };
 
@@ -443,6 +452,25 @@ export const App: React.FC = () => {
       payload.score,
       payload.rawTokensEarned,
       todayKey,
+    );
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    return {
+      tokensAwarded: res.tokensAwarded,
+      remainingDailyCap: res.remainingDailyCap,
+    };
+  };
+
+  const handleCompleteTowerDefense = (
+    payload: TowerDefenseCompletionPayload,
+  ): { tokensAwarded: number; remainingDailyCap: number } => {
+    const todayKeyNow = getLocalDateKey();
+    const res = awardTowerSessionRewards(
+      playerRef.current,
+      payload.subjectId,
+      payload.score,
+      payload.rawTokensEarned,
+      todayKeyNow,
     );
     playerRef.current = res.state;
     setPlayer(res.state);
@@ -1399,6 +1427,28 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeTowerSubject ? (
+            <TowerDefenseView
+              key={activeTowerSubject}
+              subjectId={activeTowerSubject}
+              activeTier={
+                player.subjectTiers?.[activeTowerSubject] ??
+                (activeTowerSubject === 'english' ? player.activeTier : 2)
+              }
+              vault={player.vault}
+              shinyVault={player.shinyVault}
+              favoriteCollectibleIds={player.favoriteCollectibleIds}
+              highScore={player.towerHighScores?.[activeTowerSubject] ?? 0}
+              arcadeTokensEarnedToday={getTodayArcadeTokensEarned(player, todayKey)}
+              showZhuyin={showZhuyin}
+              onToggleZhuyin={handleToggleZhuyin}
+              onCompleteTowerDefense={handleCompleteTowerDefense}
+              onExit={() => setActiveTowerSubject(null)}
+              onGoToMarket={() => {
+                setActiveTowerSubject(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeBossSubject ? (
             <BossBattleView
               subjectId={activeBossSubject}
@@ -1783,6 +1833,7 @@ export const App: React.FC = () => {
               onStartCafe={(subj) => setActiveCafeSubject(subj)}
               onStartFishing={(subj) => setActiveFishingSubject(subj)}
               onStartBossBattle={(subj) => setActiveBossSubject(subj)}
+              onStartTowerDefense={(subj) => setActiveTowerSubject(subj)}
               onClaimDailyQuest={handleClaimDailyQuest}
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
               onStartEnglishRootFamily={(fam) => setActiveEnglishRootFamily(fam)}
