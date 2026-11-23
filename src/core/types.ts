@@ -170,6 +170,7 @@ export interface PlayerState {
   favoriteCollectibleIds?: string[];
   wordMastery: Record<string, WordMasteryRecord>;
   completedQuestSetIds: string[];
+  completedRadicalIds?: string[];
   runHistory: RunSummary[];
   writingLog: WritingEntry[];
   customWordSets: CustomWordSetRecord[];

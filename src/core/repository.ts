@@ -220,6 +220,11 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     completedQuestSetIds: Array.isArray(obj.completedQuestSetIds)
       ? obj.completedQuestSetIds.filter((id): id is string => typeof id === 'string')
       : [],
+    completedRadicalIds: Array.isArray(obj.completedRadicalIds)
+      ? Array.from(
+          new Set(obj.completedRadicalIds.filter((id): id is string => typeof id === 'string')),
+        )
+      : [],
     runHistory: Array.isArray(obj.runHistory)
       ? (obj.runHistory.filter(
           (r) => isRecord(r) && typeof r.id === 'string' && typeof r.tokensEarned === 'number',

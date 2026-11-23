@@ -13,6 +13,7 @@ import {
   Languages,
   Play,
   Plus,
+  Puzzle,
   Sparkles,
   Trash2,
   Zap,
@@ -28,6 +29,10 @@ import {
   buildChineseTrickyRematchSet,
 } from '../../subjects/chinese/chineseEngine';
 import { CHINESE_PLACEMENT_BONUS_TOKENS } from '../../subjects/chinese/chinesePlacement';
+import {
+  getRadicalFamiliesByTier,
+  type RadicalFamily,
+} from '../../subjects/chinese/radicalFamilies';
 import { getChineseReadingByTier } from '../../subjects/chinese/readingQuests';
 import type { ChineseWordSet } from '../../subjects/chinese/types';
 import {
@@ -69,6 +74,7 @@ interface HomeViewProps {
   onStartMathRun: (questSet: MathQuestSet) => void;
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
   onStartChineseListening: () => void;
+  onStartRadicalFamily: (family: RadicalFamily) => void;
   onStartReadingRun: (questSet: ReadingQuestSet) => void;
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
   onDeleteCustomSet: (id: string) => void;
@@ -103,18 +109,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartMathRun,
   onStartChineseRun,
   onStartChineseListening,
+  onStartRadicalFamily,
   onStartReadingRun,
   onOpenCustomImporter,
   onDeleteCustomSet,
   onGoToMarket,
 }) => {
-  const [questMode, setQuestMode] = useState<'words' | 'stories'>('words');
+  const [questMode, setQuestMode] = useState<'words' | 'stories' | 'radicals'>('words');
+  const effectiveQuestMode =
+    activeSubjectId !== 'chinese' && questMode === 'radicals' ? 'words' : questMode;
   const packsReady = Math.floor(player.tokens / MIN_PACK_COST);
   const todayKey = getLocalDateKey();
 
   const enSets = getWordSetsByTier(activeTier);
   const mathSets = getMathSetsByTier(activeTier);
   const zhSets = getChineseSetsByTier(activeTier);
+  const zhRadicalFamilies = getRadicalFamiliesByTier(activeTier);
   const enReadingSets = getEnglishReadingByTier(activeTier);
   const zhReadingSets = getChineseReadingByTier(activeTier);
 
@@ -290,15 +300,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </button>
 
               {activeSubjectId === 'chinese' && (
-                <button
-                  type="button"
-                  onClick={onStartChineseListening}
-                  className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#DB2777] px-4 py-3 font-display text-sm font-extrabold text-white"
-                  style={{ borderBottomColor: '#9D174D' }}
-                >
-                  <Headphones className="h-4 w-4" />
-                  <span>聽音辨字</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={onStartChineseListening}
+                    className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#DB2777] px-4 py-3 font-display text-sm font-extrabold text-white"
+                    style={{ borderBottomColor: '#9D174D' }}
+                  >
+                    <Headphones className="h-4 w-4" />
+                    <span>聽音辨字</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextRad =
+                        zhRadicalFamilies.find(
+                          (f) => !(player.completedRadicalIds ?? []).includes(f.id),
+                        ) ?? zhRadicalFamilies[0];
+                      if (nextRad) onStartRadicalFamily(nextRad);
+                    }}
+                    className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#0D9488] px-4 py-3 font-display text-sm font-extrabold text-white"
+                    style={{ borderBottomColor: '#115E59' }}
+                  >
+                    <Puzzle className="h-4 w-4" />
+                    <span>偏旁工廠</span>
+                  </button>
+                </>
               )}
 
               {packsReady > 0 && (
@@ -527,14 +554,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
           )}
         </div>
 
-        {/* Mode Switcher for English & Chinese: Word Quests vs Story Quests */}
+        {/* Mode Switcher for English & Chinese: Word Quests vs Radical Builder (ZH) vs Story Quests */}
         {activeSubjectId !== 'math' && (
-          <div className="inline-flex items-center gap-1.5 rounded-2xl border-2 border-[#E5DFD3] bg-[#F3EFE7] p-1">
+          <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl border-2 border-[#E5DFD3] bg-[#F3EFE7] p-1">
             <button
               type="button"
               onClick={() => setQuestMode('words')}
               className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                questMode === 'words'
+                effectiveQuestMode === 'words'
                   ? 'bg-white text-[#1C1917] shadow-xs'
                   : 'text-[#57534E] hover:text-[#1C1917]'
               }`}
@@ -546,11 +573,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   : `Word Quests (${enSets.length})`}
               </span>
             </button>
+            {activeSubjectId === 'chinese' && (
+              <button
+                type="button"
+                onClick={() => setQuestMode('radicals')}
+                className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                  effectiveQuestMode === 'radicals'
+                    ? 'bg-white text-[#1C1917] shadow-xs'
+                    : 'text-[#57534E] hover:text-[#1C1917]'
+                }`}
+              >
+                <Puzzle className="h-4 w-4 text-[#0D9488]" />
+                <span>偏旁工廠 ({zhRadicalFamilies.length})</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setQuestMode('stories')}
               className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                questMode === 'stories'
+                effectiveQuestMode === 'stories'
                   ? 'bg-white text-[#1C1917] shadow-xs'
                   : 'text-[#57534E] hover:text-[#1C1917]'
               }`}
@@ -566,7 +607,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         )}
 
         {/* Saved Custom School Word Sets — Surfaced ABOVE built-in cards for instant access */}
-        {activeSubjectId === 'english' && questMode === 'words' && enCustomSets.length > 0 && (
+        {activeSubjectId === 'english' && effectiveQuestMode === 'words' && enCustomSets.length > 0 && (
           <div className="space-y-2.5">
             <h2 className="font-display text-base font-extrabold text-[#0F766E]">
               My School Word Sets ({enCustomSets.length})
@@ -615,7 +656,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
-        {activeSubjectId === 'chinese' && questMode === 'words' && zhCustomSets.length > 0 && (
+        {activeSubjectId === 'chinese' && effectiveQuestMode === 'words' && zhCustomSets.length > 0 && (
           <div className="space-y-2.5">
             <h2 className="font-display text-base font-extrabold text-[#0F766E]">
               我的中文學校生字表 ({zhCustomSets.length})
@@ -664,8 +705,77 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
+        {/* Chinese Radical Builder Grid */}
+        {activeSubjectId === 'chinese' && effectiveQuestMode === 'radicals' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {zhRadicalFamilies.map((fam) => {
+              const done = (player.completedRadicalIds ?? []).includes(fam.id);
+              const isPhonetic = fam.kind === 'phonetic';
+              return (
+                <button
+                  key={fam.id}
+                  type="button"
+                  onClick={() => onStartRadicalFamily(fam)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: isPhonetic ? '#F0FDFA' : '#FDF2F8' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <CollectibleArt
+                        id={fam.emblemCollectibleId}
+                        size={58}
+                        className="border-2 border-[#1C1917]"
+                      />
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-[#1C1917] bg-white font-display text-2xl font-extrabold text-[#1C1917] shadow-xs">
+                        {fam.anchor}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: isPhonetic ? '#0D9488' : '#DB2777' }}
+                      >
+                        {isPhonetic ? '同聲旁家族' : '同部首家族'}
+                      </span>
+                      {done ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          已解鎖
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
+                          <Coins className="h-3.5 w-3.5" />
+                          +25–30
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2.5">
+                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
+                      {fam.title}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">{fam.subtitle}</p>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {fam.items.map((it) => (
+                        <span
+                          key={it.char}
+                          className="rounded-lg bg-[#F3EFE7] px-2.5 py-1 text-sm font-extrabold text-[#1C1917]"
+                        >
+                          <RubyWord word={it.char} zhuyin={it.zhuyin} showZhuyin={showZhuyin} />
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Story Quests Grid (English & Traditional Chinese) */}
-        {activeSubjectId !== 'math' && questMode === 'stories' && (
+        {activeSubjectId !== 'math' && effectiveQuestMode === 'stories' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {(activeSubjectId === 'chinese' ? zhReadingSets : enReadingSets).map((rq) => {
               const done = player.completedQuestSetIds.includes(rq.id);
@@ -731,7 +841,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         )}
 
         {/* Quest Cards Grid per Active Subject */}
-        {activeSubjectId === 'english' && questMode === 'words' && (
+        {activeSubjectId === 'english' && effectiveQuestMode === 'words' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {enSets.map((ws) => {
               const done = player.completedQuestSetIds.includes(ws.id);
@@ -853,7 +963,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
-        {activeSubjectId === 'chinese' && questMode === 'words' && (
+        {activeSubjectId === 'chinese' && effectiveQuestMode === 'words' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {zhSets.map((ws) => {
               const done = player.completedQuestSetIds.includes(ws.id);

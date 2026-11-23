@@ -30,6 +30,7 @@ import type {
 } from './core/types';
 import { customChineseRecordToWordSet } from './subjects/chinese/chineseCustomParser';
 import { CHINESE_PLACEMENT_BONUS_TOKENS } from './subjects/chinese/chinesePlacement';
+import type { RadicalFamily } from './subjects/chinese/radicalFamilies';
 import type { ChineseWordSet } from './subjects/chinese/types';
 import { customRecordToWordSet } from './subjects/english/customParser';
 import { PLACEMENT_BONUS_TOKENS } from './subjects/english/placement';
@@ -57,6 +58,10 @@ import { MathPlacementView } from './ui/views/MathPlacementView';
 import { type MathCompletionPayload, MathRunView } from './ui/views/MathRunView';
 import { ParentView } from './ui/views/ParentView';
 import { PlacementView } from './ui/views/PlacementView';
+import {
+  type RadicalCompletionPayload,
+  RadicalQuestView,
+} from './ui/views/RadicalQuestView';
 import { type ReadingCompletionPayload, ReadingRunView } from './ui/views/ReadingRunView';
 import { type RunCompletionPayload, RunView } from './ui/views/RunView';
 import { VaultView } from './ui/views/VaultView';
@@ -73,6 +78,7 @@ export const App: React.FC = () => {
   const [activeMathSet, setActiveMathSet] = useState<MathQuestSet | null>(null);
   const [activeChineseSet, setActiveChineseSet] = useState<ChineseWordSet | null>(null);
   const [activeChineseListening, setActiveChineseListening] = useState(false);
+  const [activeRadicalFamily, setActiveRadicalFamily] = useState<RadicalFamily | null>(null);
   const [activeReadingSet, setActiveReadingSet] = useState<ReadingQuestSet | null>(null);
   const [placementSubject, setPlacementSubject] = useState<SubjectId | null>(null);
   const [activeBlitzSubject, setActiveBlitzSubject] = useState<SubjectId | null>(null);
@@ -96,6 +102,7 @@ export const App: React.FC = () => {
       activeMathSet ||
       activeChineseSet ||
       activeChineseListening ||
+      activeRadicalFamily ||
       activeReadingSet ||
       placementSubject ||
       activeBlitzSubject ||
@@ -120,6 +127,7 @@ export const App: React.FC = () => {
     activeMathSet,
     activeChineseSet,
     activeChineseListening,
+    activeRadicalFamily,
     activeReadingSet,
     placementSubject,
     activeBlitzSubject,
@@ -132,6 +140,7 @@ export const App: React.FC = () => {
     setActiveMathSet(null);
     setActiveChineseSet(null);
     setActiveChineseListening(false);
+    setActiveRadicalFamily(null);
     setActiveReadingSet(null);
     setPlacementSubject(null);
     setActiveBlitzSubject(null);
@@ -488,6 +497,45 @@ export const App: React.FC = () => {
     setActiveChineseListening(false);
   };
 
+  const handleCompleteRadical = (payload: RadicalCompletionPayload) => {
+    setPlayer((prev) => {
+      const prevRadicals = prev.completedRadicalIds ?? [];
+      const nextRadicals = prevRadicals.includes(payload.familyId)
+        ? prevRadicals
+        : [...prevRadicals, payload.familyId];
+
+      let nextMastery = prev.wordMastery;
+      for (const ch of payload.masteredChars) {
+        nextMastery = recordWordOutcome(nextMastery, {
+          word: ch.char,
+          subjectId: 'chinese',
+          tier: payload.tier,
+          outcome: ch.firstTryCorrect ? 'clean' : 'missed',
+        });
+      }
+
+      const todayKey = getLocalDateKey();
+      const summary = {
+        id: `zh-rad-${Date.now()}`,
+        subjectId: 'chinese' as const,
+        questSetId: payload.familyId,
+        questSetTitle: `偏旁工廠：${payload.familyTitle}`,
+        tokensEarned: payload.tokensEarned,
+        maxCombo: payload.masteredChars.filter((c) => c.firstTryCorrect).length,
+        accuracyPct: payload.accuracyPct,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + payload.tokensEarned,
+        completedRadicalIds: nextRadicals,
+        wordMastery: nextMastery,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(updated, 'chinese', todayKey);
+    });
+  };
+
   const handleSaveCustomSet = (record: CustomWordSetRecord) => {
     setPlayer((prev) => ({
       ...prev,
@@ -690,6 +738,20 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeRadicalFamily ? (
+            <RadicalQuestView
+              family={activeRadicalFamily}
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              showZhuyin={showZhuyin}
+              onToggleZhuyin={handleToggleZhuyin}
+              onCompleteRadical={handleCompleteRadical}
+              onExit={() => setActiveRadicalFamily(null)}
+              onGoToMarket={() => {
+                setActiveRadicalFamily(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeChineseListening ? (
             <ChineseListeningView
               tier={player.subjectTiers?.chinese ?? 2}
@@ -716,6 +778,7 @@ export const App: React.FC = () => {
               onStartMathRun={(set) => setActiveMathSet(set)}
               onStartChineseRun={(set) => setActiveChineseSet(set)}
               onStartChineseListening={() => setActiveChineseListening(true)}
+              onStartRadicalFamily={(fam) => setActiveRadicalFamily(fam)}
               onStartReadingRun={(set) => setActiveReadingSet(set)}
               onOpenCustomImporter={(subj) => setImporterSubject(subj)}
               onDeleteCustomSet={handleDeleteCustomSet}
