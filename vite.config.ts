@@ -29,6 +29,13 @@ export default defineConfig({
                 }
                 if (id.includes('/src/subjects/english/')) return 'subject-english';
                 if (id.includes('/src/subjects/chinese/chapterStories')) return 'subject-chinese-chapters';
+                if (
+                  id.includes('/src/subjects/chinese/measureSets') ||
+                  id.includes('/src/subjects/chinese/idiomContextSets') ||
+                  id.includes('/src/subjects/chinese/measureIdiomSets')
+                ) {
+                  return 'subject-chinese-phase4';
+                }
                 if (id.includes('/src/subjects/chinese/')) return 'subject-chinese';
                 if (id.includes('/src/subjects/math/')) return 'subject-math';
                 if (id.includes('/src/ui/artwork/')) return 'artwork-svg';

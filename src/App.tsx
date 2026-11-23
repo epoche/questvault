@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MotionConfig } from 'motion/react';
+import { claimAchievementReward } from './core/achievements';
 import { hashParentPin } from './core/analytics';
 import { audioService } from './core/audio';
 import {
@@ -40,6 +41,7 @@ import {
 } from './subjects/chinese/chapterStories';
 import { customChineseRecordToWordSet } from './subjects/chinese/chineseCustomParser';
 import { CHINESE_PLACEMENT_BONUS_TOKENS } from './subjects/chinese/chinesePlacement';
+import type { MeasureIdiomSet } from './subjects/chinese/measureIdiomSets';
 import type { RadicalFamily } from './subjects/chinese/radicalFamilies';
 import type { ChineseWordSet } from './subjects/chinese/types';
 import { customRecordToWordSet } from './subjects/english/customParser';
@@ -71,6 +73,10 @@ import { HomeView } from './ui/views/HomeView';
 import { MarketView } from './ui/views/MarketView';
 import { MathPlacementView } from './ui/views/MathPlacementView';
 import { type MathCompletionPayload, MathRunView } from './ui/views/MathRunView';
+import {
+  type MeasureIdiomCompletionPayload,
+  MeasureIdiomQuestView,
+} from './ui/views/MeasureIdiomQuestView';
 import { ParentView } from './ui/views/ParentView';
 import { PlacementView } from './ui/views/PlacementView';
 import {
@@ -94,6 +100,7 @@ export const App: React.FC = () => {
   const [activeChineseSet, setActiveChineseSet] = useState<ChineseWordSet | null>(null);
   const [activeChineseListening, setActiveChineseListening] = useState(false);
   const [activeRadicalFamily, setActiveRadicalFamily] = useState<RadicalFamily | null>(null);
+  const [activeMeasureSet, setActiveMeasureSet] = useState<MeasureIdiomSet | null>(null);
   const [activeChapterSeries, setActiveChapterSeries] = useState<ChapterSeries | null>(null);
   const [activeReadingSet, setActiveReadingSet] = useState<ReadingQuestSet | null>(null);
   const [placementSubject, setPlacementSubject] = useState<SubjectId | null>(null);
@@ -120,6 +127,7 @@ export const App: React.FC = () => {
       activeChineseSet ||
       activeChineseListening ||
       activeRadicalFamily ||
+      activeMeasureSet ||
       activeChapterSeries ||
       activeReadingSet ||
       placementSubject ||
@@ -147,6 +155,7 @@ export const App: React.FC = () => {
     activeChineseSet,
     activeChineseListening,
     activeRadicalFamily,
+    activeMeasureSet,
     activeChapterSeries,
     activeReadingSet,
     placementSubject,
@@ -162,6 +171,7 @@ export const App: React.FC = () => {
     setActiveChineseSet(null);
     setActiveChineseListening(false);
     setActiveRadicalFamily(null);
+    setActiveMeasureSet(null);
     setActiveChapterSeries(null);
     setActiveReadingSet(null);
     setPlacementSubject(null);
@@ -717,6 +727,71 @@ export const App: React.FC = () => {
     return true;
   };
 
+  const handleCompleteMeasureIdiom = (payload: MeasureIdiomCompletionPayload) => {
+    setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
+      const prevMeasures = prev.completedMeasureIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.setId,
+        kind: 'static',
+        subjectId: 'chinese',
+        todayKey,
+        completedIds: prevMeasures,
+        words: activeMeasureSet?.questions.map((q) => q.targetAnswer),
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.tokensEarned,
+        policy.multiplier,
+      );
+
+      const nextMeasures = prevMeasures.includes(payload.setId)
+        ? prevMeasures
+        : [...prevMeasures, payload.setId];
+
+      let nextMastery = prev.wordMastery;
+      for (const out of payload.wordOutcomes) {
+        nextMastery = recordWordOutcome(nextMastery, {
+          word: out.word,
+          subjectId: 'chinese',
+          tier: payload.tier,
+          outcome: out.firstTryCorrect ? 'clean' : 'missed',
+        });
+      }
+
+      const summary = {
+        id: `zh-meas-${Date.now()}`,
+        subjectId: 'chinese' as const,
+        questSetId: payload.setId,
+        questSetTitle: `${payload.kind === 'measure' ? '量詞大作戰' : '易混詞成語'}：${payload.setTitle}`,
+        tokensEarned: awardedTokens,
+        maxCombo: payload.maxCombo,
+        accuracyPct: payload.accuracyPct,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + awardedTokens,
+        completedMeasureIds: nextMeasures,
+        wordMastery: nextMastery,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.setId, todayKey),
+        'chinese',
+        todayKey,
+      );
+    });
+  };
+
+  const handleClaimAchievement = (achievementId: string): boolean => {
+    const res = claimAchievementReward(playerRef.current, achievementId);
+    if (!res.ok) return false;
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    audioService.playChest();
+    return true;
+  };
+
   const handleSaveCustomSet = (record: CustomWordSetRecord) => {
     setPlayer((prev) => ({
       ...prev,
@@ -1025,6 +1100,28 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeMeasureSet ? (
+            <MeasureIdiomQuestView
+              questSet={activeMeasureSet}
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              showZhuyin={showZhuyin}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeMeasureSet.id,
+                kind: 'static',
+                subjectId: 'chinese',
+                todayKey,
+                completedIds: player.completedMeasureIds ?? [],
+                words: activeMeasureSet.questions.map((q) => q.targetAnswer),
+              })}
+              onToggleZhuyin={handleToggleZhuyin}
+              onComplete={handleCompleteMeasureIdiom}
+              onExit={() => setActiveMeasureSet(null)}
+              onGoToMarket={() => {
+                setActiveMeasureSet(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeChineseListening ? (
             <ChineseListeningView
               tier={player.subjectTiers?.chinese ?? 2}
@@ -1053,6 +1150,7 @@ export const App: React.FC = () => {
               onStartChineseRun={(set) => setActiveChineseSet(set)}
               onStartChineseListening={() => setActiveChineseListening(true)}
               onStartRadicalFamily={(fam) => setActiveRadicalFamily(fam)}
+              onStartMeasureIdiomSet={(set) => setActiveMeasureSet(set)}
               onStartChapterSeries={(series) => setActiveChapterSeries(series)}
               onStartReadingRun={(set) => setActiveReadingSet(set)}
               onOpenCustomImporter={(subj) => setImporterSubject(subj)}
@@ -1075,6 +1173,7 @@ export const App: React.FC = () => {
               onWishUnlock={handleWishUnlock}
               onFuseFiveUp={handleFuseFiveUp}
               onToggleFavorite={handleToggleFavorite}
+              onClaimAchievement={handleClaimAchievement}
             />
           ) : (
             <WritingLogView

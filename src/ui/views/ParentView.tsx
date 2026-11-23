@@ -475,12 +475,13 @@ export const ParentView: React.FC<ParentViewProps> = ({
         {/* Phase 3 Progress Strip: Radicals + Chapter Stories + Arcade */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
           <div className="rounded-2xl bg-[#F0FDFA] border border-[#99F6E4] p-3.5">
-            <div className="text-xs font-bold text-[#0F766E]">🧩 中文偏旁部首工廠</div>
-            <div className="mt-1 font-display text-xl font-extrabold text-[#115E59] tabular-nums">
-              {snapshot.completedRadicalsCount} / {snapshot.totalRadicalsCount} 家族
+            <div className="text-xs font-bold text-[#0F766E]">🧩 中文偏旁 & 📏 量詞成語</div>
+            <div className="mt-1 font-display text-lg font-extrabold text-[#115E59] tabular-nums">
+              偏旁 {snapshot.completedRadicalsCount}/{snapshot.totalRadicalsCount} · 量詞成語{' '}
+              {(player.completedMeasureIds ?? []).length}/24
             </div>
             <div className="mt-0.5 text-[11px] font-semibold text-[#0F766E] tabular-nums">
-              已解鎖 {snapshot.completedRadicalsCount * 5} / {snapshot.totalRadicalsCount * 5} 個常用繁體字
+              解鎖 {snapshot.completedRadicalsCount * 5} 偏旁字 ＋ {(player.completedMeasureIds ?? []).length * 5} 題情境特訓
             </div>
           </div>
 

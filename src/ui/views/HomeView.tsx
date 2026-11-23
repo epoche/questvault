@@ -16,6 +16,7 @@ import {
   Play,
   Plus,
   Puzzle,
+  Ruler,
   Sparkles,
   Trash2,
   Zap,
@@ -41,6 +42,10 @@ import {
   buildChineseTrickyRematchSet,
 } from '../../subjects/chinese/chineseEngine';
 import { CHINESE_PLACEMENT_BONUS_TOKENS } from '../../subjects/chinese/chinesePlacement';
+import {
+  getMeasureIdiomSetsByTier,
+  type MeasureIdiomSet,
+} from '../../subjects/chinese/measureIdiomSets';
 import {
   getRadicalFamiliesByTier,
   type RadicalFamily,
@@ -88,6 +93,7 @@ interface HomeViewProps {
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
   onStartChineseListening: () => void;
   onStartRadicalFamily: (family: RadicalFamily) => void;
+  onStartMeasureIdiomSet: (set: MeasureIdiomSet) => void;
   onStartChapterSeries: (series: ChapterSeries) => void;
   onStartReadingRun: (questSet: ReadingQuestSet) => void;
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
@@ -125,15 +131,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartChineseRun,
   onStartChineseListening,
   onStartRadicalFamily,
+  onStartMeasureIdiomSet,
   onStartChapterSeries,
   onStartReadingRun,
   onOpenCustomImporter,
   onDeleteCustomSet,
   onGoToMarket,
 }) => {
-  const [questMode, setQuestMode] = useState<'words' | 'stories' | 'radicals' | 'chapters'>('words');
+  const [questMode, setQuestMode] = useState<
+    'words' | 'stories' | 'radicals' | 'measures' | 'chapters'
+  >('words');
   const effectiveQuestMode =
-    activeSubjectId !== 'chinese' && (questMode === 'radicals' || questMode === 'chapters')
+    activeSubjectId !== 'chinese' &&
+    (questMode === 'radicals' || questMode === 'measures' || questMode === 'chapters')
       ? 'words'
       : questMode;
   const packsReady = Math.floor(player.tokens / MIN_PACK_COST);
@@ -184,6 +194,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const mathSets = getMathSetsByTier(activeTier);
   const zhSets = getChineseSetsByTier(activeTier);
   const zhRadicalFamilies = getRadicalFamiliesByTier(activeTier);
+  const zhMeasureIdiomSets = getMeasureIdiomSetsByTier(activeTier);
   const enReadingSets = getEnglishReadingByTier(activeTier);
   const zhReadingSets = getChineseReadingByTier(activeTier);
 
@@ -643,18 +654,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </span>
             </button>
             {activeSubjectId === 'chinese' && (
-              <button
-                type="button"
-                onClick={() => setQuestMode('radicals')}
-                className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                  effectiveQuestMode === 'radicals'
-                    ? 'bg-white text-[#1C1917] shadow-xs'
-                    : 'text-[#57534E] hover:text-[#1C1917]'
-                }`}
-              >
-                <Puzzle className="h-4 w-4 text-[#0D9488]" />
-                <span>偏旁工廠 ({zhRadicalFamilies.length})</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setQuestMode('radicals')}
+                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                    effectiveQuestMode === 'radicals'
+                      ? 'bg-white text-[#1C1917] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
+                  }`}
+                >
+                  <Puzzle className="h-4 w-4 text-[#0D9488]" />
+                  <span>偏旁工廠 ({zhRadicalFamilies.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuestMode('measures')}
+                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                    effectiveQuestMode === 'measures'
+                      ? 'bg-white text-[#1C1917] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
+                  }`}
+                >
+                  <Ruler className="h-4 w-4 text-[#4F46E5]" />
+                  <span>量詞與成語 ({zhMeasureIdiomSets.length})</span>
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -936,6 +961,79 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           <RubyWord word={it.char} zhuyin={it.zhuyin} showZhuyin={showZhuyin} />
                         </span>
                       ))}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Phase 4A: Chinese Measure Words & Idiom Context Grid */}
+        {activeSubjectId === 'chinese' && effectiveQuestMode === 'measures' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {zhMeasureIdiomSets.map((ms) => {
+              const done = (player.completedMeasureIds ?? []).includes(ms.id);
+              const isMeasure = ms.kind === 'measure';
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: ms.id,
+                kind: 'static',
+                subjectId: 'chinese',
+                todayKey,
+                completedIds: player.completedMeasureIds ?? [],
+                words: ms.questions.map((q) => q.targetAnswer),
+              });
+              return (
+                <button
+                  key={ms.id}
+                  type="button"
+                  onClick={() => onStartMeasureIdiomSet(ms)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: ms.bgHex }}
+                  >
+                    <CollectibleArt
+                      id={ms.emblemCollectibleId}
+                      size={60}
+                      className="border-2 border-[#1C1917]"
+                    />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: isMeasure ? '#4F46E5' : '#EA580C' }}
+                      >
+                        {isMeasure ? '📏 量詞大作戰' : '💡 易混詞／成語'}
+                      </span>
+                      {done ? (
+                        renderDoneRewardBadge(policy, true, '已完成')
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
+                          <Coins className="h-3.5 w-3.5" />
+                          +45–60
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2.5">
+                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
+                      {ms.title}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">{ms.subtitle}</p>
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      {ms.questions.map((q) => (
+                        <span
+                          key={q.id}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#F3EFE7] text-base"
+                          aria-hidden="true"
+                        >
+                          {q.visualEmoji}
+                        </span>
+                      ))}
+                      <span className="rounded-lg bg-[#F3EFE7] px-2 py-1 text-[11px] font-extrabold text-[#57534E]">
+                        5 題挑戰
+                      </span>
                     </div>
                   </div>
                 </button>

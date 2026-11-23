@@ -7,10 +7,12 @@ import {
   Lock,
   Sparkles,
   Star,
+  Trophy,
   UserCheck,
   Wand2,
   X,
 } from 'lucide-react';
+import { getClaimableAchievementCount } from '../../core/achievements';
 import {
   FUSE_COPIES_REQUIRED,
   FUSE_NEXT_RARITY,
@@ -30,6 +32,7 @@ import {
 } from '../../core/packs';
 import type { Collectible, PackCategory, PackId, PlayerState, Rarity } from '../../core/types';
 import { CollectibleArt } from '../artwork/CollectibleArt';
+import { AchievementWall } from '../components/AchievementWall';
 
 interface VaultViewProps {
   player: PlayerState;
@@ -40,6 +43,7 @@ interface VaultViewProps {
   onWishUnlock: (collectibleId: string) => boolean;
   onFuseFiveUp: (sourceRarity: Rarity) => { awarded: Collectible; isNew: boolean } | null;
   onToggleFavorite: (collectibleId: string) => void;
+  onClaimAchievement?: (achievementId: string) => boolean;
 }
 
 type PackFilter = 'all' | 'owned' | 'shiny' | 'unowned' | PackId;
@@ -55,10 +59,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onWishUnlock,
   onFuseFiveUp,
   onToggleFavorite,
+  onClaimAchievement,
 }) => {
+  const [vaultSection, setVaultSection] = useState<'collection' | 'achievements'>('collection');
   const [categoryFilter, setCategoryFilter] = useState<'all' | PackCategory>('all');
   const [filter, setFilter] = useState<PackFilter>('all');
   const [studioBanner, setStudioBanner] = useState<string | null>(null);
+  const claimableAchievements = getClaimableAchievementCount(player);
 
   const starDust = player.starDust ?? 0;
   const favoriteIds = player.favoriteCollectibleIds ?? [];
@@ -127,7 +134,47 @@ export const VaultView: React.FC<VaultViewProps> = ({
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setVaultSection('collection')}
+            className={`qv-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-2xl border-2 px-3.5 py-1.5 font-display text-xs sm:text-sm font-extrabold ${
+              vaultSection === 'collection'
+                ? 'border-[#1C1917] bg-[#1C1917] text-white'
+                : 'border-[#E5DFD3] bg-white text-[#57534E]'
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>盲盒收藏</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setVaultSection('achievements')}
+            className={`qv-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-2xl border-2 px-3.5 py-1.5 font-display text-xs sm:text-sm font-extrabold ${
+              vaultSection === 'achievements'
+                ? 'border-[#1C1917] bg-[#F59E0B] text-white'
+                : 'border-[#E5DFD3] bg-white text-[#57534E]'
+            }`}
+          >
+            <Trophy className="h-4 w-4" />
+            <span>成就徽章</span>
+            {claimableAchievements > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E11D48] px-1.5 text-[11px] font-extrabold text-white tabular-nums">
+                {claimableAchievements}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {vaultSection === 'achievements' ? (
+        <AchievementWall
+          player={player}
+          onClaimAchievement={(id) => onClaimAchievement?.(id) ?? false}
+        />
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-1.5">
           {PACK_CATEGORIES.map((cat) => (
             <button
               key={cat.id}
@@ -184,7 +231,6 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <span>Shiny ({totalShiny})</span>
           </button>
         </div>
-      </div>
 
       {/* ⭐ My Favorite 6-Slot Showcase Shelf */}
       <section className="qv-surface rounded-3xl p-4 sm:p-5 space-y-3 border-2 border-[#E7E2D8]">
@@ -519,6 +565,8 @@ export const VaultView: React.FC<VaultViewProps> = ({
             );
           })}
         </div>
+      )}
+        </>
       )}
     </div>
   );

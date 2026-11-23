@@ -13,6 +13,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import { getClaimableAchievementCount } from '../../core/achievements';
 import { COLLECTIBLES, MIN_PACK_COST } from '../../core/packs';
 import { getSubjectById, SUBJECTS } from '../../core/registry';
 import type { PlayerState, SubjectId } from '../../core/types';
@@ -55,6 +56,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   const [draftName, setDraftName] = useState(player.displayName);
 
   const activeSubject = getSubjectById(activeSubjectId);
+  const claimableAchievements = getClaimableAchievementCount(player);
 
   const commitName = () => {
     const cleaned = draftName.trim();
@@ -221,12 +223,13 @@ export const TopBar: React.FC<TopBarProps> = ({
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
+              const showBadge = item.id === 'vault' && claimableAchievements > 0;
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => onSelectTab(item.id)}
-                  className={`qv-btn inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold transition-colors whitespace-nowrap ${
+                  className={`qv-btn relative inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold transition-colors whitespace-nowrap ${
                     isActive
                       ? 'bg-white text-[#1C1917] shadow-xs'
                       : 'text-[#57534E] hover:text-[#1C1917]'
@@ -234,6 +237,11 @@ export const TopBar: React.FC<TopBarProps> = ({
                 >
                   <Icon className={`h-4 w-4 ${isActive ? 'text-[#2563EB]' : ''}`} />
                   <span>{item.label}</span>
+                  {showBadge && (
+                    <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E11D48] px-1 text-[10px] font-extrabold text-white tabular-nums">
+                      {claimableAchievements}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -285,17 +293,23 @@ export const TopBar: React.FC<TopBarProps> = ({
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
+            const showBadge = item.id === 'vault' && claimableAchievements > 0;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => onSelectTab(item.id)}
-                className={`qv-btn flex min-h-[44px] min-w-[64px] flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-1 text-xs font-bold ${
+                className={`qv-btn relative flex min-h-[44px] min-w-[64px] flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-1 text-xs font-bold ${
                   isActive ? 'text-[#2563EB]' : 'text-[#57534E]'
                 }`}
               >
                 <Icon className="h-5 w-5" />
                 <span>{item.label}</span>
+                {showBadge && (
+                  <span className="absolute right-2.5 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E11D48] px-1 text-[10px] font-extrabold text-white tabular-nums">
+                    {claimableAchievements}
+                  </span>
+                )}
               </button>
             );
           })}

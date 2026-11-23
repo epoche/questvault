@@ -176,8 +176,10 @@ export interface PlayerState {
   wordMastery: Record<string, WordMasteryRecord>;
   completedQuestSetIds: string[];
   completedRadicalIds?: string[];
+  completedMeasureIds?: string[];
   completedChapterEpisodeIds?: string[];
   claimedChapterSeriesIds?: string[];
+  claimedAchievementIds?: string[];
   runHistory: RunSummary[];
   writingLog: WritingEntry[];
   customWordSets: CustomWordSetRecord[];

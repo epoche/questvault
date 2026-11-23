@@ -254,6 +254,11 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
           new Set(obj.completedRadicalIds.filter((id): id is string => typeof id === 'string')),
         )
       : [],
+    completedMeasureIds: Array.isArray(obj.completedMeasureIds)
+      ? Array.from(
+          new Set(obj.completedMeasureIds.filter((id): id is string => typeof id === 'string')),
+        )
+      : [],
     completedChapterEpisodeIds: Array.isArray(obj.completedChapterEpisodeIds)
       ? Array.from(
           new Set(
@@ -266,6 +271,11 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
           new Set(
             obj.claimedChapterSeriesIds.filter((id): id is string => typeof id === 'string'),
           ),
+        )
+      : [],
+    claimedAchievementIds: Array.isArray(obj.claimedAchievementIds)
+      ? Array.from(
+          new Set(obj.claimedAchievementIds.filter((id): id is string => typeof id === 'string')),
         )
       : [],
     runHistory: Array.isArray(obj.runHistory)
