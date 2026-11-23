@@ -333,6 +333,57 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
           ),
         )
       : [],
+    completedBarModelIds: Array.isArray(obj.completedBarModelIds)
+      ? Array.from(
+          new Set(obj.completedBarModelIds.filter((id): id is string => typeof id === 'string')),
+        )
+      : [],
+    ...(() => {
+      if (!isRecord(obj.mathFactMastery)) return {};
+      const cleaned: NonNullable<PlayerState['mathFactMastery']> = {};
+      for (const [k, v] of Object.entries(obj.mathFactMastery)) {
+        const m = k.match(/^(\d{1,2})x(\d{1,2})$/);
+        if (!m || !isRecord(v)) continue;
+        const fa = Number(m[1]);
+        const fb = Number(m[2]);
+        if (fa < 2 || fa > 12 || fb < 2 || fb > 12) continue;
+        if (
+          typeof v.attempts === 'number' &&
+          typeof v.correct === 'number' &&
+          typeof v.avgMs === 'number' &&
+          Number.isFinite(v.attempts) &&
+          Number.isFinite(v.correct) &&
+          Number.isFinite(v.avgMs) &&
+          v.attempts >= 0
+        ) {
+          const attempts = Math.floor(v.attempts);
+          cleaned[k] = {
+            attempts,
+            correct: Math.max(0, Math.min(attempts, Math.floor(v.correct))),
+            avgMs: Math.max(200, Math.min(30_000, Math.round(v.avgMs))),
+          };
+        }
+      }
+      return { mathFactMastery: cleaned };
+    })(),
+    ...(() => {
+      const mfd = obj.mathFluencyDailyTokens;
+      if (
+        isRecord(mfd) &&
+        typeof mfd.dateKey === 'string' &&
+        typeof mfd.earned === 'number' &&
+        Number.isFinite(mfd.earned) &&
+        mfd.earned >= 0
+      ) {
+        return {
+          mathFluencyDailyTokens: {
+            dateKey: mfd.dateKey,
+            earned: Math.floor(mfd.earned),
+          },
+        };
+      }
+      return {};
+    })(),
     completedChapterEpisodeIds: Array.isArray(obj.completedChapterEpisodeIds)
       ? Array.from(
           new Set(

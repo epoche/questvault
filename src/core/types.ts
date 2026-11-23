@@ -178,6 +178,12 @@ export interface WeeklyGoalConfig {
   redeemedWeekKey?: string;
 }
 
+export interface FactMasteryEntry {
+  attempts: number;
+  correct: number;
+  avgMs: number;
+}
+
 export interface PlayerState {
   version: 1;
   displayName: string;
@@ -202,9 +208,12 @@ export interface PlayerState {
   completedSpellingIds?: string[];
   completedEnglishChapterIds?: string[];
   claimedEnglishChapterSeriesIds?: string[];
+  completedBarModelIds?: string[];
   completedChapterEpisodeIds?: string[];
   claimedChapterSeriesIds?: string[];
   claimedAchievementIds?: string[];
+  mathFactMastery?: Record<string, FactMasteryEntry>;
+  mathFluencyDailyTokens?: BlitzDailyTokens;
   runHistory: RunSummary[];
   writingLog: WritingEntry[];
   customWordSets: CustomWordSetRecord[];

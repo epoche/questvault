@@ -9,6 +9,7 @@ import {
   awardBossSessionRewards,
   awardCafeSessionRewards,
   awardFishingSessionRewards,
+  awardMathFluencyRewards,
   claimChapterSeriesChest,
   claimDailyTriSubjectReward,
   claimEnglishChapterSeriesChest,
@@ -62,6 +63,7 @@ import type {
 import { getLocalDateKey } from './subjects/english/runEngine';
 import type { SpellingSet } from './subjects/english/spellingTypes';
 import type { WordSet } from './subjects/english/types';
+import type { BarModelUnitMeta } from './subjects/math/barModelEngine';
 import { MATH_PLACEMENT_BONUS_TOKENS } from './subjects/math/mathPlacement';
 import type { MathQuestSet } from './subjects/math/types';
 import { CustomWordSetDrawer } from './ui/components/CustomWordSetDrawer';
@@ -70,6 +72,10 @@ import {
   type PackPullViewData,
 } from './ui/components/PackOpeningModal';
 import { type NavTab, TopBar } from './ui/components/TopBar';
+import {
+  type BarModelCompletionPayload,
+  BarModelQuestView,
+} from './ui/views/BarModelQuestView';
 import { type BlitzCompletionPayload, BlitzView } from './ui/views/BlitzView';
 import {
   type BossBattleCompletionPayload,
@@ -94,6 +100,10 @@ import {
   type EnglishRootCompletionPayload,
   EnglishRootQuestView,
 } from './ui/views/EnglishRootQuestView';
+import {
+  type FactFluencyCompletionPayload,
+  FactFluencyView,
+} from './ui/views/FactFluencyView';
 import { type FishingCompletionPayload, FishingGameView } from './ui/views/FishingGameView';
 import {
   type GrammarRepairCompletionPayload,
@@ -137,6 +147,8 @@ export const App: React.FC = () => {
   const [activeEnglishChapterSeries, setActiveEnglishChapterSeries] =
     useState<EnglishChapterSeries | null>(null);
   const [activeMathSet, setActiveMathSet] = useState<MathQuestSet | null>(null);
+  const [activeMathFluency, setActiveMathFluency] = useState(false);
+  const [activeBarModelUnit, setActiveBarModelUnit] = useState<BarModelUnitMeta | null>(null);
   const [activeChineseSet, setActiveChineseSet] = useState<ChineseWordSet | null>(null);
   const [activeChineseListening, setActiveChineseListening] = useState(false);
   const [activeRadicalFamily, setActiveRadicalFamily] = useState<RadicalFamily | null>(null);
@@ -169,6 +181,8 @@ export const App: React.FC = () => {
       activeSpellingSet ||
       activeEnglishChapterSeries ||
       activeMathSet ||
+      activeMathFluency ||
+      activeBarModelUnit ||
       activeChineseSet ||
       activeChineseListening ||
       activeRadicalFamily ||
@@ -202,6 +216,8 @@ export const App: React.FC = () => {
     activeSpellingSet,
     activeEnglishChapterSeries,
     activeMathSet,
+    activeMathFluency,
+    activeBarModelUnit,
     activeChineseSet,
     activeChineseListening,
     activeRadicalFamily,
@@ -223,6 +239,8 @@ export const App: React.FC = () => {
     setActiveSpellingSet(null);
     setActiveEnglishChapterSeries(null);
     setActiveMathSet(null);
+    setActiveMathFluency(false);
+    setActiveBarModelUnit(null);
     setActiveChineseSet(null);
     setActiveChineseListening(false);
     setActiveRadicalFamily(null);
@@ -1096,6 +1114,86 @@ export const App: React.FC = () => {
     return true;
   };
 
+  const handleCompleteMathFluency = (
+    payload: FactFluencyCompletionPayload,
+  ): { tokensAwarded: number; remainingDailyCap: number } => {
+    const todayKeyNow = getLocalDateKey();
+    const res = awardMathFluencyRewards(
+      playerRef.current,
+      payload.rawTokensEarned,
+      todayKeyNow,
+      payload.updatedMastery,
+    );
+    const acc = Math.round((payload.correctCount / Math.max(1, payload.totalCount)) * 100);
+    const summary = {
+      id: `math-ff-${Date.now()}`,
+      subjectId: 'math' as const,
+      questSetId: `math-fluency-${payload.mode}`,
+      questSetTitle: `Fact Fluency Dojo (${payload.mode})`,
+      tokensEarned: res.tokensAwarded,
+      maxCombo: payload.correctCount,
+      accuracyPct: acc,
+      completedAt: new Date().toISOString(),
+    };
+    const withHistory: PlayerState = {
+      ...res.state,
+      runHistory: [summary, ...res.state.runHistory].slice(0, 50),
+    };
+    const finalState =
+      acc >= 50
+        ? recordDailySubjectCompletion(withHistory, 'math', todayKeyNow)
+        : withHistory;
+    playerRef.current = finalState;
+    setPlayer(finalState);
+    return {
+      tokensAwarded: res.tokensAwarded,
+      remainingDailyCap: res.remainingDailyCap,
+    };
+  };
+
+  const handleCompleteBarModel = (payload: BarModelCompletionPayload) => {
+    setPlayer((prev) => {
+      const todayKeyNow = getLocalDateKey();
+      const prevBm = prev.completedBarModelIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.unitId,
+        kind: 'math',
+        subjectId: 'math',
+        todayKey: todayKeyNow,
+        completedIds: prevBm,
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.tokensEarned,
+        policy.multiplier,
+      );
+      const nextBm = prevBm.includes(payload.unitId)
+        ? prevBm
+        : [...prevBm, payload.unitId];
+
+      const summary = {
+        id: `math-bm-${Date.now()}`,
+        subjectId: 'math' as const,
+        questSetId: payload.unitId,
+        questSetTitle: `Bar Model Lab: ${payload.unitTitle}`,
+        tokensEarned: awardedTokens,
+        maxCombo: 4,
+        accuracyPct: payload.accuracyPct,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + awardedTokens,
+        completedBarModelIds: nextBm,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.unitId, todayKeyNow),
+        'math',
+        todayKeyNow,
+      );
+    });
+  };
+
   const handleSaveCustomSet = (record: CustomWordSetRecord) => {
     setPlayer((prev) => ({
       ...prev,
@@ -1120,6 +1218,10 @@ export const App: React.FC = () => {
   const todayKey = getLocalDateKey();
   const blitzDailyEarned =
     player.blitzDailyTokens?.dateKey === todayKey ? player.blitzDailyTokens.earned : 0;
+  const mathFluencyDailyEarned =
+    player.mathFluencyDailyTokens?.dateKey === todayKey
+      ? player.mathFluencyDailyTokens.earned
+      : 0;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -1553,6 +1655,36 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeMathFluency ? (
+            <FactFluencyView
+              factMastery={player.mathFactMastery}
+              fluencyTokensToday={mathFluencyDailyEarned}
+              onComplete={handleCompleteMathFluency}
+              onExit={() => setActiveMathFluency(false)}
+              onGoToMarket={() => {
+                setActiveMathFluency(false);
+                setActiveTab('market');
+              }}
+            />
+          ) : activeBarModelUnit ? (
+            <BarModelQuestView
+              unit={activeBarModelUnit}
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeBarModelUnit.id,
+                kind: 'math',
+                subjectId: 'math',
+                todayKey,
+                completedIds: player.completedBarModelIds ?? [],
+              })}
+              onComplete={handleCompleteBarModel}
+              onExit={() => setActiveBarModelUnit(null)}
+              onGoToMarket={() => {
+                setActiveBarModelUnit(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeChineseListening ? (
             <ChineseListeningView
               tier={player.subjectTiers?.chinese ?? 2}
@@ -1583,6 +1715,8 @@ export const App: React.FC = () => {
               onStartSpellingSet={(set) => setActiveSpellingSet(set)}
               onStartEnglishChapterSeries={(series) => setActiveEnglishChapterSeries(series)}
               onStartMathRun={(set) => setActiveMathSet(set)}
+              onStartFactFluency={() => setActiveMathFluency(true)}
+              onStartBarModelUnit={(unit) => setActiveBarModelUnit(unit)}
               onStartChineseRun={(set) => setActiveChineseSet(set)}
               onStartChineseListening={() => setActiveChineseListening(true)}
               onStartRadicalFamily={(fam) => setActiveRadicalFamily(fam)}

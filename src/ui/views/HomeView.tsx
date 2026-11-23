@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  BarChart3,
   BookMarked,
   BookOpen,
   BookText,
@@ -87,6 +88,7 @@ import { getSpellingSetsByTier } from '../../subjects/english/spellingSets';
 import type { SpellingSet } from '../../subjects/english/spellingTypes';
 import type { WordSet } from '../../subjects/english/types';
 import { BUILTIN_WORD_SETS, getWordSetsByTier, TIER_META } from '../../subjects/english/wordSets';
+import { BAR_MODEL_UNITS, type BarModelUnitMeta } from '../../subjects/math/barModelEngine';
 import { buildMathSrsReviewSet, buildMathTrickyRematchSet } from '../../subjects/math/mathEngine';
 import { MATH_PLACEMENT_BONUS_TOKENS } from '../../subjects/math/mathPlacement';
 import { BUILTIN_MATH_SETS, getMathSetsByTier, MATH_TIER_META } from '../../subjects/math/questSets';
@@ -115,6 +117,8 @@ interface HomeViewProps {
   onStartSpellingSet?: (set: SpellingSet) => void;
   onStartEnglishChapterSeries?: (series: EnglishChapterSeries) => void;
   onStartMathRun: (questSet: MathQuestSet) => void;
+  onStartFactFluency?: () => void;
+  onStartBarModelUnit?: (unit: BarModelUnitMeta) => void;
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
   onStartChineseListening: () => void;
   onStartRadicalFamily: (family: RadicalFamily) => void;
@@ -158,6 +162,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartSpellingSet,
   onStartEnglishChapterSeries,
   onStartMathRun,
+  onStartFactFluency,
+  onStartBarModelUnit,
   onStartChineseRun,
   onStartChineseListening,
   onStartRadicalFamily,
@@ -178,19 +184,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
     | 'radicals'
     | 'measures'
     | 'chapters'
+    | 'barModels'
   >('words');
   const [voucherOpen, setVoucherOpen] = useState(false);
   const effectiveQuestMode =
-    activeSubjectId === 'chinese' &&
-    (questMode === 'roots' ||
-      questMode === 'grammar' ||
-      questMode === 'spelling' ||
-      questMode === 'enChapters')
-      ? 'words'
-      : activeSubjectId !== 'chinese' &&
-          (questMode === 'radicals' || questMode === 'measures' || questMode === 'chapters')
+    activeSubjectId === 'math'
+      ? questMode === 'barModels'
+        ? 'barModels'
+        : 'words'
+      : activeSubjectId === 'chinese' &&
+          (questMode === 'roots' ||
+            questMode === 'grammar' ||
+            questMode === 'spelling' ||
+            questMode === 'enChapters' ||
+            questMode === 'barModels')
         ? 'words'
-        : questMode;
+        : activeSubjectId === 'english' &&
+            (questMode === 'radicals' ||
+              questMode === 'measures' ||
+              questMode === 'chapters' ||
+              questMode === 'barModels')
+          ? 'words'
+          : questMode;
   const packsReady = Math.floor(player.tokens / MIN_PACK_COST);
   const todayKey = getLocalDateKey();
   const weeklyGoalProgress = computeWeeklyGoalProgress(player);
@@ -437,6 +452,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <Swords className="h-4 w-4" />
                 <span>{activeSubjectId === 'chinese' ? '夥伴打魔王' : 'Boss Battle'}</span>
               </button>
+
+              {activeSubjectId === 'math' && onStartFactFluency && (
+                <button
+                  type="button"
+                  onClick={onStartFactFluency}
+                  className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#059669] px-4 py-3 font-display text-sm font-extrabold text-white"
+                  style={{ borderBottomColor: '#065F46' }}
+                >
+                  <Zap className="h-4 w-4 fill-current" />
+                  <span>Fact Fluency Dojo</span>
+                </button>
+              )}
 
               {activeSubjectId === 'chinese' && (
                 <>
@@ -950,6 +977,36 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <span>章節小說 ({BUILTIN_CHAPTER_SERIES.length})</span>
               </button>
             )}
+          </div>
+        )}
+
+        {/* Phase 5B: Math Mode Switcher (Math Quests vs Bar Model Lab) */}
+        {activeSubjectId === 'math' && (
+          <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl border-2 border-[#E5DFD3] bg-[#F3EFE7] p-1">
+            <button
+              type="button"
+              onClick={() => setQuestMode('words')}
+              className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                effectiveQuestMode === 'words'
+                  ? 'bg-white text-[#1C1917] shadow-xs'
+                  : 'text-[#57534E] hover:text-[#1C1917]'
+              }`}
+            >
+              <Calculator className="h-4 w-4 text-[#059669]" />
+              <span>Math Quests ({mathSets.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuestMode('barModels')}
+              className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                effectiveQuestMode === 'barModels'
+                  ? 'bg-white text-[#1C1917] shadow-xs'
+                  : 'text-[#57534E] hover:text-[#1C1917]'
+              }`}
+            >
+              <BarChart3 className="h-4 w-4 text-[#2563EB]" />
+              <span>Bar Model Lab ({BAR_MODEL_UNITS.length})</span>
+            </button>
           </div>
         )}
 
@@ -1698,7 +1755,67 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
-        {activeSubjectId === 'math' && (
+        {/* Phase 5B: Math Two-Step Bar Model Lab Grid */}
+        {activeSubjectId === 'math' && effectiveQuestMode === 'barModels' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {BAR_MODEL_UNITS.map((unit) => {
+              const done = (player.completedBarModelIds ?? []).includes(unit.id);
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: unit.id,
+                kind: 'math',
+                subjectId: 'math',
+                todayKey,
+                completedIds: player.completedBarModelIds ?? [],
+              });
+              return (
+                <button
+                  key={unit.id}
+                  type="button"
+                  onClick={() => onStartBarModelUnit?.(unit)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: unit.bgHex }}
+                  >
+                    <CollectibleArt
+                      id={unit.emblemCollectibleId}
+                      size={64}
+                      className="border-2 border-[#1C1917]"
+                    />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: unit.accentHex }}
+                      >
+                        Tier {unit.tier} · {unit.ccssTag}
+                      </span>
+                      {done ? (
+                        renderDoneRewardBadge(policy, false, 'Solved')
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
+                          <Coins className="h-3.5 w-3.5" />
+                          +30–40
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2">
+                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
+                      📊 {unit.title}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">{unit.subtitle}</p>
+                    <p className="text-[11px] font-extrabold text-[#2563EB]">
+                      ♾️ Fresh Dynamic Numbers · Tape Diagram Guide
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {activeSubjectId === 'math' && effectiveQuestMode === 'words' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {mathSets.map((ms) => {
               const done = player.completedQuestSetIds.includes(ms.id);

@@ -38,6 +38,10 @@ import { customChineseRecordToWordSet } from '../../subjects/chinese/chineseCust
 import type { ChineseWordSet } from '../../subjects/chinese/types';
 import { customRecordToWordSet } from '../../subjects/english/customParser';
 import type { WordSet } from '../../subjects/english/types';
+import {
+  classifyHeatmapCell,
+  getFactHeatmapKey,
+} from '../../subjects/math/factFluencyEngine';
 
 interface ParentViewProps {
   player: PlayerState;
@@ -761,13 +765,26 @@ export const ParentView: React.FC<ParentViewProps> = ({
         {/* Phase 3 Progress Strip: Radicals + Chapter Stories + Arcade */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
           <div className="rounded-2xl bg-[#F0FDFA] border border-[#99F6E4] p-3.5">
-            <div className="text-xs font-bold text-[#0F766E]">🧩 中文偏旁 & 📏 量詞成語</div>
-            <div className="mt-1 font-display text-lg font-extrabold text-[#115E59] tabular-nums">
-              偏旁 {snapshot.completedRadicalsCount}/{snapshot.totalRadicalsCount} · 量詞成語{' '}
-              {(player.completedMeasureIds ?? []).length}/24
+            <div className="text-xs font-bold text-[#0F766E]">🧩 中文偏旁・量詞 & ⚡ 數學專訓</div>
+            <div className="mt-1 font-display text-base font-extrabold text-[#115E59] tabular-nums">
+              偏旁 {snapshot.completedRadicalsCount}/{snapshot.totalRadicalsCount} · 量詞{' '}
+              {(player.completedMeasureIds ?? []).length}/24 · 圖解{' '}
+              {(player.completedBarModelIds ?? []).length}/8
             </div>
             <div className="mt-0.5 text-[11px] font-semibold text-[#0F766E] tabular-nums">
-              解鎖 {snapshot.completedRadicalsCount * 5} 偏旁字 ＋ {(player.completedMeasureIds ?? []).length * 5} 題情境特訓
+              12×12 心算熱力圖精熟{' '}
+              {(() => {
+                let m = 0;
+                for (let a = 2; a <= 12; a += 1) {
+                  for (let b = 2; b <= 12; b += 1) {
+                    if (classifyHeatmapCell(player.mathFactMastery?.[getFactHeatmapKey(a, b)]) === 'mastered') {
+                      m += 1;
+                    }
+                  }
+                }
+                return m;
+              })()}
+              /121 格 · 解鎖 {snapshot.completedRadicalsCount * 5} 偏旁字
             </div>
           </div>
 

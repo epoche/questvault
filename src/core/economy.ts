@@ -8,6 +8,7 @@ import {
   STARTER_COLLECTIBLE_ID,
 } from './packs';
 import { getMasteryKey, isItemDueForReview } from './mastery';
+import { FACT_FLUENCY_DAILY_TOKEN_CAP } from '../subjects/math/factFluencyEngine';
 import type {
   Collectible,
   CritterRoomThemeId,
@@ -485,6 +486,37 @@ export function awardBossSessionRewards(
       arcadeDailyTokens: {
         dateKey: todayKey,
         earned: prevArcade + tokensAwarded,
+      },
+    },
+  };
+}
+
+export const MATH_FLUENCY_DAILY_CAP = FACT_FLUENCY_DAILY_TOKEN_CAP;
+
+export function awardMathFluencyRewards(
+  state: PlayerState,
+  rawTokensEarned: number,
+  todayKey: string,
+  updatedMastery: PlayerState['mathFactMastery'],
+): { state: PlayerState; tokensAwarded: number; remainingDailyCap: number } {
+  const prevEarned =
+    state.mathFluencyDailyTokens?.dateKey === todayKey
+      ? state.mathFluencyDailyTokens.earned
+      : 0;
+  const remainingBefore = Math.max(0, MATH_FLUENCY_DAILY_CAP - prevEarned);
+  const safeRaw = Number.isFinite(rawTokensEarned) ? Math.max(0, Math.floor(rawTokensEarned)) : 0;
+  const tokensAwarded = Math.min(remainingBefore, safeRaw);
+
+  return {
+    tokensAwarded,
+    remainingDailyCap: Math.max(0, remainingBefore - tokensAwarded),
+    state: {
+      ...state,
+      tokens: state.tokens + tokensAwarded,
+      mathFactMastery: updatedMastery,
+      mathFluencyDailyTokens: {
+        dateKey: todayKey,
+        earned: prevEarned + tokensAwarded,
       },
     },
   };
