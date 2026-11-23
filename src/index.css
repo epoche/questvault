@@ -151,3 +151,38 @@ button, a, [role="button"] {
     transition: none;
   }
 }
+
+@media print {
+  body.qv-printing-certificate {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.qv-printing-certificate #root,
+  body.qv-printing-certificate .qv-no-print {
+    display: none !important;
+  }
+  body.qv-printing-certificate .qv-certificate-backdrop {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  body.qv-printing-certificate .qv-certificate-shell {
+    max-width: 100% !important;
+    margin: 0 auto !important;
+  }
+  body.qv-printing-certificate #qv-printable-certificate {
+    position: static !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  body.qv-printing-certificate .qv-cert-grid-3 {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}

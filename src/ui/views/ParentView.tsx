@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
+  Award,
   BookOpen,
   Check,
   Copy,
@@ -42,6 +43,7 @@ import {
   classifyHeatmapCell,
   getFactHeatmapKey,
 } from '../../subjects/math/factFluencyEngine';
+import { PrintableCertificateModal } from '../components/PrintableCertificateModal';
 
 interface ParentViewProps {
   player: PlayerState;
@@ -86,6 +88,7 @@ export const ParentView: React.FC<ParentViewProps> = ({
   // PIN management inside unlocked Parent Corner
   const [newPinInput, setNewPinInput] = useState('');
   const [pinStatusMsg, setPinStatusMsg] = useState<string | null>(null);
+  const [showCertificate, setShowCertificate] = useState(false);
 
   // Phase 4D: Weekly Goal & Real-World Reward Voucher state
   const [goalEn, setGoalEn] = useState<number>(() => player.weeklyGoal?.enTarget ?? 3);
@@ -447,6 +450,15 @@ export const ParentView: React.FC<ParentViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowCertificate(true)}
+            className="qv-arcade-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border-2 border-[#1C1917] bg-[#F59E0B] px-3.5 py-2 text-xs font-extrabold text-[#1C1917]"
+            style={{ borderBottomColor: '#B45309' }}
+          >
+            <Award className="h-4 w-4" />
+            <span>列印榮譽獎狀</span>
+          </button>
           <button
             type="button"
             onClick={handleCopyReport}
@@ -1155,6 +1167,13 @@ export const ParentView: React.FC<ParentViewProps> = ({
           <p className="text-xs font-extrabold text-[#047857]">{pinStatusMsg}</p>
         )}
       </section>
+
+      {showCertificate && (
+        <PrintableCertificateModal
+          player={player}
+          onClose={() => setShowCertificate(false)}
+        />
+      )}
     </div>
   );
 };

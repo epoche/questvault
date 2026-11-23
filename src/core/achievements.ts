@@ -1,3 +1,4 @@
+import { classifyHeatmapCell, getFactHeatmapKey } from '../subjects/math/factFluencyEngine';
 import { getCollectiblesByPack, MYSTERY_PACKS } from './packs';
 import type { PlayerState } from './types';
 
@@ -56,6 +57,10 @@ function countTotalCompletedQuests(state: PlayerState): number {
     (state.completedMeasureIds?.length ?? 0) +
     (state.completedEnglishRootIds?.length ?? 0) +
     (state.completedGrammarIds?.length ?? 0) +
+    (state.completedSpellingIds?.length ?? 0) +
+    (state.completedEnglishChapterIds?.length ?? 0) +
+    (state.completedBarModelIds?.length ?? 0) +
+    (state.completedSentencePatternIds?.length ?? 0) +
     (state.completedChapterEpisodeIds?.length ?? 0)
   );
 }
@@ -64,7 +69,40 @@ function countReadingAndChapters(state: PlayerState): number {
   const readingDone = state.completedQuestSetIds.filter(
     (id) => id.includes('-read-') || id.startsWith('en-read') || id.startsWith('zh-read'),
   ).length;
-  return readingDone + (state.completedChapterEpisodeIds?.length ?? 0);
+  return (
+    readingDone +
+    (state.completedChapterEpisodeIds?.length ?? 0) +
+    (state.completedEnglishChapterIds?.length ?? 0)
+  );
+}
+
+function countMasteredFluencyFacts(state: PlayerState): number {
+  const map = state.mathFactMastery ?? {};
+  let count = 0;
+  for (let a = 2; a <= 12; a += 1) {
+    for (let b = 2; b <= 12; b += 1) {
+      const entry = map[getFactHeatmapKey(a, b)];
+      if (classifyHeatmapCell(entry) === 'mastered') count += 1;
+    }
+  }
+  return count;
+}
+
+function getBestTowerScore(state: PlayerState): number {
+  const scores = Object.values(state.towerHighScores ?? {}).filter(
+    (v): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0,
+  );
+  return scores.length > 0 ? Math.max(...scores) : 0;
+}
+
+function getRoomDesignerProgress(state: PlayerState): number {
+  const placedCritters = new Set(
+    (state.critterRoom?.slots ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0),
+  ).size;
+  const placedDecor = new Set(
+    (state.critterRoom?.decorIds ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0),
+  ).size;
+  return Math.min(4, placedCritters) + Math.min(3, placedDecor);
 }
 
 export const ACHIEVEMENTS: AchievementDefinition[] = [
@@ -326,6 +364,176 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     accentHex: '#4F46E5',
     bgHex: '#EEF2FF',
     getCurrent: (s) => s.completedMeasureIds?.length ?? 0,
+  },
+
+  // Phase 5–6 Expansion Milestones (+12 -> 30 Total)
+  {
+    id: 'ach-spelling-1',
+    category: 'learning',
+    emoji: '🐝',
+    title: 'Spelling Spark',
+    zhTitle: '拼字小萌芽',
+    description: '完成 1 組英文聽音拼字館關卡',
+    target: 1,
+    rewardType: 'tokens',
+    rewardAmount: 15,
+    accentHex: '#CA8A04',
+    bgHex: '#FEFCE8',
+    getCurrent: (s) => s.completedSpellingIds?.length ?? 0,
+  },
+  {
+    id: 'ach-spelling-8',
+    category: 'learning',
+    emoji: '🏆',
+    title: 'Spelling Bee Star',
+    zhTitle: '拼字大賽之星',
+    description: '累積完成 8 組英文聽音拼字館關卡',
+    target: 8,
+    rewardType: 'starDust',
+    rewardAmount: 30,
+    accentHex: '#D97706',
+    bgHex: '#FFFBEB',
+    getCurrent: (s) => s.completedSpellingIds?.length ?? 0,
+  },
+  {
+    id: 'ach-en-chapters-5',
+    category: 'learning',
+    emoji: '📘',
+    title: 'English Novel Explorer',
+    zhTitle: '英文小說探險家',
+    description: '完成 5 集原創英文連貫章節小說',
+    target: 5,
+    rewardType: 'tokens',
+    rewardAmount: 25,
+    accentHex: '#2563EB',
+    bgHex: '#EFF6FF',
+    getCurrent: (s) => s.completedEnglishChapterIds?.length ?? 0,
+  },
+  {
+    id: 'ach-math-fluency-10',
+    category: 'learning',
+    emoji: '⚡',
+    title: 'Fact Fluency Flash',
+    zhTitle: '心算閃電手',
+    description: '在 12×12 心算熱力圖精熟 10 個算式',
+    target: 10,
+    rewardType: 'tokens',
+    rewardAmount: 20,
+    accentHex: '#059669',
+    bgHex: '#ECFDF5',
+    getCurrent: countMasteredFluencyFacts,
+  },
+  {
+    id: 'ach-math-fluency-40',
+    category: 'learning',
+    emoji: '🔥',
+    title: 'Mental Math Master',
+    zhTitle: '心算熱力圖大師',
+    description: '在 12×12 心算熱力圖精熟 40 個算式',
+    target: 40,
+    rewardType: 'starDust',
+    rewardAmount: 40,
+    accentHex: '#0D9488',
+    bgHex: '#F0FDFA',
+    getCurrent: countMasteredFluencyFacts,
+  },
+  {
+    id: 'ach-bar-model-4',
+    category: 'learning',
+    emoji: '📊',
+    title: 'Bar Model Builder',
+    zhTitle: '線段圖解題能手',
+    description: '完成 4 種數學兩步驟線段圖應用題模型',
+    target: 4,
+    rewardType: 'tokens',
+    rewardAmount: 25,
+    accentHex: '#4F46E5',
+    bgHex: '#EEF2FF',
+    getCurrent: (s) => s.completedBarModelIds?.length ?? 0,
+  },
+  {
+    id: 'ach-bar-model-8',
+    category: 'learning',
+    emoji: '🧠',
+    title: 'Two-Step Strategist',
+    zhTitle: '兩步驟圖解大師',
+    description: '全制霸 8 種數學兩步驟線段圖應用題模型',
+    target: 8,
+    rewardType: 'starDust',
+    rewardAmount: 35,
+    accentHex: '#7C3AED',
+    bgHex: '#F5F3FF',
+    getCurrent: (s) => s.completedBarModelIds?.length ?? 0,
+  },
+  {
+    id: 'ach-tower-1000',
+    category: 'streak',
+    emoji: '🏰',
+    title: 'Tower Defense Guardian',
+    zhTitle: '夥伴防線守護者',
+    description: '在夥伴防線塔防單局達成 1,000 分以上',
+    target: 1000,
+    rewardType: 'tokens',
+    rewardAmount: 25,
+    accentHex: '#DC2626',
+    bgHex: '#FEF2F2',
+    getCurrent: getBestTowerScore,
+  },
+  {
+    id: 'ach-vault-150',
+    category: 'collection',
+    emoji: '🌟',
+    title: 'Grand Vault Curator',
+    zhTitle: '百五盲盒大館長',
+    description: '在收藏櫃解鎖 150 隻不同盲盒夥伴',
+    target: 150,
+    rewardType: 'starDust',
+    rewardAmount: 75,
+    accentHex: '#DB2777',
+    bgHex: '#FDF2F8',
+    getCurrent: countOwnedCollectibles,
+  },
+  {
+    id: 'ach-room-designer',
+    category: 'collection',
+    emoji: '🏠',
+    title: 'Cozy Room Designer',
+    zhTitle: '夢幻小屋設計師',
+    description: '在盲盒小屋同時擺放 4 隻夥伴與 3 件免費擺飾',
+    target: 7,
+    rewardType: 'tokens',
+    rewardAmount: 25,
+    accentHex: '#EC4899',
+    bgHex: '#FDF2F8',
+    getCurrent: getRoomDesignerProgress,
+  },
+  {
+    id: 'ach-sentence-pattern-4',
+    category: 'chinese',
+    emoji: '🧱',
+    title: 'Sentence Pattern Pro',
+    zhTitle: '關聯詞句型建築師',
+    description: '完成 4 組中文句型與關聯詞魔方關卡',
+    target: 4,
+    rewardType: 'tokens',
+    rewardAmount: 25,
+    accentHex: '#EA580C',
+    bgHex: '#FFF7ED',
+    getCurrent: (s) => s.completedSentencePatternIds?.length ?? 0,
+  },
+  {
+    id: 'ach-zh-chapters-15',
+    category: 'chinese',
+    emoji: '🏮',
+    title: 'Chapter Story Master',
+    zhTitle: '章節小說全能讀者',
+    description: '累積完成 15 集原創中文章節微小說',
+    target: 15,
+    rewardType: 'starDust',
+    rewardAmount: 40,
+    accentHex: '#E11D48',
+    bgHex: '#FFF1F2',
+    getCurrent: (s) => s.completedChapterEpisodeIds?.length ?? 0,
   },
 ];
 

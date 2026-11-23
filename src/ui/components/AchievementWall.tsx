@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { CheckCircle2, Coins, Gift, Sparkles, Trophy } from 'lucide-react';
 import {
+  ACHIEVEMENTS,
   evaluateAchievements,
   type AchievementCategory,
   type AchievementProgress,
@@ -13,7 +14,7 @@ interface AchievementWallProps {
 }
 
 const CATEGORY_TABS: { id: 'all' | AchievementCategory; label: string }[] = [
-  { id: 'all', label: '全部 18' },
+  { id: 'all', label: `全部 ${ACHIEVEMENTS.length}` },
   { id: 'learning', label: '學習里程碑' },
   { id: 'streak', label: '連勝毅力' },
   { id: 'collection', label: '盲盒收藏' },
