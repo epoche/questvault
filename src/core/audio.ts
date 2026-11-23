@@ -2,7 +2,7 @@ import type { Rarity } from './types';
 
 export interface AudioService {
   setMuted(muted: boolean): void;
-  speak(text: string, lang?: string): void;
+  speak(text: string, lang?: string, rate?: number): void;
   playCorrect(combo: number): void;
   playNudge(): void;
   playChest(): void;
@@ -74,13 +74,13 @@ class BrowserAudioService implements AudioService {
     osc.stop(now + durationSec + 0.02);
   }
 
-  speak(text: string, lang = 'en-US'): void {
+  speak(text: string, lang = 'en-US', rate = 0.94): void {
     if (this.muted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
-      utterance.rate = 0.94;
+      utterance.rate = rate;
       utterance.pitch = 1.02;
       window.speechSynthesis.speak(utterance);
     } catch {

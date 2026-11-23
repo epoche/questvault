@@ -36,6 +36,10 @@ import {
 } from './ui/components/PackOpeningModal';
 import { type NavTab, TopBar } from './ui/components/TopBar';
 import { type BlitzCompletionPayload, BlitzView } from './ui/views/BlitzView';
+import {
+  type ChineseListeningCompletionPayload,
+  ChineseListeningView,
+} from './ui/views/ChineseListeningView';
 import { ChinesePlacementView } from './ui/views/ChinesePlacementView';
 import { type ChineseCompletionPayload, ChineseRunView } from './ui/views/ChineseRunView';
 import { HomeView } from './ui/views/HomeView';
@@ -57,6 +61,7 @@ export const App: React.FC = () => {
   const [activeEnglishSet, setActiveEnglishSet] = useState<WordSet | null>(null);
   const [activeMathSet, setActiveMathSet] = useState<MathQuestSet | null>(null);
   const [activeChineseSet, setActiveChineseSet] = useState<ChineseWordSet | null>(null);
+  const [activeChineseListening, setActiveChineseListening] = useState(false);
   const [activeReadingSet, setActiveReadingSet] = useState<ReadingQuestSet | null>(null);
   const [placementSubject, setPlacementSubject] = useState<SubjectId | null>(null);
   const [activeBlitzSubject, setActiveBlitzSubject] = useState<SubjectId | null>(null);
@@ -78,6 +83,7 @@ export const App: React.FC = () => {
     activeEnglishSet ||
       activeMathSet ||
       activeChineseSet ||
+      activeChineseListening ||
       activeReadingSet ||
       placementSubject ||
       activeBlitzSubject ||
@@ -100,6 +106,7 @@ export const App: React.FC = () => {
     activeEnglishSet,
     activeMathSet,
     activeChineseSet,
+    activeChineseListening,
     activeReadingSet,
     placementSubject,
     activeBlitzSubject,
@@ -110,6 +117,7 @@ export const App: React.FC = () => {
     setActiveEnglishSet(null);
     setActiveMathSet(null);
     setActiveChineseSet(null);
+    setActiveChineseListening(false);
     setActiveReadingSet(null);
     setPlacementSubject(null);
     setActiveBlitzSubject(null);
@@ -380,6 +388,43 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleCompleteChineseListening = (payload: ChineseListeningCompletionPayload) => {
+    setPlayer((prev) => {
+      let nextMastery = prev.wordMastery;
+      for (const out of payload.wordOutcomes) {
+        nextMastery = recordWordOutcome(nextMastery, {
+          word: out.word,
+          subjectId: 'chinese',
+          tier: payload.tier,
+          outcome: out.correct ? 'clean' : 'missed',
+        });
+      }
+      const todayKey = getLocalDateKey();
+      const accuracyPct =
+        payload.totalCount > 0
+          ? Math.round((payload.correctCount / payload.totalCount) * 100)
+          : 100;
+      const summary = {
+        id: `zh-listen-${Date.now()}`,
+        subjectId: 'chinese' as const,
+        questSetId: `zh-listening-t${payload.tier}`,
+        questSetTitle: `聽音辨字特訓 (第 ${payload.tier} 階)`,
+        tokensEarned: payload.tokensEarned,
+        maxCombo: payload.correctCount,
+        accuracyPct,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + payload.tokensEarned,
+        wordMastery: nextMastery,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(updated, 'chinese', todayKey);
+    });
+    setActiveChineseListening(false);
+  };
+
   const handleSaveCustomSet = (record: CustomWordSetRecord) => {
     setPlayer((prev) => ({
       ...prev,
@@ -559,6 +604,14 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeChineseListening ? (
+            <ChineseListeningView
+              tier={player.subjectTiers?.chinese ?? 2}
+              showZhuyin={showZhuyin}
+              onToggleZhuyin={handleToggleZhuyin}
+              onExit={() => setActiveChineseListening(false)}
+              onComplete={handleCompleteChineseListening}
+            />
           ) : activeTab === 'quests' ? (
             <HomeView
               player={player}
@@ -575,6 +628,7 @@ export const App: React.FC = () => {
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
               onStartMathRun={(set) => setActiveMathSet(set)}
               onStartChineseRun={(set) => setActiveChineseSet(set)}
+              onStartChineseListening={() => setActiveChineseListening(true)}
               onStartReadingRun={(set) => setActiveReadingSet(set)}
               onOpenCustomImporter={(subj) => setImporterSubject(subj)}
               onDeleteCustomSet={handleDeleteCustomSet}

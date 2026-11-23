@@ -8,6 +8,7 @@ import {
   Coins,
   Flame,
   Gift,
+  Headphones,
   Languages,
   Play,
   Plus,
@@ -65,6 +66,7 @@ interface HomeViewProps {
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartMathRun: (questSet: MathQuestSet) => void;
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
+  onStartChineseListening: () => void;
   onStartReadingRun: (questSet: ReadingQuestSet) => void;
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
   onDeleteCustomSet: (id: string) => void;
@@ -97,6 +99,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartEnglishRun,
   onStartMathRun,
   onStartChineseRun,
+  onStartChineseListening,
   onStartReadingRun,
   onOpenCustomImporter,
   onDeleteCustomSet,
@@ -272,6 +275,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <Zap className="h-4 w-4 fill-current" />
                 <span>{activeSubjectId === 'chinese' ? '60秒無盡衝分' : '60s Blitz'}</span>
               </button>
+
+              {activeSubjectId === 'chinese' && (
+                <button
+                  type="button"
+                  onClick={onStartChineseListening}
+                  className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#DB2777] px-4 py-3 font-display text-sm font-extrabold text-white"
+                  style={{ borderBottomColor: '#9D174D' }}
+                >
+                  <Headphones className="h-4 w-4" />
+                  <span>聽音辨字</span>
+                </button>
+              )}
 
               {packsReady > 0 && (
                 <button

@@ -54,7 +54,7 @@ describe('Multi-Subject Registry & Isolation', () => {
 
     const mathT1 = getTierAccuracySummary(mastery, getMathTierSkillCounts(), 'math').find((r) => r.tier === 1)!;
     expect(mathT1.practicedWords).toBe(2);
-    expect(mathT1.totalWords).toBe(20);
+    expect(mathT1.totalWords).toBe(28);
 
     const state = {
       ...createInitialPlayerState('Mia'),
@@ -74,9 +74,9 @@ describe('Multi-Subject Registry & Isolation', () => {
   });
 });
 
-describe('Math Subject (20 Quest Sets, Visuals, Placement, Boss Rematch)', () => {
-  it('ships 20 Math Quest Sets (80 skills across 4 Tiers) with unique valid choices', () => {
-    expect(BUILTIN_MATH_SETS).toHaveLength(20);
+describe('Math Subject (28 Quest Sets, Visuals, Placement, Boss Rematch)', () => {
+  it('ships 28 Math Quest Sets (112 skills across 4 Tiers) with unique valid choices', () => {
+    expect(BUILTIN_MATH_SETS).toHaveLength(28);
     const seenIds = new Set<string>();
     for (const set of BUILTIN_MATH_SETS) {
       expect(set.items.length).toBeGreaterThanOrEqual(4);
@@ -88,7 +88,7 @@ describe('Math Subject (20 Quest Sets, Visuals, Placement, Boss Rematch)', () =>
         expect(item.sprintPrompt).not.toBe(item.wordProblemPrompt);
       }
     }
-    expect(seenIds.size).toBe(80);
+    expect(seenIds.size).toBe(112);
   });
 
   it('builds Math runs, adaptive Placement (Tier 4 up / Tier 1 down), and 1.5x Daily Boss Rematch', () => {

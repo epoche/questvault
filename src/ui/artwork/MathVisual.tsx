@@ -952,5 +952,308 @@ export const MathVisual: React.FC<MathVisualProps> = ({ spec, className = '' }) 
         </svg>
       );
     }
+
+    case 'symmetry-shape': {
+      const cx = 140;
+      const cy = 62;
+      const showLines = spec.showLines !== false;
+      const renderShape = () => {
+        switch (spec.shape) {
+          case 'square':
+            return (
+              <g>
+                <rect x={cx - 42} y={cy - 42} width="84" height="84" rx="4" fill="#DBEAFE" stroke="#1D4ED8" strokeWidth="3" />
+                {showLines && (
+                  <g stroke="#E11D48" strokeWidth="2.2" strokeDasharray="5 4">
+                    <line x1={cx} y1={cy - 52} x2={cx} y2={cy + 52} />
+                    <line x1={cx - 52} y1={cy} x2={cx + 52} y2={cy} />
+                    <line x1={cx - 50} y1={cy - 50} x2={cx + 50} y2={cy + 50} />
+                    <line x1={cx - 50} y1={cy + 50} x2={cx + 50} y2={cy - 50} />
+                  </g>
+                )}
+              </g>
+            );
+          case 'rectangle':
+            return (
+              <g>
+                <rect x={cx - 60} y={cy - 34} width="120" height="68" rx="4" fill="#DCFCE7" stroke="#15803D" strokeWidth="3" />
+                {showLines && (
+                  <g stroke="#E11D48" strokeWidth="2.2" strokeDasharray="5 4">
+                    <line x1={cx} y1={cy - 46} x2={cx} y2={cy + 46} />
+                    <line x1={cx - 72} y1={cy} x2={cx + 72} y2={cy} />
+                  </g>
+                )}
+              </g>
+            );
+          case 'equilateral-triangle': {
+            const r = 48;
+            const pts = [0, 1, 2].map((i) => {
+              const ang = (-90 + i * 120) * (Math.PI / 180);
+              return [cx + r * Math.cos(ang), cy + 6 + r * Math.sin(ang)] as const;
+            });
+            return (
+              <g>
+                <polygon
+                  points={pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')}
+                  fill="#FEF3C7"
+                  stroke="#D97706"
+                  strokeWidth="3"
+                  strokeLinejoin="round"
+                />
+                {showLines && (
+                  <g stroke="#E11D48" strokeWidth="2.2" strokeDasharray="5 4">
+                    {pts.map((p, i) => {
+                      const opp1 = pts[(i + 1) % 3];
+                      const opp2 = pts[(i + 2) % 3];
+                      const mx = (opp1[0] + opp2[0]) / 2;
+                      const my = (opp1[1] + opp2[1]) / 2;
+                      return <line key={i} x1={p[0]} y1={p[1]} x2={mx} y2={my} />;
+                    })}
+                  </g>
+                )}
+              </g>
+            );
+          }
+          case 'isosceles-triangle':
+            return (
+              <g>
+                <polygon
+                  points={`${cx},${cy - 44} ${cx - 32},${cy + 42} ${cx + 32},${cy + 42}`}
+                  fill="#F3E8FF"
+                  stroke="#7C3AED"
+                  strokeWidth="3"
+                  strokeLinejoin="round"
+                />
+                {showLines && (
+                  <line x1={cx} y1={cy - 52} x2={cx} y2={cy + 50} stroke="#E11D48" strokeWidth="2.4" strokeDasharray="5 4" />
+                )}
+              </g>
+            );
+          case 'regular-hexagon': {
+            const r = 44;
+            const pts = Array.from({ length: 6 }, (_, i) => {
+              const ang = (-90 + i * 60) * (Math.PI / 180);
+              return [cx + r * Math.cos(ang), cy + r * Math.sin(ang)] as const;
+            });
+            return (
+              <g>
+                <polygon
+                  points={pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')}
+                  fill="#CCFBF1"
+                  stroke="#0D9488"
+                  strokeWidth="3"
+                  strokeLinejoin="round"
+                />
+                {showLines && (
+                  <g stroke="#E11D48" strokeWidth="2" strokeDasharray="4 4">
+                    {[0, 1, 2].map((i) => (
+                      <line key={`v-${i}`} x1={pts[i][0]} y1={pts[i][1]} x2={pts[i + 3][0]} y2={pts[i + 3][1]} />
+                    ))}
+                    {[0, 1, 2].map((i) => {
+                      const m1x = (pts[i][0] + pts[(i + 1) % 6][0]) / 2;
+                      const m1y = (pts[i][1] + pts[(i + 1) % 6][1]) / 2;
+                      const m2x = (pts[i + 3][0] + pts[(i + 4) % 6][0]) / 2;
+                      const m2y = (pts[i + 3][1] + pts[(i + 4) % 6][1]) / 2;
+                      return <line key={`m-${i}`} x1={m1x} y1={m1y} x2={m2x} y2={m2y} />;
+                    })}
+                  </g>
+                )}
+              </g>
+            );
+          }
+          case 'heart':
+          default:
+            return (
+              <g>
+                <path
+                  d={`M ${cx} ${cy + 40} C ${cx - 56} ${cy + 6} ${cx - 46} ${cy - 44} ${cx} ${cy - 18} C ${cx + 46} ${cy - 44} ${cx + 56} ${cy + 6} ${cx} ${cy + 40} Z`}
+                  fill="#FCE7F3"
+                  stroke="#DB2777"
+                  strokeWidth="3"
+                  strokeLinejoin="round"
+                />
+                {showLines && (
+                  <line x1={cx} y1={cy - 44} x2={cx} y2={cy + 48} stroke="#E11D48" strokeWidth="2.4" strokeDasharray="5 4" />
+                )}
+              </g>
+            );
+        }
+      };
+
+      return (
+        <svg
+          viewBox="0 0 280 134"
+          className={`mx-auto max-w-xs w-full ${className}`}
+          role="img"
+          aria-label={
+            spec.showLines
+              ? `Symmetry diagram of ${spec.shape}`
+              : 'Polygon symmetry diagram'
+          }
+        >
+          {renderShape()}
+          {spec.label && (
+            <text x="140" y="126" textAnchor="middle" fontSize="12" fontWeight="800" fill="#44403C">
+              {spec.label}
+            </text>
+          )}
+        </svg>
+      );
+    }
+
+    case 'area-model-2x2': {
+      const p11 = spec.aTens * spec.bTens;
+      const p12 = spec.aOnes * spec.bTens;
+      const p21 = spec.aTens * spec.bOnes;
+      const p22 = spec.aOnes * spec.bOnes;
+      const hide = Boolean(spec.hideProducts);
+      return (
+        <svg
+          viewBox="0 0 320 148"
+          className={`mx-auto max-w-xs w-full ${className}`}
+          role="img"
+          aria-label={`2x2 area model for ${spec.aTens + spec.aOnes} times ${spec.bTens + spec.bOnes}`}
+        >
+          {/* Top headers */}
+          <text x="128" y="20" textAnchor="middle" fontSize="13" fontWeight="800" fill="#1D4ED8">
+            {spec.aTens}
+          </text>
+          <text x="197" y="20" textAnchor="middle" fontSize="13" fontWeight="800" fill="#78716C">
+            +
+          </text>
+          <text x="242" y="20" textAnchor="middle" fontSize="13" fontWeight="800" fill="#0D9488">
+            {spec.aOnes}
+          </text>
+
+          {/* Left headers */}
+          <text x="42" y="64" textAnchor="end" fontSize="13" fontWeight="800" fill="#D97706">
+            {spec.bTens}
+          </text>
+          <text x="42" y="114" textAnchor="end" fontSize="13" fontWeight="800" fill="#9333EA">
+            {spec.bOnes}
+          </text>
+
+          {/* 4 boxes */}
+          <rect x="54" y="30" width="146" height="52" fill="#EFF6FF" stroke="#1C1917" strokeWidth="2.4" />
+          <rect x="200" y="30" width="84" height="52" fill="#F0FDFA" stroke="#1C1917" strokeWidth="2.4" />
+          <rect x="54" y="82" width="146" height="46" fill="#FFFBEB" stroke="#1C1917" strokeWidth="2.4" />
+          <rect x="200" y="82" width="84" height="46" fill="#FAF5FF" stroke="#1C1917" strokeWidth="2.4" />
+
+          <text x="127" y="61" textAnchor="middle" fontSize="14" fontWeight="800" fill="#1E3A8A">
+            {hide ? `${spec.bTens}×${spec.aTens}` : p11.toLocaleString('en-US')}
+          </text>
+          <text x="242" y="61" textAnchor="middle" fontSize="14" fontWeight="800" fill="#115E59">
+            {hide ? `${spec.bTens}×${spec.aOnes}` : p12.toLocaleString('en-US')}
+          </text>
+          <text x="127" y="110" textAnchor="middle" fontSize="14" fontWeight="800" fill="#92400E">
+            {hide ? `${spec.bOnes}×${spec.aTens}` : p21.toLocaleString('en-US')}
+          </text>
+          <text x="242" y="110" textAnchor="middle" fontSize="14" fontWeight="800" fill="#6B21A8">
+            {hide ? `${spec.bOnes}×${spec.aOnes}` : p22.toLocaleString('en-US')}
+          </text>
+        </svg>
+      );
+    }
+
+    case 'coord-grid': {
+      const maxC = Math.max(4, Math.min(8, spec.maxCoord));
+      const padLeft = 36;
+      const padTop = 18;
+      const gridSize = 144; // True 1:1 square grid!
+      const step = gridSize / maxC;
+      const toX = (x: number) => padLeft + x * step;
+      const toY = (y: number) => padTop + gridSize - y * step;
+      const [px, py] = spec.point;
+      return (
+        <svg
+          viewBox="0 0 216 196"
+          className={`mx-auto max-w-[230px] w-full ${className}`}
+          role="img"
+          aria-label={
+            spec.showCoords
+              ? `Coordinate grid showing point (${px}, ${py})`
+              : 'Coordinate grid with point A'
+          }
+        >
+          {/* Grid lines */}
+          {Array.from({ length: maxC + 1 }, (_, i) => {
+            const gx = toX(i);
+            const gy = toY(i);
+            return (
+              <g key={i}>
+                <line x1={gx} y1={padTop} x2={gx} y2={padTop + gridSize} stroke="#E5DFD3" strokeWidth="1.4" />
+                <line x1={padLeft} y1={gy} x2={padLeft + gridSize} y2={gy} stroke="#E5DFD3" strokeWidth="1.4" />
+                <text x={gx} y={padTop + gridSize + 15} textAnchor="middle" fontSize="10.5" fontWeight="800" fill="#57534E">
+                  {i}
+                </text>
+                {i > 0 && (
+                  <text x={padLeft - 10} y={gy + 4} textAnchor="end" fontSize="10.5" fontWeight="800" fill="#57534E">
+                    {i}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Axes */}
+          <line x1={padLeft} y1={padTop + gridSize} x2={padLeft + gridSize + 8} y2={padTop + gridSize} stroke="#1C1917" strokeWidth="2.4" />
+          <line x1={padLeft} y1={padTop - 8} x2={padLeft} y2={padTop + gridSize} stroke="#1C1917" strokeWidth="2.4" />
+          <text x={padLeft + gridSize + 14} y={padTop + gridSize + 4} fontSize="11" fontWeight="900" fill="#2563EB">
+            x
+          </text>
+          <text x={padLeft - 2} y={padTop - 10} textAnchor="middle" fontSize="11" fontWeight="900" fill="#DB2777">
+            y
+          </text>
+
+          {/* Optional second point & Manhattan guide */}
+          {spec.secondPoint && (() => {
+            const [bx, by] = spec.secondPoint;
+            const bLabelX = toX(bx) > padLeft + gridSize - 38 ? toX(bx) - 8 : toX(bx) + 8;
+            const bAnchor = toX(bx) > padLeft + gridSize - 38 ? 'end' : 'start';
+            return (
+              <g>
+                <polyline
+                  points={`${toX(px)},${toY(py)} ${toX(bx)},${toY(py)} ${toX(bx)},${toY(by)}`}
+                  fill="none"
+                  stroke="#0D9488"
+                  strokeWidth="2.2"
+                  strokeDasharray="4 3"
+                />
+                <circle cx={toX(bx)} cy={toY(by)} r="6" fill="#0D9488" stroke="#1C1917" strokeWidth="2" />
+                <text
+                  x={bLabelX}
+                  y={Math.max(padTop + 12, toY(by) - 8)}
+                  textAnchor={bAnchor}
+                  fontSize="11"
+                  fontWeight="900"
+                  fill="#0F766E"
+                >
+                  {spec.showCoords ? `B (${bx}, ${by})` : 'B'}
+                </text>
+              </g>
+            );
+          })()}
+
+          {/* Primary Point */}
+          <circle cx={toX(px)} cy={toY(py)} r="6.5" fill="#E11D48" stroke="#1C1917" strokeWidth="2" />
+          <text
+            x={toX(px) > padLeft + gridSize - 42 ? toX(px) - 9 : toX(px) + 9}
+            textAnchor={toX(px) > padLeft + gridSize - 42 ? 'end' : 'start'}
+            y={Math.max(padTop + 12, toY(py) - 8)}
+            fontSize="11"
+            fontWeight="900"
+            fill="#BE123C"
+          >
+            {spec.showCoords ? `A (${px}, ${py})` : 'A'}
+          </text>
+
+          {spec.label && (
+            <text x="108" y="191" textAnchor="middle" fontSize="11" fontWeight="800" fill="#44403C">
+              {spec.label}
+            </text>
+          )}
+        </svg>
+      );
+    }
   }
 };

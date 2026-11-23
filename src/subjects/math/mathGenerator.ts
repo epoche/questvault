@@ -1,3 +1,4 @@
+import { generatePhase2MathItem } from './mathGeneratorPhase2';
 import type { MathQuestSet, MathSkillItem } from './types';
 
 function randInt(rng: () => number, min: number, max: number): number {
@@ -1869,7 +1870,7 @@ export function generateDynamicMathItem(
     }
 
     default:
-      return base;
+      return generatePhase2MathItem(base, rng) ?? base;
   }
 }
 
@@ -1901,6 +1902,14 @@ export function validateMathItemInvariants(item: MathSkillItem): string[] {
       errors.push(`${item.id}: invalid choice "${c}"`);
     }
   }
+  const validSymmetryShapes = new Set([
+    'square',
+    'rectangle',
+    'equilateral-triangle',
+    'isosceles-triangle',
+    'regular-hexagon',
+    'heart',
+  ]);
   const checkVisual = (v: MathSkillItem['sprintVisual'], label: string) => {
     if (!v) return;
     if (v.kind === 'fraction-bar' && (v.denominator <= 0 || v.numerator < 0 || v.numerator > v.denominator)) {
@@ -1915,6 +1924,50 @@ export function validateMathItemInvariants(item: MathSkillItem): string[] {
     if (v.kind === 'array' && (v.rows <= 0 || v.cols <= 0)) {
       errors.push(`${item.id} (${label}): invalid array ${v.rows}x${v.cols}`);
     }
+    if (v.kind === 'decimal-grid' && (v.shaded < 0 || v.shaded > 100 || !Number.isInteger(v.shaded))) {
+      errors.push(`${item.id} (${label}): invalid decimal-grid shaded ${v.shaded}`);
+    }
+    if (v.kind === 'symmetry-shape') {
+      if (!validSymmetryShapes.has(v.shape)) {
+        errors.push(`${item.id} (${label}): invalid symmetry-shape "${v.shape}"`);
+      }
+      if (label === 'sprintVisual' && v.showLines !== false) {
+        errors.push(`${item.id} (${label}): symmetry-shape sprintVisual leaks symmetry lines`);
+      }
+    }
+    if (v.kind === 'area-model-2x2') {
+      if (v.aTens <= 0 || v.aOnes <= 0 || v.bTens <= 0 || v.bOnes <= 0) {
+        errors.push(
+          `${item.id} (${label}): area-model-2x2 parts must be > 0 (${v.aTens}+${v.aOnes} × ${v.bTens}+${v.bOnes})`,
+        );
+      }
+      if (label === 'sprintVisual' && v.hideProducts !== true) {
+        errors.push(`${item.id} (${label}): area-model-2x2 sprintVisual must set hideProducts: true`);
+      }
+    }
+    if (v.kind === 'coord-grid') {
+      if (!Number.isInteger(v.maxCoord) || v.maxCoord < 4 || v.maxCoord > 8) {
+        errors.push(`${item.id} (${label}): invalid coord-grid maxCoord ${v.maxCoord}`);
+      }
+      const inBounds = (pt: [number, number]) =>
+        Number.isInteger(pt[0]) &&
+        Number.isInteger(pt[1]) &&
+        pt[0] >= 0 &&
+        pt[0] <= v.maxCoord &&
+        pt[1] >= 0 &&
+        pt[1] <= v.maxCoord;
+      if (!inBounds(v.point)) {
+        errors.push(`${item.id} (${label}): coord-grid point (${v.point[0]}, ${v.point[1]}) out of 0..${v.maxCoord}`);
+      }
+      if (v.secondPoint && !inBounds(v.secondPoint)) {
+        errors.push(
+          `${item.id} (${label}): coord-grid secondPoint (${v.secondPoint[0]}, ${v.secondPoint[1]}) out of 0..${v.maxCoord}`,
+        );
+      }
+      if (label === 'sprintVisual' && v.showCoords === true) {
+        errors.push(`${item.id} (${label}): coord-grid sprintVisual must not leak showCoords: true`);
+      }
+    }
   };
   checkVisual(item.visual, 'visual');
   checkVisual(item.sprintVisual, 'sprintVisual');
@@ -1923,7 +1976,8 @@ export function validateMathItemInvariants(item: MathSkillItem): string[] {
   // Independent arithmetic cross-check for direct expression prompts
   const multMatch = item.sprintPrompt.match(/^What is (\d+) × (\d+)\?$/);
   if (multMatch) {
-    const expected = String(Number(multMatch[1]) * Number(multMatch[2]));
+    const prod = Number(multMatch[1]) * Number(multMatch[2]);
+    const expected = prod >= 1000 ? prod.toLocaleString('en-US') : String(prod);
     if (item.correctAnswer !== expected) {
       errors.push(`${item.id}: ${item.sprintPrompt} expected ${expected}, got ${item.correctAnswer}`);
     }

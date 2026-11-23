@@ -1,5 +1,6 @@
 import type { DifficultyTier } from '../../core/types';
 import { EXPANSION_MATH_SETS } from './questSetsExpansion';
+import { PHASE2_MATH_SETS } from './questSetsPhase2';
 import type { MathQuestSet, MathSkillItem } from './types';
 
 export const MATH_TIER_META: Record<
@@ -1058,6 +1059,7 @@ export const BUILTIN_MATH_SETS: MathQuestSet[] = [
     ],
   },
   ...EXPANSION_MATH_SETS,
+  ...PHASE2_MATH_SETS,
 ];
 
 export function getMathSetsByTier(tier: DifficultyTier): MathQuestSet[] {

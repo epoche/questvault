@@ -33,9 +33,9 @@ function createSeededRng(seed: number): () => number {
   };
 }
 
-describe('Layer 1: Math 20-Unit Infinite Dynamic Fuzz Suite (1,000+ generated runs / 4,000+ problems)', () => {
-  it('generates 1,000 dynamic unit runs (20 units × 50 seeds = 4,000 items) with zero math/visual/choice invariant violations', () => {
-    expect(BUILTIN_MATH_SETS).toHaveLength(20);
+describe('Layer 1: Math 28-Unit Infinite Dynamic Fuzz Suite (1,400+ generated runs / 5,600+ problems)', () => {
+  it('generates 1,400 dynamic unit runs (28 units × 50 seeds = 5,600 items) with zero math/visual/choice invariant violations', () => {
+    expect(BUILTIN_MATH_SETS).toHaveLength(28);
     const allErrors: string[] = [];
     let totalGeneratedItems = 0;
 
@@ -62,7 +62,7 @@ describe('Layer 1: Math 20-Unit Infinite Dynamic Fuzz Suite (1,000+ generated ru
       expect(promptSignatures.size).toBeGreaterThanOrEqual(4);
     }
 
-    expect(totalGeneratedItems).toBe(4000);
+    expect(totalGeneratedItems).toBe(5600);
     expect(allErrors).toEqual([]);
   });
 

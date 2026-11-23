@@ -56,7 +56,29 @@ export type MathVisualSpec =
   | { kind: 'number-line-round'; low: number; mid: number; high: number; value: number; showMid?: boolean }
   | { kind: 'place-value'; value: number; highlightPlace: 'thousands' | 'hundreds' | 'tens' | 'ones' }
   | { kind: 'time-jump'; startLabel: string; jumps: string[]; endLabel?: string }
-  | { kind: 'line-plot'; title: string; marks: { label: string; count: number }[] };
+  | { kind: 'line-plot'; title: string; marks: { label: string; count: number }[] }
+  | {
+      kind: 'symmetry-shape';
+      shape: 'square' | 'rectangle' | 'equilateral-triangle' | 'isosceles-triangle' | 'regular-hexagon' | 'heart';
+      showLines?: boolean;
+      label?: string;
+    }
+  | {
+      kind: 'area-model-2x2';
+      aTens: number;
+      aOnes: number;
+      bTens: number;
+      bOnes: number;
+      hideProducts?: boolean;
+    }
+  | {
+      kind: 'coord-grid';
+      maxCoord: number;
+      point: [number, number];
+      secondPoint?: [number, number];
+      showCoords?: boolean;
+      label?: string;
+    };
 
 export interface MathSkillItem {
   id: string;
