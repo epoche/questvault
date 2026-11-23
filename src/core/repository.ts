@@ -312,6 +312,27 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
           new Set(obj.completedGrammarIds.filter((id): id is string => typeof id === 'string')),
         )
       : [],
+    completedSpellingIds: Array.isArray(obj.completedSpellingIds)
+      ? Array.from(
+          new Set(obj.completedSpellingIds.filter((id): id is string => typeof id === 'string')),
+        )
+      : [],
+    completedEnglishChapterIds: Array.isArray(obj.completedEnglishChapterIds)
+      ? Array.from(
+          new Set(
+            obj.completedEnglishChapterIds.filter((id): id is string => typeof id === 'string'),
+          ),
+        )
+      : [],
+    claimedEnglishChapterSeriesIds: Array.isArray(obj.claimedEnglishChapterSeriesIds)
+      ? Array.from(
+          new Set(
+            obj.claimedEnglishChapterSeriesIds.filter(
+              (id): id is string => typeof id === 'string',
+            ),
+          ),
+        )
+      : [],
     completedChapterEpisodeIds: Array.isArray(obj.completedChapterEpisodeIds)
       ? Array.from(
           new Set(

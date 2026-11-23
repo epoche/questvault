@@ -28,6 +28,13 @@ export default defineConfig({
                   return 'vendor-misc';
                 }
                 if (
+                  id.includes('/src/subjects/english/spellingSets') ||
+                  id.includes('/src/subjects/english/spellingTypes') ||
+                  id.includes('/src/subjects/english/englishChapter')
+                ) {
+                  return 'subject-english-phase5';
+                }
+                if (
                   id.includes('/src/subjects/english/rootFamilies') ||
                   id.includes('/src/subjects/english/grammarSets') ||
                   id.includes('/src/subjects/english/rootEngine')

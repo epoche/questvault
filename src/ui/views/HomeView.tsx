@@ -64,6 +64,12 @@ import {
   getChineseSetsByTier,
 } from '../../subjects/chinese/wordSets';
 import { customRecordToWordSet } from '../../subjects/english/customParser';
+import {
+  BUILTIN_ENGLISH_CHAPTER_SERIES,
+  getEnglishSeriesCompletedCount,
+  isEnglishSeriesFullyCompleted,
+  type EnglishChapterSeries,
+} from '../../subjects/english/englishChapterStories';
 import { getEnglishGrammarSetsByTier } from '../../subjects/english/grammarSets';
 import { PLACEMENT_BONUS_TOKENS } from '../../subjects/english/placement';
 import { getEnglishReadingByTier } from '../../subjects/english/readingQuests';
@@ -77,6 +83,8 @@ import {
   buildTrickyRematchWordSet,
   getLocalDateKey,
 } from '../../subjects/english/runEngine';
+import { getSpellingSetsByTier } from '../../subjects/english/spellingSets';
+import type { SpellingSet } from '../../subjects/english/spellingTypes';
 import type { WordSet } from '../../subjects/english/types';
 import { BUILTIN_WORD_SETS, getWordSetsByTier, TIER_META } from '../../subjects/english/wordSets';
 import { buildMathSrsReviewSet, buildMathTrickyRematchSet } from '../../subjects/math/mathEngine';
@@ -104,6 +112,8 @@ interface HomeViewProps {
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartEnglishRootFamily: (family: EnglishRootFamily) => void;
   onStartGrammarRepairSet: (set: GrammarRepairSet) => void;
+  onStartSpellingSet?: (set: SpellingSet) => void;
+  onStartEnglishChapterSeries?: (series: EnglishChapterSeries) => void;
   onStartMathRun: (questSet: MathQuestSet) => void;
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
   onStartChineseListening: () => void;
@@ -145,6 +155,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartEnglishRun,
   onStartEnglishRootFamily,
   onStartGrammarRepairSet,
+  onStartSpellingSet,
+  onStartEnglishChapterSeries,
   onStartMathRun,
   onStartChineseRun,
   onStartChineseListening,
@@ -157,11 +169,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onGoToMarket,
 }) => {
   const [questMode, setQuestMode] = useState<
-    'words' | 'stories' | 'roots' | 'grammar' | 'radicals' | 'measures' | 'chapters'
+    | 'words'
+    | 'stories'
+    | 'roots'
+    | 'grammar'
+    | 'spelling'
+    | 'enChapters'
+    | 'radicals'
+    | 'measures'
+    | 'chapters'
   >('words');
   const [voucherOpen, setVoucherOpen] = useState(false);
   const effectiveQuestMode =
-    activeSubjectId === 'chinese' && (questMode === 'roots' || questMode === 'grammar')
+    activeSubjectId === 'chinese' &&
+    (questMode === 'roots' ||
+      questMode === 'grammar' ||
+      questMode === 'spelling' ||
+      questMode === 'enChapters')
       ? 'words'
       : activeSubjectId !== 'chinese' &&
           (questMode === 'radicals' || questMode === 'measures' || questMode === 'chapters')
@@ -215,6 +239,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const enSets = getWordSetsByTier(activeTier);
   const enRootFamilies = getEnglishRootFamiliesByTier(activeTier);
   const enGrammarSets = getEnglishGrammarSetsByTier(activeTier);
+  const enSpellingSets = getSpellingSetsByTier(activeTier);
   const mathSets = getMathSetsByTier(activeTier);
   const zhSets = getChineseSetsByTier(activeTier);
   const zhRadicalFamilies = getRadicalFamiliesByTier(activeTier);
@@ -885,6 +910,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <Wrench className="h-4 w-4 text-[#EA580C]" />
                   <span>Grammar Lab ({enGrammarSets.length})</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setQuestMode('spelling')}
+                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                    effectiveQuestMode === 'spelling'
+                      ? 'bg-white text-[#1C1917] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4 text-[#D97706]" />
+                  <span>Spelling Bee ({enSpellingSets.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuestMode('enChapters')}
+                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                    effectiveQuestMode === 'enChapters'
+                      ? 'bg-white text-[#1C1917] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
+                  }`}
+                >
+                  <BookMarked className="h-4 w-4 text-[#7C3AED]" />
+                  <span>Chapter Books ({BUILTIN_ENGLISH_CHAPTER_SERIES.length})</span>
+                </button>
               </>
             )}
             {activeSubjectId === 'chinese' && (
@@ -1444,6 +1493,137 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <span className="rounded-lg bg-[#F3EFE7] px-2 py-1 text-[11px] font-extrabold text-[#57534E]">
                         5 Fixes
                       </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Phase 5A: English Spelling Bee Lab Grid */}
+        {activeSubjectId === 'english' && effectiveQuestMode === 'spelling' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {enSpellingSets.map((sp) => {
+              const done = (player.completedSpellingIds ?? []).includes(sp.id);
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: sp.id,
+                kind: 'static',
+                subjectId: 'english',
+                todayKey,
+                completedIds: player.completedSpellingIds ?? [],
+                words: sp.items.map((it) => it.word),
+              });
+              return (
+                <button
+                  key={sp.id}
+                  type="button"
+                  onClick={() => onStartSpellingSet?.(sp)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div className="px-5 py-4 flex items-center justify-between gap-3 bg-[#FFFBEB]">
+                    <CollectibleArt
+                      id={sp.emblemCollectibleId}
+                      size={60}
+                      className="border-2 border-[#1C1917]"
+                    />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span className="rounded-full bg-[#D97706] px-2.5 py-0.5 text-xs font-extrabold text-white">
+                        🐝 {sp.badge}
+                      </span>
+                      {done ? (
+                        renderDoneRewardBadge(policy, false, 'Spelled')
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
+                          <Coins className="h-3.5 w-3.5" />
+                          +25–35
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2">
+                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
+                      {sp.title}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">{sp.subtitle}</p>
+                    <p className="text-[11px] font-extrabold text-[#B45309]">
+                      🔊 5 Audio Spelling Challenges · Tiles & Keyboard
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Phase 5A: English Chapter Story Series Grid */}
+        {activeSubjectId === 'english' && effectiveQuestMode === 'enChapters' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {BUILTIN_ENGLISH_CHAPTER_SERIES.map((series) => {
+              const epDone = getEnglishSeriesCompletedCount(
+                series,
+                player.completedEnglishChapterIds ?? [],
+              );
+              const fullDone = isEnglishSeriesFullyCompleted(
+                series,
+                player.completedEnglishChapterIds ?? [],
+              );
+              return (
+                <button
+                  key={series.id}
+                  type="button"
+                  onClick={() => onStartEnglishChapterSeries?.(series)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: series.bgHex }}
+                  >
+                    <CollectibleArt
+                      id={series.emblemCollectibleId}
+                      size={66}
+                      className="border-2 border-[#1C1917]"
+                    />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: series.accentHex }}
+                      >
+                        {series.genreTag} · Tier {series.tier}
+                      </span>
+                      {fullDone ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          All 5 Chapters Done!
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#1C1917] tabular-nums">
+                          {epDone}/5 Chapters
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2">
+                    <h3 className="font-display text-xl font-extrabold text-[#1C1917]">
+                      {series.title}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">{series.subtitle}</p>
+                    <div className="flex items-center gap-1.5 pt-1">
+                      {series.episodes.map((ep) => {
+                        const done = (player.completedEnglishChapterIds ?? []).includes(ep.id);
+                        return (
+                          <span
+                            key={ep.id}
+                            className={`rounded-lg px-2 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                              done
+                                ? 'bg-[#ECFDF5] text-[#047857] border border-[#6EE7B7]'
+                                : 'bg-[#F3EFE7] text-[#57534E]'
+                            }`}
+                          >
+                            Ch.{ep.episodeNumber}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 </button>

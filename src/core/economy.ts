@@ -570,6 +570,35 @@ export function claimChapterSeriesChest(
   };
 }
 
+export function claimEnglishChapterSeriesChest(
+  state: PlayerState,
+  seriesId: string,
+  requiredEpisodeIds: string[],
+  bonusTokens = 40,
+):
+  | { ok: true; state: PlayerState; bonusTokens: number }
+  | { ok: false; reason: 'incomplete' | 'already_claimed' } {
+  const claimed = state.claimedEnglishChapterSeriesIds ?? [];
+  if (claimed.includes(seriesId)) {
+    return { ok: false, reason: 'already_claimed' };
+  }
+  const completed = state.completedEnglishChapterIds ?? [];
+  const allDone =
+    requiredEpisodeIds.length > 0 && requiredEpisodeIds.every((id) => completed.includes(id));
+  if (!allDone) {
+    return { ok: false, reason: 'incomplete' };
+  }
+  return {
+    ok: true,
+    bonusTokens,
+    state: {
+      ...state,
+      tokens: state.tokens + bonusTokens,
+      claimedEnglishChapterSeriesIds: [...claimed, seriesId],
+    },
+  };
+}
+
 export function getExtraDuplicateCountByRarity(state: PlayerState, rarity: Rarity): number {
   let extras = 0;
   for (const item of COLLECTIBLES) {

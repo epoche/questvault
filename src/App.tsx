@@ -11,6 +11,7 @@ import {
   awardFishingSessionRewards,
   claimChapterSeriesChest,
   claimDailyTriSubjectReward,
+  claimEnglishChapterSeriesChest,
   craftShinyCollectible,
   equipCollectibleAvatar,
   fuseFiveDuplicatesUp,
@@ -50,11 +51,16 @@ import type { RadicalFamily } from './subjects/chinese/radicalFamilies';
 import type { ChineseWordSet } from './subjects/chinese/types';
 import { customRecordToWordSet } from './subjects/english/customParser';
 import { PLACEMENT_BONUS_TOKENS } from './subjects/english/placement';
+import {
+  EN_CHAPTER_SERIES_CHEST_BONUS,
+  type EnglishChapterSeries,
+} from './subjects/english/englishChapterStories';
 import type {
   EnglishRootFamily,
   GrammarRepairSet,
 } from './subjects/english/rootsGrammarTypes';
 import { getLocalDateKey } from './subjects/english/runEngine';
+import type { SpellingSet } from './subjects/english/spellingTypes';
 import type { WordSet } from './subjects/english/types';
 import { MATH_PLACEMENT_BONUS_TOKENS } from './subjects/math/mathPlacement';
 import type { MathQuestSet } from './subjects/math/types';
@@ -81,6 +87,10 @@ import {
 import { ChinesePlacementView } from './ui/views/ChinesePlacementView';
 import { type ChineseCompletionPayload, ChineseRunView } from './ui/views/ChineseRunView';
 import {
+  type EnglishChapterEpisodeCompletionPayload,
+  EnglishChapterSeriesView,
+} from './ui/views/EnglishChapterSeriesView';
+import {
   type EnglishRootCompletionPayload,
   EnglishRootQuestView,
 } from './ui/views/EnglishRootQuestView';
@@ -105,6 +115,10 @@ import {
 } from './ui/views/RadicalQuestView';
 import { type ReadingCompletionPayload, ReadingRunView } from './ui/views/ReadingRunView';
 import { type RunCompletionPayload, RunView } from './ui/views/RunView';
+import {
+  type SpellingBeeCompletionPayload,
+  SpellingBeeView,
+} from './ui/views/SpellingBeeView';
 import { VaultView } from './ui/views/VaultView';
 import { WritingLogView } from './ui/views/WritingLogView';
 
@@ -119,6 +133,9 @@ export const App: React.FC = () => {
   const [activeEnglishRootFamily, setActiveEnglishRootFamily] =
     useState<EnglishRootFamily | null>(null);
   const [activeGrammarSet, setActiveGrammarSet] = useState<GrammarRepairSet | null>(null);
+  const [activeSpellingSet, setActiveSpellingSet] = useState<SpellingSet | null>(null);
+  const [activeEnglishChapterSeries, setActiveEnglishChapterSeries] =
+    useState<EnglishChapterSeries | null>(null);
   const [activeMathSet, setActiveMathSet] = useState<MathQuestSet | null>(null);
   const [activeChineseSet, setActiveChineseSet] = useState<ChineseWordSet | null>(null);
   const [activeChineseListening, setActiveChineseListening] = useState(false);
@@ -149,6 +166,8 @@ export const App: React.FC = () => {
     activeEnglishSet ||
       activeEnglishRootFamily ||
       activeGrammarSet ||
+      activeSpellingSet ||
+      activeEnglishChapterSeries ||
       activeMathSet ||
       activeChineseSet ||
       activeChineseListening ||
@@ -180,6 +199,8 @@ export const App: React.FC = () => {
     activeEnglishSet,
     activeEnglishRootFamily,
     activeGrammarSet,
+    activeSpellingSet,
+    activeEnglishChapterSeries,
     activeMathSet,
     activeChineseSet,
     activeChineseListening,
@@ -199,6 +220,8 @@ export const App: React.FC = () => {
     setActiveEnglishSet(null);
     setActiveEnglishRootFamily(null);
     setActiveGrammarSet(null);
+    setActiveSpellingSet(null);
+    setActiveEnglishChapterSeries(null);
     setActiveMathSet(null);
     setActiveChineseSet(null);
     setActiveChineseListening(false);
@@ -957,6 +980,122 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleCompleteSpelling = (payload: SpellingBeeCompletionPayload) => {
+    setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
+      const prevSpelling = prev.completedSpellingIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.setId,
+        kind: 'static',
+        subjectId: 'english',
+        todayKey,
+        completedIds: prevSpelling,
+        words: payload.wordOutcomes.map((w) => w.word),
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.tokensEarned,
+        policy.multiplier,
+      );
+
+      let nextMastery = prev.wordMastery;
+      for (const out of payload.wordOutcomes) {
+        nextMastery = recordWordOutcome(nextMastery, {
+          word: out.word,
+          subjectId: 'english',
+          tier: payload.tier,
+          outcome: out.firstTryCorrect ? 'clean' : 'missed',
+        });
+      }
+
+      const nextSpelling = prevSpelling.includes(payload.setId)
+        ? prevSpelling
+        : [...prevSpelling, payload.setId];
+
+      const summary = {
+        id: `en-spell-${Date.now()}`,
+        subjectId: 'english' as const,
+        questSetId: payload.setId,
+        questSetTitle: `Spelling Bee: ${payload.setTitle}`,
+        tokensEarned: awardedTokens,
+        maxCombo: payload.wordOutcomes.filter((w) => w.firstTryCorrect).length,
+        accuracyPct: payload.accuracyPct,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + awardedTokens,
+        completedSpellingIds: nextSpelling,
+        wordMastery: nextMastery,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.setId, todayKey),
+        'english',
+        todayKey,
+      );
+    });
+  };
+
+  const handleCompleteEnglishChapterEpisode = (
+    payload: EnglishChapterEpisodeCompletionPayload,
+  ) => {
+    setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
+      const prevEps = prev.completedEnglishChapterIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.episodeId,
+        kind: 'static',
+        subjectId: 'english',
+        todayKey,
+        completedIds: prevEps,
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.tokensEarned,
+        policy.multiplier,
+      );
+
+      const nextEps = prevEps.includes(payload.episodeId)
+        ? prevEps
+        : [...prevEps, payload.episodeId];
+
+      const summary = {
+        id: `en-ch-${Date.now()}`,
+        subjectId: 'english' as const,
+        questSetId: payload.episodeId,
+        questSetTitle: `${payload.seriesTitle} Ch.${payload.episodeNumber}: ${payload.episodeTitle}`,
+        tokensEarned: awardedTokens,
+        maxCombo: 3,
+        accuracyPct: payload.accuracyPct,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + awardedTokens,
+        completedEnglishChapterIds: nextEps,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.episodeId, todayKey),
+        'english',
+        todayKey,
+      );
+    });
+  };
+
+  const handleClaimEnglishChapterChest = (series: EnglishChapterSeries): boolean => {
+    const reqIds = series.episodes.map((e) => e.id);
+    const res = claimEnglishChapterSeriesChest(
+      playerRef.current,
+      series.id,
+      reqIds,
+      EN_CHAPTER_SERIES_CHEST_BONUS,
+    );
+    if (!res.ok) return false;
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    return true;
+  };
+
   const handleSaveCustomSet = (record: CustomWordSetRecord) => {
     setPlayer((prev) => ({
       ...prev,
@@ -1372,6 +1511,48 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeSpellingSet ? (
+            <SpellingBeeView
+              questSet={activeSpellingSet}
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeSpellingSet.id,
+                kind: 'static',
+                subjectId: 'english',
+                todayKey,
+                completedIds: player.completedSpellingIds ?? [],
+                words: activeSpellingSet.items.map((it) => it.word),
+              })}
+              onComplete={handleCompleteSpelling}
+              onExit={() => setActiveSpellingSet(null)}
+              onGoToMarket={() => {
+                setActiveSpellingSet(null);
+                setActiveTab('market');
+              }}
+            />
+          ) : activeEnglishChapterSeries ? (
+            <EnglishChapterSeriesView
+              series={activeEnglishChapterSeries}
+              completedEpisodeIds={player.completedEnglishChapterIds ?? []}
+              claimedSeriesIds={player.claimedEnglishChapterSeriesIds ?? []}
+              getEpisodeRewardPolicy={(episodeId) =>
+                getQuestRewardPolicy(player, {
+                  questSetId: episodeId,
+                  kind: 'static',
+                  subjectId: 'english',
+                  todayKey,
+                  completedIds: player.completedEnglishChapterIds ?? [],
+                })
+              }
+              onCompleteEpisode={handleCompleteEnglishChapterEpisode}
+              onClaimSeriesChest={handleClaimEnglishChapterChest}
+              onExit={() => setActiveEnglishChapterSeries(null)}
+              onGoToMarket={() => {
+                setActiveEnglishChapterSeries(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeChineseListening ? (
             <ChineseListeningView
               tier={player.subjectTiers?.chinese ?? 2}
@@ -1399,6 +1580,8 @@ export const App: React.FC = () => {
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
               onStartEnglishRootFamily={(fam) => setActiveEnglishRootFamily(fam)}
               onStartGrammarRepairSet={(set) => setActiveGrammarSet(set)}
+              onStartSpellingSet={(set) => setActiveSpellingSet(set)}
+              onStartEnglishChapterSeries={(series) => setActiveEnglishChapterSeries(series)}
               onStartMathRun={(set) => setActiveMathSet(set)}
               onStartChineseRun={(set) => setActiveChineseSet(set)}
               onStartChineseListening={() => setActiveChineseListening(true)}

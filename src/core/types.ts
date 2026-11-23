@@ -199,6 +199,9 @@ export interface PlayerState {
   completedMeasureIds?: string[];
   completedEnglishRootIds?: string[];
   completedGrammarIds?: string[];
+  completedSpellingIds?: string[];
+  completedEnglishChapterIds?: string[];
+  claimedEnglishChapterSeriesIds?: string[];
   completedChapterEpisodeIds?: string[];
   claimedChapterSeriesIds?: string[];
   claimedAchievementIds?: string[];
