@@ -152,13 +152,33 @@ describe('Phase 2B Layer 1: English & Traditional Chinese Story Quests (32 Passa
 });
 
 describe('Phase 2B Layer 1: Parent Corner Analytics, Parent Gate, Weekly Review & v1 Compat', () => {
-  it('generates valid multiplication Parent Gate challenges with 4 unique positive choices', () => {
-    for (let i = 0; i < 20; i += 1) {
-      const ch = createParentGateChallenge(() => (i * 0.13) % 1);
+  it('generates valid middle-school Parent Gate challenges across all 5 categories and sanitizes 4-digit parentPin in v1 JSON backup', () => {
+    const categories = new Set<string>();
+    for (let i = 0; i < 40; i += 1) {
+      const ch = createParentGateChallenge(() => ((i * 0.173) % 1));
+      categories.add(ch.categoryLabel);
+      expect(ch.prompt.length).toBeGreaterThan(4);
+      expect(Number.isInteger(ch.answer)).toBe(true);
+      expect(ch.answer).toBeGreaterThan(0);
       expect(ch.choices).toHaveLength(4);
       expect(new Set(ch.choices).size).toBe(4);
       expect(ch.choices).toContain(ch.answer);
       expect(ch.choices.every((n) => n > 0)).toBe(true);
+    }
+    expect(categories.size).toBe(5);
+
+    const withPin = { ...createInitialPlayerState('Chloe'), parentPin: '0824' };
+    const restored = importPlayerStateJson(exportPlayerStateJson(withPin));
+    expect(restored.ok).toBe(true);
+    if (restored.ok) {
+      expect(restored.state.parentPin).toBe('0824');
+    }
+
+    const withBadPin = { ...createInitialPlayerState('Chloe'), parentPin: 'abc' };
+    const restoredBad = importPlayerStateJson(exportPlayerStateJson(withBadPin));
+    expect(restoredBad.ok).toBe(true);
+    if (restoredBad.ok) {
+      expect(restoredBad.state.parentPin).toBeUndefined();
     }
   });
 

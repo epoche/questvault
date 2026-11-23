@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -7,9 +7,12 @@ import {
   Copy,
   Flame,
   KeyRound,
+  Lock,
   Play,
   Plus,
   Printer,
+  RefreshCw,
+  ShieldCheck,
   Sparkles,
   Trash2,
 } from 'lucide-react';
@@ -34,7 +37,10 @@ interface ParentViewProps {
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
   onDeleteCustomSet: (id: string) => void;
+  onSetParentPin: (pin: string | undefined) => void;
 }
+
+const GATE_COOLDOWN_SEC = 8;
 
 export const ParentView: React.FC<ParentViewProps> = ({
   player,
@@ -43,14 +49,32 @@ export const ParentView: React.FC<ParentViewProps> = ({
   onStartChineseRun,
   onOpenCustomImporter,
   onDeleteCustomSet,
+  onSetParentPin,
 }) => {
+  const hasSavedPin = Boolean(player.parentPin && /^\d{4}$/.test(player.parentPin));
   const [unlocked, setUnlocked] = useState(false);
+  const [gateMode, setGateMode] = useState<'pin' | 'math'>(() => (hasSavedPin ? 'pin' : 'math'));
   const [challenge, setChallenge] = useState(() => createParentGateChallenge());
-  const [gateWrong, setGateWrong] = useState(false);
+  const [mathInput, setMathInput] = useState('');
+  const [pinInput, setPinInput] = useState('');
+  const [wrongCount, setWrongCount] = useState(0);
+  const [cooldownSec, setCooldownSec] = useState(0);
+  const [gateError, setGateError] = useState<string | null>(null);
+  const [unlockedViaMathReset, setUnlockedViaMathReset] = useState(false);
+
+  // PIN management inside unlocked Parent Corner
+  const [newPinInput, setNewPinInput] = useState('');
+  const [pinStatusMsg, setPinStatusMsg] = useState<string | null>(null);
 
   const [radarSubject, setRadarSubject] = useState<'all' | SubjectId>('all');
   const [copied, setCopied] = useState(false);
   const [copyFallbackText, setCopyFallbackText] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (cooldownSec <= 0) return;
+    const t = window.setTimeout(() => setCooldownSec((s) => Math.max(0, s - 1)), 1000);
+    return () => window.clearTimeout(t);
+  }, [cooldownSec]);
 
   const snapshot = useMemo(() => computeWeeklySnapshot(player), [player]);
   const weakSpots = useMemo(
@@ -64,14 +88,73 @@ export const ParentView: React.FC<ParentViewProps> = ({
   );
   const reportText = useMemo(() => formatWeeklyReportText(player), [player]);
 
-  const handleGateChoice = (val: number) => {
+  const registerGateMiss = (msg: string, rotateMath: boolean) => {
+    const nextMiss = wrongCount + 1;
+    if (nextMiss >= 3) {
+      setWrongCount(0);
+      setCooldownSec(GATE_COOLDOWN_SEC);
+      setGateError(`連續答錯 3 次，請等 ${GATE_COOLDOWN_SEC} 秒後再試！`);
+    } else {
+      setWrongCount(nextMiss);
+      setGateError(msg);
+    }
+    if (rotateMath) {
+      setChallenge(createParentGateChallenge());
+      setMathInput('');
+    } else {
+      setPinInput('');
+    }
+  };
+
+  const handleSubmitMathGate = () => {
+    if (cooldownSec > 0) return;
+    const trimmed = mathInput.trim();
+    if (!/^-?\d+$/.test(trimmed)) {
+      setGateError('請輸入純數字答案喔！');
+      return;
+    }
+    const val = Number.parseInt(trimmed, 10);
     if (val === challenge.answer) {
-      setGateWrong(false);
+      setGateError(null);
+      setWrongCount(0);
+      if (hasSavedPin) setUnlockedViaMathReset(true);
       setUnlocked(true);
     } else {
-      setGateWrong(true);
-      setChallenge(createParentGateChallenge());
+      registerGateMiss('答案不正確，已換一題新題目，請再試一次！', true);
     }
+  };
+
+  const handleSubmitPinGate = () => {
+    if (cooldownSec > 0) return;
+    if (!/^\d{4}$/.test(pinInput)) {
+      setGateError('請輸入 4 位數字 PIN 碼！');
+      return;
+    }
+    if (pinInput === player.parentPin) {
+      setGateError(null);
+      setWrongCount(0);
+      setUnlocked(true);
+    } else {
+      registerGateMiss('PIN 碼不正確，請再試一次（或點下方改用數學題重設）。', false);
+    }
+  };
+
+  const handleSaveNewPin = () => {
+    if (!/^\d{4}$/.test(newPinInput)) {
+      setPinStatusMsg('請輸入 4 位數字（例如 0824）！');
+      return;
+    }
+    onSetParentPin(newPinInput);
+    setNewPinInput('');
+    setUnlockedViaMathReset(false);
+    setPinStatusMsg('✅ 已儲存 4 位數家長 PIN 碼！下次可直接快速輸入解鎖。');
+  };
+
+  const handleClearPin = () => {
+    onSetParentPin(undefined);
+    setNewPinInput('');
+    setUnlockedViaMathReset(false);
+    setPinStatusMsg('已清除 PIN 碼，將恢復使用預設國中數學題解鎖。');
   };
 
   const handleCopyReport = async () => {
@@ -113,7 +196,7 @@ export const ParentView: React.FC<ParentViewProps> = ({
 
         <div className="qv-surface rounded-3xl p-6 sm:p-8 text-center space-y-5">
           <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[#1C1917] bg-[#FEF3C7] text-[#B45309]">
-            <KeyRound className="h-7 w-7" />
+            {gateMode === 'pin' ? <Lock className="h-7 w-7" /> : <KeyRound className="h-7 w-7" />}
           </div>
 
           <div className="space-y-1">
@@ -121,32 +204,140 @@ export const ParentView: React.FC<ParentViewProps> = ({
               家長檢視室 Parent Corner
             </h1>
             <p className="text-sm font-semibold text-[#57534E]">
-              請答對下方乘法題即可進入（避免小朋友誤點）
+              {gateMode === 'pin'
+                ? '請輸入您的 4 位數家長 PIN 碼快速進入'
+                : '請手打輸入下方國中數學題答案（進入後可自訂 4 位數 PIN 碼）'}
             </p>
           </div>
 
-          <div className="rounded-2xl border-2 border-[#E5DFD3] bg-[#FAF7F2] py-4 px-5 font-display text-3xl font-extrabold text-[#1C1917] tabular-nums">
-            {challenge.prompt}
-          </div>
+          {gateMode === 'pin' ? (
+            <div className="space-y-3">
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={pinInput}
+                disabled={cooldownSec > 0}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  setPinInput(digits);
+                  setGateError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSubmitPinGate();
+                }}
+                placeholder="••••"
+                aria-label="家長 4 位數 PIN 碼"
+                className="w-full rounded-2xl border-2 border-[#1C1917] bg-[#FAF7F2] px-4 py-3.5 text-center font-display text-3xl font-extrabold tracking-[0.5em] text-[#1C1917] tabular-nums focus:bg-white focus:outline-none"
+              />
 
-          <div className="grid grid-cols-2 gap-3">
-            {challenge.choices.map((num) => (
               <button
-                key={num}
                 type="button"
-                onClick={() => handleGateChoice(num)}
-                className="qv-arcade-btn min-h-[54px] rounded-2xl border-2 border-[#1C1917] bg-white font-display text-xl font-extrabold text-[#1C1917] hover:bg-[#EFF6FF] tabular-nums"
-                style={{ borderBottomColor: '#1C1917' }}
+                disabled={cooldownSec > 0 || pinInput.length < 4}
+                onClick={handleSubmitPinGate}
+                className={`qv-arcade-btn min-h-[48px] w-full rounded-2xl border-2 font-display text-base font-extrabold ${
+                  cooldownSec > 0 || pinInput.length < 4
+                    ? 'border-[#DDD5C7] bg-[#EFECE4] text-[#9A948A] cursor-not-allowed'
+                    : 'border-[#1C1917] bg-[#2563EB] text-white'
+                }`}
+                style={cooldownSec === 0 && pinInput.length === 4 ? { borderBottomColor: '#1E3A8A' } : undefined}
               >
-                {num}
+                {cooldownSec > 0 ? `請稍候 ${cooldownSec} 秒…` : '解鎖進入'}
               </button>
-            ))}
-          </div>
 
-          {gateWrong && (
-            <p className="text-xs font-extrabold text-[#DC2626]">
-              答錯了，已換一題新的乘法，請再試一次！
-            </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setGateMode('math');
+                  setGateError(null);
+                  setMathInput('');
+                  setChallenge(createParentGateChallenge());
+                }}
+                className="text-xs font-extrabold text-[#2563EB] hover:underline"
+              >
+                忘記 PIN 碼？改用國中數學題解鎖並重設 →
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              <div className="rounded-2xl border-2 border-[#E5DFD3] bg-[#FAF7F2] py-4 px-5 space-y-1.5">
+                <span className="inline-block rounded-full bg-[#FEF3C7] border border-[#FDE68A] px-2.5 py-0.5 text-[11px] font-extrabold text-[#92400E]">
+                  {challenge.categoryLabel}
+                </span>
+                <div className="font-display text-2xl sm:text-3xl font-extrabold text-[#1C1917] tabular-nums">
+                  {challenge.prompt}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={mathInput}
+                  disabled={cooldownSec > 0}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/[^\d-]/g, '').slice(0, 6);
+                    setMathInput(cleaned);
+                    setGateError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSubmitMathGate();
+                  }}
+                  placeholder="輸入整數答案"
+                  aria-label="數學題答案"
+                  className="min-w-0 flex-1 rounded-2xl border-2 border-[#1C1917] bg-white px-4 py-3 text-center font-display text-xl font-extrabold text-[#1C1917] tabular-nums focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={cooldownSec > 0}
+                  onClick={() => {
+                    setChallenge(createParentGateChallenge());
+                    setMathInput('');
+                    setGateError(null);
+                  }}
+                  aria-label="換一題數學題"
+                  className="qv-btn inline-flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl border-2 border-[#E5DFD3] bg-white text-[#57534E]"
+                >
+                  <RefreshCw className="h-5 w-5" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                disabled={cooldownSec > 0 || mathInput.trim().length === 0}
+                onClick={handleSubmitMathGate}
+                className={`qv-arcade-btn min-h-[48px] w-full rounded-2xl border-2 font-display text-base font-extrabold ${
+                  cooldownSec > 0 || mathInput.trim().length === 0
+                    ? 'border-[#DDD5C7] bg-[#EFECE4] text-[#9A948A] cursor-not-allowed'
+                    : 'border-[#1C1917] bg-[#2563EB] text-white'
+                }`}
+                style={
+                  cooldownSec === 0 && mathInput.trim().length > 0
+                    ? { borderBottomColor: '#1E3A8A' }
+                    : undefined
+                }
+              >
+                {cooldownSec > 0 ? `請稍候 ${cooldownSec} 秒…` : '驗證答案並進入'}
+              </button>
+
+              {hasSavedPin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGateMode('pin');
+                    setGateError(null);
+                    setPinInput('');
+                  }}
+                  className="text-xs font-extrabold text-[#57534E] hover:underline"
+                >
+                  ← 返回使用 4 位數 PIN 碼登入
+                </button>
+              )}
+            </div>
+          )}
+
+          {gateError && (
+            <p className="text-xs font-extrabold text-[#DC2626]">{gateError}</p>
           )}
         </div>
       </div>
@@ -556,6 +747,82 @@ export const ParentView: React.FC<ParentViewProps> = ({
           )}
         </section>
       </div>
+
+      {/* 5. Parent Gate Security & 4-Digit Quick PIN Settings */}
+      <section
+        className={`qv-surface rounded-3xl p-5 sm:p-6 space-y-4 ${
+          unlockedViaMathReset ? 'border-2 border-[#2563EB] bg-[#F0F9FF]' : ''
+        }`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-[#0F766E]" />
+            <h2 className="font-display text-lg font-extrabold text-[#1C1917]">
+              家長鎖定設定（4 位數快速 PIN 碼）
+            </h2>
+          </div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-extrabold ${
+              hasSavedPin
+                ? 'bg-[#ECFDF5] border border-[#A7F3D0] text-[#047857]'
+                : 'bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E]'
+            }`}
+          >
+            {hasSavedPin ? '已啟用 4 位數 PIN 快速登入' : '目前使用預設國中數學題'}
+          </span>
+        </div>
+
+        <p className="text-xs sm:text-sm font-semibold text-[#57534E]">
+          {unlockedViaMathReset
+            ? '您剛才透過國中數學題解鎖！現在可以直接設定新的 4 位數 PIN 碼，或清除舊 PIN 碼改回數學題驗證。'
+            : '設定 4 位數專屬 PIN 碼後，下次點開家長檢視室可直接快速輸入解鎖；忘記時隨時可透過國中數學題重設。'}
+        </p>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            value={newPinInput}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+              setNewPinInput(digits);
+              setPinStatusMsg(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSaveNewPin();
+            }}
+            placeholder={hasSavedPin ? '輸入新 4 位數 PIN' : '輸入 4 位數 PIN'}
+            aria-label="設定新 4 位數家長 PIN 碼"
+            className="w-44 rounded-xl border-2 border-[#1C1917] bg-white px-3.5 py-2 text-center font-display text-base font-extrabold tracking-[0.25em] text-[#1C1917] tabular-nums focus:outline-none"
+          />
+          <button
+            type="button"
+            disabled={newPinInput.length < 4}
+            onClick={handleSaveNewPin}
+            className={`qv-btn min-h-[42px] rounded-xl border-2 px-4 py-2 text-xs sm:text-sm font-extrabold ${
+              newPinInput.length === 4
+                ? 'border-[#1C1917] bg-[#0F766E] text-white'
+                : 'border-[#DDD5C7] bg-[#EFECE4] text-[#9A948A] cursor-not-allowed'
+            }`}
+          >
+            {hasSavedPin ? '更新 PIN 碼' : '儲存 PIN 碼'}
+          </button>
+          {hasSavedPin && (
+            <button
+              type="button"
+              onClick={handleClearPin}
+              className="qv-btn min-h-[42px] rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3.5 py-2 text-xs font-extrabold text-[#DC2626]"
+            >
+              清除 PIN 碼（改回數學題）
+            </button>
+          )}
+        </div>
+
+        {pinStatusMsg && (
+          <p className="text-xs font-extrabold text-[#047857]">{pinStatusMsg}</p>
+        )}
+      </section>
     </div>
   );
 };

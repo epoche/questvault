@@ -283,6 +283,9 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     cafeHighScores: sanitizedCafeHighScores,
     fishingHighScores: sanitizedFishingHighScores,
     ...(sanitizedArcadeDailyTokens ? { arcadeDailyTokens: sanitizedArcadeDailyTokens } : {}),
+    ...(typeof obj.parentPin === 'string' && /^\d{4}$/.test(obj.parentPin)
+      ? { parentPin: obj.parentPin }
+      : {}),
     showZhuyin: Boolean(obj.showZhuyin),
     muted: Boolean(obj.muted),
   };

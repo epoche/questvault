@@ -44,28 +44,85 @@ export interface WeakSpotItem {
 }
 
 export interface ParentGateChallenge {
+  categoryLabel: string;
   prompt: string;
   answer: number;
   choices: number[];
 }
 
-const PARENT_GATE_POOL: { a: number; b: number }[] = [
-  { a: 12, b: 7 },
-  { a: 13, b: 6 },
-  { a: 14, b: 7 },
-  { a: 16, b: 4 },
-  { a: 17, b: 5 },
-  { a: 18, b: 6 },
-  { a: 19, b: 4 },
-  { a: 23, b: 3 },
-  { a: 24, b: 4 },
-  { a: 15, b: 7 },
+function pickInt(min: number, max: number, rng: () => number): number {
+  const clamped = Math.max(0, Math.min(0.999999, rng()));
+  return min + Math.floor(clamped * (max - min + 1));
+}
+
+const EXPONENT_BANK: { prompt: string; answer: number }[] = [
+  { prompt: '2⁵ − 13 = ?', answer: 19 },
+  { prompt: '3⁴ − 26 = ?', answer: 55 },
+  { prompt: '5³ − 48 = ?', answer: 77 },
+  { prompt: '4³ + 19 = ?', answer: 83 },
+  { prompt: '2⁶ − 17 = ?', answer: 47 },
+  { prompt: '3³ × 2 − 15 = ?', answer: 39 },
+  { prompt: '6² + 29 = ?', answer: 65 },
+  { prompt: '7² − 18 = ?', answer: 31 },
+];
+
+const PERCENT_BANK: { prompt: string; answer: number }[] = [
+  { prompt: '15% of 240 = ?', answer: 36 },
+  { prompt: '25% of 184 = ?', answer: 46 },
+  { prompt: '35% of 120 = ?', answer: 42 },
+  { prompt: '15% of 160 = ?', answer: 24 },
+  { prompt: '45% of 80 = ?', answer: 36 },
+  { prompt: '30% of 140 = ?', answer: 42 },
+  { prompt: '12% of 250 = ?', answer: 30 },
+  { prompt: '18% of 150 = ?', answer: 27 },
 ];
 
 export function createParentGateChallenge(rng: () => number = Math.random): ParentGateChallenge {
-  const idx = Math.floor(Math.max(0, Math.min(0.999999, rng())) * PARENT_GATE_POOL.length);
-  const { a, b } = PARENT_GATE_POOL[idx];
-  const answer = a * b;
+  const kind = pickInt(0, 4, rng);
+  let categoryLabel = '一元一次方程式';
+  let prompt = '';
+  let answer = 12;
+
+  if (kind === 0) {
+    // Linear equation: a*x - b = c or a*x + b = c -> solve for x
+    categoryLabel = '一元一次方程式';
+    const a = pickInt(3, 7, rng);
+    const x = pickInt(8, 19, rng);
+    const b = pickInt(5, 19, rng);
+    const subtract = pickInt(0, 1, rng) === 0;
+    const c = subtract ? a * x - b : a * x + b;
+    prompt = subtract ? `${a}x − ${b} = ${c}，求 x = ?` : `${a}x + ${b} = ${c}，求 x = ?`;
+    answer = x;
+  } else if (kind === 1) {
+    // Exponents
+    categoryLabel = '次方運算';
+    const item = EXPONENT_BANK[pickInt(0, EXPONENT_BANK.length - 1, rng)];
+    prompt = item.prompt;
+    answer = item.answer;
+  } else if (kind === 2) {
+    // Square roots
+    categoryLabel = '平方根運算';
+    const root = pickInt(9, 16, rng);
+    const sq = root * root;
+    const extra = pickInt(13, 29, rng);
+    prompt = `√${sq} + ${extra} = ?`;
+    answer = root + extra;
+  } else if (kind === 3) {
+    // Percentages
+    categoryLabel = '百分比計算';
+    const item = PERCENT_BANK[pickInt(0, PERCENT_BANK.length - 1, rng)];
+    prompt = item.prompt;
+    answer = item.answer;
+  } else {
+    // Signed negative multiplication: (-a) * (-b) - k = ?
+    categoryLabel = '負數運算';
+    const a = pickInt(6, 12, rng);
+    const b = pickInt(5, 9, rng);
+    const k = pickInt(11, Math.min(27, a * b - 5), rng);
+    prompt = `(−${a}) × (−${b}) − ${k} = ?`;
+    answer = a * b - k;
+  }
+
   const candidateOffsets = [-10, -4, 4, 6, 10, 12];
   const distractors: number[] = [];
   for (const off of candidateOffsets) {
@@ -76,13 +133,13 @@ export function createParentGateChallenge(rng: () => number = Math.random): Pare
     if (distractors.length >= 3) break;
   }
   const choices = [answer, ...distractors];
-  // Deterministic Fisher-Yates shuffle using rng
   for (let i = choices.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.max(0, Math.min(0.999999, rng())) * (i + 1));
     [choices[i], choices[j]] = [choices[j], choices[i]];
   }
   return {
-    prompt: `${a} × ${b} = ?`,
+    categoryLabel,
+    prompt,
     answer,
     choices,
   };

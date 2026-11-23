@@ -683,6 +683,17 @@ export const App: React.FC = () => {
               }}
               onOpenCustomImporter={(subj) => setImporterSubject(subj)}
               onDeleteCustomSet={handleDeleteCustomSet}
+              onSetParentPin={(pin) =>
+                setPlayer((prev) => {
+                  const next: PlayerState = { ...prev };
+                  if (pin && /^\d{4}$/.test(pin)) {
+                    next.parentPin = pin;
+                  } else {
+                    delete next.parentPin;
+                  }
+                  return next;
+                })
+              }
             />
           ) : activeReadingSet ? (
             <ReadingRunView
