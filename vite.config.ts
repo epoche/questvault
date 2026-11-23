@@ -12,6 +12,32 @@ export default defineConfig({
     tailwindcss(),
     ...(isSingleFile ? [viteSingleFile()] : []),
   ],
+  ...(!isSingleFile
+    ? {
+        build: {
+          rollupOptions: {
+            output: {
+              manualChunks(id: string) {
+                if (id.includes('node_modules')) {
+                  if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
+                    return 'vendor-react';
+                  }
+                  if (id.includes('/motion/') || id.includes('/framer-motion/') || id.includes('/lucide-react/')) {
+                    return 'vendor-ui';
+                  }
+                  return 'vendor-misc';
+                }
+                if (id.includes('/src/subjects/english/')) return 'subject-english';
+                if (id.includes('/src/subjects/chinese/')) return 'subject-chinese';
+                if (id.includes('/src/subjects/math/')) return 'subject-math';
+                if (id.includes('/src/ui/artwork/')) return 'artwork-svg';
+                return undefined;
+              },
+            },
+          },
+        },
+      }
+    : {}),
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
