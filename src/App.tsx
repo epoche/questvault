@@ -46,6 +46,10 @@ import type { RadicalFamily } from './subjects/chinese/radicalFamilies';
 import type { ChineseWordSet } from './subjects/chinese/types';
 import { customRecordToWordSet } from './subjects/english/customParser';
 import { PLACEMENT_BONUS_TOKENS } from './subjects/english/placement';
+import type {
+  EnglishRootFamily,
+  GrammarRepairSet,
+} from './subjects/english/rootsGrammarTypes';
 import { getLocalDateKey } from './subjects/english/runEngine';
 import type { WordSet } from './subjects/english/types';
 import { MATH_PLACEMENT_BONUS_TOKENS } from './subjects/math/mathPlacement';
@@ -68,7 +72,15 @@ import {
 } from './ui/views/ChineseListeningView';
 import { ChinesePlacementView } from './ui/views/ChinesePlacementView';
 import { type ChineseCompletionPayload, ChineseRunView } from './ui/views/ChineseRunView';
+import {
+  type EnglishRootCompletionPayload,
+  EnglishRootQuestView,
+} from './ui/views/EnglishRootQuestView';
 import { type FishingCompletionPayload, FishingGameView } from './ui/views/FishingGameView';
+import {
+  type GrammarRepairCompletionPayload,
+  GrammarRepairView,
+} from './ui/views/GrammarRepairView';
 import { HomeView } from './ui/views/HomeView';
 import { MarketView } from './ui/views/MarketView';
 import { MathPlacementView } from './ui/views/MathPlacementView';
@@ -96,6 +108,9 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('quests');
 
   const [activeEnglishSet, setActiveEnglishSet] = useState<WordSet | null>(null);
+  const [activeEnglishRootFamily, setActiveEnglishRootFamily] =
+    useState<EnglishRootFamily | null>(null);
+  const [activeGrammarSet, setActiveGrammarSet] = useState<GrammarRepairSet | null>(null);
   const [activeMathSet, setActiveMathSet] = useState<MathQuestSet | null>(null);
   const [activeChineseSet, setActiveChineseSet] = useState<ChineseWordSet | null>(null);
   const [activeChineseListening, setActiveChineseListening] = useState(false);
@@ -123,6 +138,8 @@ export const App: React.FC = () => {
 
   const inActiveSession = Boolean(
     activeEnglishSet ||
+      activeEnglishRootFamily ||
+      activeGrammarSet ||
       activeMathSet ||
       activeChineseSet ||
       activeChineseListening ||
@@ -151,6 +168,8 @@ export const App: React.FC = () => {
     activeTab,
     activeSubjectId,
     activeEnglishSet,
+    activeEnglishRootFamily,
+    activeGrammarSet,
     activeMathSet,
     activeChineseSet,
     activeChineseListening,
@@ -167,6 +186,8 @@ export const App: React.FC = () => {
 
   const clearActiveSession = () => {
     setActiveEnglishSet(null);
+    setActiveEnglishRootFamily(null);
+    setActiveGrammarSet(null);
     setActiveMathSet(null);
     setActiveChineseSet(null);
     setActiveChineseListening(false);
@@ -792,6 +813,107 @@ export const App: React.FC = () => {
     return true;
   };
 
+  const handleCompleteEnglishRoot = (payload: EnglishRootCompletionPayload) => {
+    setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
+      const prevRoots = prev.completedEnglishRootIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.familyId,
+        kind: 'static',
+        subjectId: 'english',
+        todayKey,
+        completedIds: prevRoots,
+        words: activeEnglishRootFamily?.items.map((it) => it.word),
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.tokensEarned,
+        policy.multiplier,
+      );
+
+      const nextRoots = prevRoots.includes(payload.familyId)
+        ? prevRoots
+        : [...prevRoots, payload.familyId];
+
+      let nextMastery = prev.wordMastery;
+      for (const out of payload.wordOutcomes) {
+        nextMastery = recordWordOutcome(nextMastery, {
+          word: out.word,
+          subjectId: 'english',
+          tier: payload.tier,
+          outcome: out.firstTryCorrect ? 'clean' : 'missed',
+        });
+      }
+
+      const summary = {
+        id: `en-root-${Date.now()}`,
+        subjectId: 'english' as const,
+        questSetId: payload.familyId,
+        questSetTitle: `Word Roots: ${payload.familyTitle}`,
+        tokensEarned: awardedTokens,
+        maxCombo: payload.wordOutcomes.filter((o) => o.firstTryCorrect).length,
+        accuracyPct: payload.accuracyPct,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + awardedTokens,
+        completedEnglishRootIds: nextRoots,
+        wordMastery: nextMastery,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.familyId, todayKey),
+        'english',
+        todayKey,
+      );
+    });
+  };
+
+  const handleCompleteGrammarRepair = (payload: GrammarRepairCompletionPayload) => {
+    setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
+      const prevGrammar = prev.completedGrammarIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.setId,
+        kind: 'static',
+        subjectId: 'english',
+        todayKey,
+        completedIds: prevGrammar,
+        words: activeGrammarSet?.questions.map((q) => q.targetAnswer),
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.tokensEarned,
+        policy.multiplier,
+      );
+
+      const nextGrammar = prevGrammar.includes(payload.setId)
+        ? prevGrammar
+        : [...prevGrammar, payload.setId];
+
+      const summary = {
+        id: `en-gram-${Date.now()}`,
+        subjectId: 'english' as const,
+        questSetId: payload.setId,
+        questSetTitle: `Grammar Lab: ${payload.setTitle}`,
+        tokensEarned: awardedTokens,
+        maxCombo: payload.maxCombo,
+        accuracyPct: payload.accuracyPct,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + awardedTokens,
+        completedGrammarIds: nextGrammar,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.setId, todayKey),
+        'english',
+        todayKey,
+      );
+    });
+  };
+
   const handleSaveCustomSet = (record: CustomWordSetRecord) => {
     setPlayer((prev) => ({
       ...prev,
@@ -1122,6 +1244,46 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeEnglishRootFamily ? (
+            <EnglishRootQuestView
+              family={activeEnglishRootFamily}
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeEnglishRootFamily.id,
+                kind: 'static',
+                subjectId: 'english',
+                todayKey,
+                completedIds: player.completedEnglishRootIds ?? [],
+                words: activeEnglishRootFamily.items.map((it) => it.word),
+              })}
+              onComplete={handleCompleteEnglishRoot}
+              onExit={() => setActiveEnglishRootFamily(null)}
+              onGoToMarket={() => {
+                setActiveEnglishRootFamily(null);
+                setActiveTab('market');
+              }}
+            />
+          ) : activeGrammarSet ? (
+            <GrammarRepairView
+              questSet={activeGrammarSet}
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeGrammarSet.id,
+                kind: 'static',
+                subjectId: 'english',
+                todayKey,
+                completedIds: player.completedGrammarIds ?? [],
+                words: activeGrammarSet.questions.map((q) => q.targetAnswer),
+              })}
+              onComplete={handleCompleteGrammarRepair}
+              onExit={() => setActiveGrammarSet(null)}
+              onGoToMarket={() => {
+                setActiveGrammarSet(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeChineseListening ? (
             <ChineseListeningView
               tier={player.subjectTiers?.chinese ?? 2}
@@ -1146,6 +1308,8 @@ export const App: React.FC = () => {
               onStartFishing={(subj) => setActiveFishingSubject(subj)}
               onClaimDailyQuest={handleClaimDailyQuest}
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
+              onStartEnglishRootFamily={(fam) => setActiveEnglishRootFamily(fam)}
+              onStartGrammarRepairSet={(set) => setActiveGrammarSet(set)}
               onStartMathRun={(set) => setActiveMathSet(set)}
               onStartChineseRun={(set) => setActiveChineseSet(set)}
               onStartChineseListening={() => setActiveChineseListening(true)}

@@ -177,6 +177,8 @@ export interface PlayerState {
   completedQuestSetIds: string[];
   completedRadicalIds?: string[];
   completedMeasureIds?: string[];
+  completedEnglishRootIds?: string[];
+  completedGrammarIds?: string[];
   completedChapterEpisodeIds?: string[];
   claimedChapterSeriesIds?: string[];
   claimedAchievementIds?: string[];

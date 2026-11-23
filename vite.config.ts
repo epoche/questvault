@@ -27,6 +27,13 @@ export default defineConfig({
                   }
                   return 'vendor-misc';
                 }
+                if (
+                  id.includes('/src/subjects/english/rootFamilies') ||
+                  id.includes('/src/subjects/english/grammarSets') ||
+                  id.includes('/src/subjects/english/rootEngine')
+                ) {
+                  return 'subject-english-phase4';
+                }
                 if (id.includes('/src/subjects/english/')) return 'subject-english';
                 if (id.includes('/src/subjects/chinese/chapterStories')) return 'subject-chinese-chapters';
                 if (

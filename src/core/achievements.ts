@@ -54,6 +54,8 @@ function countTotalCompletedQuests(state: PlayerState): number {
     state.completedQuestSetIds.length +
     (state.completedRadicalIds?.length ?? 0) +
     (state.completedMeasureIds?.length ?? 0) +
+    (state.completedEnglishRootIds?.length ?? 0) +
+    (state.completedGrammarIds?.length ?? 0) +
     (state.completedChapterEpisodeIds?.length ?? 0)
   );
 }

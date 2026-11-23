@@ -259,6 +259,18 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
           new Set(obj.completedMeasureIds.filter((id): id is string => typeof id === 'string')),
         )
       : [],
+    completedEnglishRootIds: Array.isArray(obj.completedEnglishRootIds)
+      ? Array.from(
+          new Set(
+            obj.completedEnglishRootIds.filter((id): id is string => typeof id === 'string'),
+          ),
+        )
+      : [],
+    completedGrammarIds: Array.isArray(obj.completedGrammarIds)
+      ? Array.from(
+          new Set(obj.completedGrammarIds.filter((id): id is string => typeof id === 'string')),
+        )
+      : [],
     completedChapterEpisodeIds: Array.isArray(obj.completedChapterEpisodeIds)
       ? Array.from(
           new Set(

@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ChefHat,
   Coins,
+  Dna,
   Fish,
   Flame,
   Gift,
@@ -19,6 +20,7 @@ import {
   Ruler,
   Sparkles,
   Trash2,
+  Wrench,
   Zap,
 } from 'lucide-react';
 import {
@@ -58,8 +60,14 @@ import {
   getChineseSetsByTier,
 } from '../../subjects/chinese/wordSets';
 import { customRecordToWordSet } from '../../subjects/english/customParser';
+import { getEnglishGrammarSetsByTier } from '../../subjects/english/grammarSets';
 import { PLACEMENT_BONUS_TOKENS } from '../../subjects/english/placement';
 import { getEnglishReadingByTier } from '../../subjects/english/readingQuests';
+import { getEnglishRootFamiliesByTier } from '../../subjects/english/rootFamilies';
+import type {
+  EnglishRootFamily,
+  GrammarRepairSet,
+} from '../../subjects/english/rootsGrammarTypes';
 import {
   buildEnglishSrsReviewSet,
   buildTrickyRematchWordSet,
@@ -89,6 +97,8 @@ interface HomeViewProps {
   onStartFishing: (subjectId: SubjectId) => void;
   onClaimDailyQuest: () => void;
   onStartEnglishRun: (wordSet: WordSet) => void;
+  onStartEnglishRootFamily: (family: EnglishRootFamily) => void;
+  onStartGrammarRepairSet: (set: GrammarRepairSet) => void;
   onStartMathRun: (questSet: MathQuestSet) => void;
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
   onStartChineseListening: () => void;
@@ -127,6 +137,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartFishing,
   onClaimDailyQuest,
   onStartEnglishRun,
+  onStartEnglishRootFamily,
+  onStartGrammarRepairSet,
   onStartMathRun,
   onStartChineseRun,
   onStartChineseListening,
@@ -139,13 +151,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onGoToMarket,
 }) => {
   const [questMode, setQuestMode] = useState<
-    'words' | 'stories' | 'radicals' | 'measures' | 'chapters'
+    'words' | 'stories' | 'roots' | 'grammar' | 'radicals' | 'measures' | 'chapters'
   >('words');
   const effectiveQuestMode =
-    activeSubjectId !== 'chinese' &&
-    (questMode === 'radicals' || questMode === 'measures' || questMode === 'chapters')
+    activeSubjectId === 'chinese' && (questMode === 'roots' || questMode === 'grammar')
       ? 'words'
-      : questMode;
+      : activeSubjectId !== 'chinese' &&
+          (questMode === 'radicals' || questMode === 'measures' || questMode === 'chapters')
+        ? 'words'
+        : questMode;
   const packsReady = Math.floor(player.tokens / MIN_PACK_COST);
   const todayKey = getLocalDateKey();
 
@@ -191,6 +205,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   const enSets = getWordSetsByTier(activeTier);
+  const enRootFamilies = getEnglishRootFamiliesByTier(activeTier);
+  const enGrammarSets = getEnglishGrammarSetsByTier(activeTier);
   const mathSets = getMathSetsByTier(activeTier);
   const zhSets = getChineseSetsByTier(activeTier);
   const zhRadicalFamilies = getRadicalFamiliesByTier(activeTier);
@@ -697,6 +713,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   : `Story Quests (${enReadingSets.length})`}
               </span>
             </button>
+            {activeSubjectId === 'english' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setQuestMode('roots')}
+                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                    effectiveQuestMode === 'roots'
+                      ? 'bg-white text-[#1C1917] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
+                  }`}
+                >
+                  <Dna className="h-4 w-4 text-[#2563EB]" />
+                  <span>Word Roots ({enRootFamilies.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuestMode('grammar')}
+                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                    effectiveQuestMode === 'grammar'
+                      ? 'bg-white text-[#1C1917] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
+                  }`}
+                >
+                  <Wrench className="h-4 w-4 text-[#EA580C]" />
+                  <span>Grammar Lab ({enGrammarSets.length})</span>
+                </button>
+              </>
+            )}
             {activeSubjectId === 'chinese' && (
               <button
                 type="button"
@@ -1103,6 +1147,157 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           </span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Phase 4B: English Word Roots & Prefixes Lab Grid */}
+        {activeSubjectId === 'english' && effectiveQuestMode === 'roots' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {enRootFamilies.map((fam) => {
+              const done = (player.completedEnglishRootIds ?? []).includes(fam.id);
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: fam.id,
+                kind: 'static',
+                subjectId: 'english',
+                todayKey,
+                completedIds: player.completedEnglishRootIds ?? [],
+                words: fam.items.map((it) => it.word),
+              });
+              return (
+                <button
+                  key={fam.id}
+                  type="button"
+                  onClick={() => onStartEnglishRootFamily(fam)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: fam.bgHex }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <CollectibleArt
+                        id={fam.emblemCollectibleId}
+                        size={58}
+                        className="border-2 border-[#1C1917]"
+                      />
+                      <span className="rounded-2xl border-2 border-[#1C1917] bg-white px-3 py-1.5 font-display text-xl font-extrabold text-[#1C1917]">
+                        {fam.morpheme}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: fam.accentHex }}
+                      >
+                        {fam.kind === 'prefix'
+                          ? 'Prefix'
+                          : fam.kind === 'suffix'
+                            ? 'Suffix'
+                            : 'Root'}
+                      </span>
+                      {done ? (
+                        renderDoneRewardBadge(policy, false, 'Mastered')
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
+                          <Coins className="h-3.5 w-3.5" />
+                          +35–50
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2.5">
+                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
+                      {fam.title}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">
+                      “{fam.morpheme}” = {fam.morphemeMeaning}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {fam.items.map((it) => (
+                        <span
+                          key={it.word}
+                          className="rounded-lg bg-[#F3EFE7] px-2 py-0.5 text-xs font-bold text-[#44403C]"
+                        >
+                          {it.word}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Phase 4B: English Grammar Repair Lab Grid */}
+        {activeSubjectId === 'english' && effectiveQuestMode === 'grammar' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {enGrammarSets.map((gs) => {
+              const done = (player.completedGrammarIds ?? []).includes(gs.id);
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: gs.id,
+                kind: 'static',
+                subjectId: 'english',
+                todayKey,
+                completedIds: player.completedGrammarIds ?? [],
+                words: gs.questions.map((q) => q.targetAnswer),
+              });
+              return (
+                <button
+                  key={gs.id}
+                  type="button"
+                  onClick={() => onStartGrammarRepairSet(gs)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: gs.bgHex }}
+                  >
+                    <CollectibleArt
+                      id={gs.emblemCollectibleId}
+                      size={60}
+                      className="border-2 border-[#1C1917]"
+                    />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: gs.accentHex }}
+                      >
+                        {gs.categoryTag}
+                      </span>
+                      {done ? (
+                        renderDoneRewardBadge(policy, false, 'Repaired')
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
+                          <Coins className="h-3.5 w-3.5" />
+                          +45–60
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2.5">
+                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
+                      {gs.title}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">{gs.subtitle}</p>
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      {gs.questions.map((q) => (
+                        <span
+                          key={q.id}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#F3EFE7] text-base"
+                          aria-hidden="true"
+                        >
+                          {q.emoji}
+                        </span>
+                      ))}
+                      <span className="rounded-lg bg-[#F3EFE7] px-2 py-1 text-[11px] font-extrabold text-[#57534E]">
+                        5 Fixes
+                      </span>
                     </div>
                   </div>
                 </button>

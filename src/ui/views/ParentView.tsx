@@ -486,9 +486,11 @@ export const ParentView: React.FC<ParentViewProps> = ({
           </div>
 
           <div className="rounded-2xl bg-[#F5F3FF] border border-[#DDD6FE] p-3.5">
-            <div className="text-xs font-bold text-[#6D28D9]">📚 中文連貫章節微小說</div>
-            <div className="mt-1 font-display text-xl font-extrabold text-[#5B21B6] tabular-nums">
-              {snapshot.completedChapterEpisodesCount} / {snapshot.totalChapterEpisodesCount} 集
+            <div className="text-xs font-bold text-[#6D28D9]">📚 中文小說 & 🧬 英文詞根文法</div>
+            <div className="mt-1 font-display text-lg font-extrabold text-[#5B21B6] tabular-nums">
+              小說 {snapshot.completedChapterEpisodesCount}/{snapshot.totalChapterEpisodesCount} 集 ·
+              詞根 {(player.completedEnglishRootIds ?? []).length}/16 · 文法{' '}
+              {(player.completedGrammarIds ?? []).length}/12
             </div>
             <div className="mt-0.5 text-[11px] font-semibold text-[#6D28D9] tabular-nums">
               全系列通關 {snapshot.completedChapterSeriesCount} / {snapshot.totalChapterSeriesCount} 套
