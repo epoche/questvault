@@ -136,6 +136,16 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     }
   }
 
+  const sanitizedFishingHighScores: Partial<Record<'english' | 'math' | 'chinese', number>> = {};
+  if (isRecord(obj.fishingHighScores)) {
+    for (const subj of ['english', 'math', 'chinese'] as const) {
+      const sc = obj.fishingHighScores[subj];
+      if (typeof sc === 'number' && Number.isFinite(sc) && sc >= 0) {
+        sanitizedFishingHighScores[subj] = Math.floor(sc);
+      }
+    }
+  }
+
   let sanitizedArcadeDailyTokens: PlayerState['arcadeDailyTokens'] = undefined;
   if (
     isRecord(obj.arcadeDailyTokens) &&
@@ -225,6 +235,20 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
           new Set(obj.completedRadicalIds.filter((id): id is string => typeof id === 'string')),
         )
       : [],
+    completedChapterEpisodeIds: Array.isArray(obj.completedChapterEpisodeIds)
+      ? Array.from(
+          new Set(
+            obj.completedChapterEpisodeIds.filter((id): id is string => typeof id === 'string'),
+          ),
+        )
+      : [],
+    claimedChapterSeriesIds: Array.isArray(obj.claimedChapterSeriesIds)
+      ? Array.from(
+          new Set(
+            obj.claimedChapterSeriesIds.filter((id): id is string => typeof id === 'string'),
+          ),
+        )
+      : [],
     runHistory: Array.isArray(obj.runHistory)
       ? (obj.runHistory.filter(
           (r) => isRecord(r) && typeof r.id === 'string' && typeof r.tokensEarned === 'number',
@@ -257,6 +281,7 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     blitzHighScores: sanitizedBlitzHighScores,
     ...(sanitizedBlitzDailyTokens ? { blitzDailyTokens: sanitizedBlitzDailyTokens } : {}),
     cafeHighScores: sanitizedCafeHighScores,
+    fishingHighScores: sanitizedFishingHighScores,
     ...(sanitizedArcadeDailyTokens ? { arcadeDailyTokens: sanitizedArcadeDailyTokens } : {}),
     showZhuyin: Boolean(obj.showZhuyin),
     muted: Boolean(obj.muted),

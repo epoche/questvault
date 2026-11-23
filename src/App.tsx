@@ -4,6 +4,8 @@ import { audioService } from './core/audio';
 import {
   awardBlitzSessionRewards,
   awardCafeSessionRewards,
+  awardFishingSessionRewards,
+  claimChapterSeriesChest,
   claimDailyTriSubjectReward,
   craftShinyCollectible,
   equipCollectibleAvatar,
@@ -28,6 +30,10 @@ import type {
   Rarity,
   SubjectId,
 } from './core/types';
+import {
+  CHAPTER_SERIES_CHEST_BONUS,
+  type ChapterSeries,
+} from './subjects/chinese/chapterStories';
 import { customChineseRecordToWordSet } from './subjects/chinese/chineseCustomParser';
 import { CHINESE_PLACEMENT_BONUS_TOKENS } from './subjects/chinese/chinesePlacement';
 import type { RadicalFamily } from './subjects/chinese/radicalFamilies';
@@ -47,11 +53,16 @@ import { type NavTab, TopBar } from './ui/components/TopBar';
 import { type BlitzCompletionPayload, BlitzView } from './ui/views/BlitzView';
 import { type CafeCompletionPayload, CafeGameView } from './ui/views/CafeGameView';
 import {
+  type ChapterEpisodeCompletionPayload,
+  ChapterSeriesView,
+} from './ui/views/ChapterSeriesView';
+import {
   type ChineseListeningCompletionPayload,
   ChineseListeningView,
 } from './ui/views/ChineseListeningView';
 import { ChinesePlacementView } from './ui/views/ChinesePlacementView';
 import { type ChineseCompletionPayload, ChineseRunView } from './ui/views/ChineseRunView';
+import { type FishingCompletionPayload, FishingGameView } from './ui/views/FishingGameView';
 import { HomeView } from './ui/views/HomeView';
 import { MarketView } from './ui/views/MarketView';
 import { MathPlacementView } from './ui/views/MathPlacementView';
@@ -79,10 +90,12 @@ export const App: React.FC = () => {
   const [activeChineseSet, setActiveChineseSet] = useState<ChineseWordSet | null>(null);
   const [activeChineseListening, setActiveChineseListening] = useState(false);
   const [activeRadicalFamily, setActiveRadicalFamily] = useState<RadicalFamily | null>(null);
+  const [activeChapterSeries, setActiveChapterSeries] = useState<ChapterSeries | null>(null);
   const [activeReadingSet, setActiveReadingSet] = useState<ReadingQuestSet | null>(null);
   const [placementSubject, setPlacementSubject] = useState<SubjectId | null>(null);
   const [activeBlitzSubject, setActiveBlitzSubject] = useState<SubjectId | null>(null);
   const [activeCafeSubject, setActiveCafeSubject] = useState<SubjectId | null>(null);
+  const [activeFishingSubject, setActiveFishingSubject] = useState<SubjectId | null>(null);
   const [parentOpen, setParentOpen] = useState(false);
 
   const [activePull, setActivePull] = useState<PackPullViewData | null>(null);
@@ -103,10 +116,12 @@ export const App: React.FC = () => {
       activeChineseSet ||
       activeChineseListening ||
       activeRadicalFamily ||
+      activeChapterSeries ||
       activeReadingSet ||
       placementSubject ||
       activeBlitzSubject ||
       activeCafeSubject ||
+      activeFishingSubject ||
       parentOpen,
   );
 
@@ -128,10 +143,12 @@ export const App: React.FC = () => {
     activeChineseSet,
     activeChineseListening,
     activeRadicalFamily,
+    activeChapterSeries,
     activeReadingSet,
     placementSubject,
     activeBlitzSubject,
     activeCafeSubject,
+    activeFishingSubject,
     parentOpen,
   ]);
 
@@ -141,10 +158,12 @@ export const App: React.FC = () => {
     setActiveChineseSet(null);
     setActiveChineseListening(false);
     setActiveRadicalFamily(null);
+    setActiveChapterSeries(null);
     setActiveReadingSet(null);
     setPlacementSubject(null);
     setActiveBlitzSubject(null);
     setActiveCafeSubject(null);
+    setActiveFishingSubject(null);
     setParentOpen(false);
   };
 
@@ -286,6 +305,25 @@ export const App: React.FC = () => {
       playerRef.current,
       payload.subjectId,
       payload.coinsScore,
+      payload.rawTokensEarned,
+      todayKey,
+    );
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    return {
+      tokensAwarded: res.tokensAwarded,
+      remainingDailyCap: res.remainingDailyCap,
+    };
+  };
+
+  const handleCompleteFishing = (
+    payload: FishingCompletionPayload,
+  ): { tokensAwarded: number; remainingDailyCap: number } => {
+    const todayKey = getLocalDateKey();
+    const res = awardFishingSessionRewards(
+      playerRef.current,
+      payload.subjectId,
+      payload.totalLbs,
       payload.rawTokensEarned,
       todayKey,
     );
@@ -536,6 +574,46 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleCompleteChapterEpisode = (payload: ChapterEpisodeCompletionPayload) => {
+    setPlayer((prev) => {
+      const prevEps = prev.completedChapterEpisodeIds ?? [];
+      const nextEps = prevEps.includes(payload.episodeId)
+        ? prevEps
+        : [...prevEps, payload.episodeId];
+      const todayKey = getLocalDateKey();
+      const summary = {
+        id: `zh-chap-${Date.now()}`,
+        subjectId: 'chinese' as const,
+        questSetId: payload.episodeId,
+        questSetTitle: `章節小說：《${payload.seriesTitle}》第 ${payload.episodeNumber} 集`,
+        tokensEarned: payload.tokensEarned,
+        maxCombo: 3,
+        accuracyPct: payload.accuracyPct,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + payload.tokensEarned,
+        completedChapterEpisodeIds: nextEps,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(updated, 'chinese', todayKey);
+    });
+  };
+
+  const handleClaimChapterSeriesChest = (series: ChapterSeries): boolean => {
+    const res = claimChapterSeriesChest(
+      playerRef.current,
+      series.id,
+      series.episodes.map((e) => e.id),
+      CHAPTER_SERIES_CHEST_BONUS,
+    );
+    if (!res.ok) return false;
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    return true;
+  };
+
   const handleSaveCustomSet = (record: CustomWordSetRecord) => {
     setPlayer((prev) => ({
       ...prev,
@@ -616,6 +694,44 @@ export const App: React.FC = () => {
               onCompleteReading={handleCompleteReadingRun}
               onGoToMarket={() => {
                 setActiveReadingSet(null);
+                setActiveTab('market');
+              }}
+            />
+          ) : activeChapterSeries ? (
+            <ChapterSeriesView
+              series={activeChapterSeries}
+              completedEpisodeIds={player.completedChapterEpisodeIds ?? []}
+              claimedSeriesIds={player.claimedChapterSeriesIds ?? []}
+              showZhuyin={showZhuyin}
+              onToggleZhuyin={handleToggleZhuyin}
+              onCompleteEpisode={handleCompleteChapterEpisode}
+              onClaimSeriesChest={handleClaimChapterSeriesChest}
+              onExit={() => setActiveChapterSeries(null)}
+              onGoToMarket={() => {
+                setActiveChapterSeries(null);
+                setActiveTab('market');
+              }}
+            />
+          ) : activeFishingSubject ? (
+            <FishingGameView
+              subjectId={activeFishingSubject}
+              activeTier={
+                player.subjectTiers?.[activeFishingSubject] ??
+                (activeFishingSubject === 'english' ? player.activeTier : 2)
+              }
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              vault={player.vault}
+              shinyVault={player.shinyVault}
+              favoriteCollectibleIds={player.favoriteCollectibleIds}
+              highScoreLbs={player.fishingHighScores?.[activeFishingSubject] ?? 0}
+              arcadeTokensEarnedToday={getTodayArcadeTokensEarned(player, todayKey)}
+              showZhuyin={showZhuyin}
+              onToggleZhuyin={handleToggleZhuyin}
+              onCompleteFishing={handleCompleteFishing}
+              onExit={() => setActiveFishingSubject(null)}
+              onGoToMarket={() => {
+                setActiveFishingSubject(null);
                 setActiveTab('market');
               }}
             />
@@ -773,12 +889,14 @@ export const App: React.FC = () => {
               onStartPlacement={() => setPlacementSubject(activeSubjectId)}
               onStartBlitz={(subj) => setActiveBlitzSubject(subj)}
               onStartCafe={(subj) => setActiveCafeSubject(subj)}
+              onStartFishing={(subj) => setActiveFishingSubject(subj)}
               onClaimDailyQuest={handleClaimDailyQuest}
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
               onStartMathRun={(set) => setActiveMathSet(set)}
               onStartChineseRun={(set) => setActiveChineseSet(set)}
               onStartChineseListening={() => setActiveChineseListening(true)}
               onStartRadicalFamily={(fam) => setActiveRadicalFamily(fam)}
+              onStartChapterSeries={(series) => setActiveChapterSeries(series)}
               onStartReadingRun={(set) => setActiveReadingSet(set)}
               onOpenCustomImporter={(subj) => setImporterSubject(subj)}
               onDeleteCustomSet={handleDeleteCustomSet}

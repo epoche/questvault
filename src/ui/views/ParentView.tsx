@@ -276,6 +276,64 @@ export const ParentView: React.FC<ParentViewProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Phase 3 Progress Strip: Radicals + Chapter Stories + Arcade */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          <div className="rounded-2xl bg-[#F0FDFA] border border-[#99F6E4] p-3.5">
+            <div className="text-xs font-bold text-[#0F766E]">🧩 中文偏旁部首工廠</div>
+            <div className="mt-1 font-display text-xl font-extrabold text-[#115E59] tabular-nums">
+              {snapshot.completedRadicalsCount} / {snapshot.totalRadicalsCount} 家族
+            </div>
+            <div className="mt-0.5 text-[11px] font-semibold text-[#0F766E] tabular-nums">
+              已解鎖 {snapshot.completedRadicalsCount * 5} / {snapshot.totalRadicalsCount * 5} 個常用繁體字
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-[#F5F3FF] border border-[#DDD6FE] p-3.5">
+            <div className="text-xs font-bold text-[#6D28D9]">📚 中文連貫章節微小說</div>
+            <div className="mt-1 font-display text-xl font-extrabold text-[#5B21B6] tabular-nums">
+              {snapshot.completedChapterEpisodesCount} / {snapshot.totalChapterEpisodesCount} 集
+            </div>
+            <div className="mt-0.5 text-[11px] font-semibold text-[#6D28D9] tabular-nums">
+              全系列通關 {snapshot.completedChapterSeriesCount} / {snapshot.totalChapterSeriesCount} 套
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-[#ECFEFF] border border-[#A5F3FC] p-3.5">
+            <div className="text-xs font-bold text-[#0E7490]">🕹️ 街機最高紀錄</div>
+            <div className="mt-1 text-xs font-extrabold text-[#155E75] space-y-0.5 tabular-nums">
+              <div>
+                ⚡ Blitz 最佳：
+                {Math.max(
+                  0,
+                  player.blitzHighScores?.english ?? 0,
+                  player.blitzHighScores?.math ?? 0,
+                  player.blitzHighScores?.chinese ?? 0,
+                )}{' '}
+                分
+              </div>
+              <div>
+                🧋 Boba Café 最佳：$
+                {Math.max(
+                  0,
+                  player.cafeHighScores?.english ?? 0,
+                  player.cafeHighScores?.math ?? 0,
+                  player.cafeHighScores?.chinese ?? 0,
+                )}
+              </div>
+              <div>
+                🎣 星海釣魚最佳：
+                {Math.max(
+                  0,
+                  player.fishingHighScores?.english ?? 0,
+                  player.fishingHighScores?.math ?? 0,
+                  player.fishingHighScores?.chinese ?? 0,
+                ).toLocaleString()}{' '}
+                lbs
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* 2. One-Click Weekly Review Launchers */}

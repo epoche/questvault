@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  BookMarked,
   BookOpen,
   BookText,
   Brain,
@@ -7,6 +8,7 @@ import {
   CheckCircle2,
   ChefHat,
   Coins,
+  Fish,
   Flame,
   Gift,
   Headphones,
@@ -23,6 +25,12 @@ import { getDueReviewItems, getTrickyWords } from '../../core/mastery';
 import { MIN_PACK_COST } from '../../core/packs';
 import type { ReadingQuestSet } from '../../core/readingTypes';
 import type { DifficultyTier, PlayerState, SubjectId } from '../../core/types';
+import {
+  BUILTIN_CHAPTER_SERIES,
+  getSeriesCompletedCount,
+  isSeriesFullyCompleted,
+  type ChapterSeries,
+} from '../../subjects/chinese/chapterStories';
 import { customChineseRecordToWordSet } from '../../subjects/chinese/chineseCustomParser';
 import {
   buildChineseSrsReviewSet,
@@ -69,12 +77,14 @@ interface HomeViewProps {
   onStartPlacement: () => void;
   onStartBlitz: (subjectId: SubjectId) => void;
   onStartCafe: (subjectId: SubjectId) => void;
+  onStartFishing: (subjectId: SubjectId) => void;
   onClaimDailyQuest: () => void;
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartMathRun: (questSet: MathQuestSet) => void;
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
   onStartChineseListening: () => void;
   onStartRadicalFamily: (family: RadicalFamily) => void;
+  onStartChapterSeries: (series: ChapterSeries) => void;
   onStartReadingRun: (questSet: ReadingQuestSet) => void;
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
   onDeleteCustomSet: (id: string) => void;
@@ -104,20 +114,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartPlacement,
   onStartBlitz,
   onStartCafe,
+  onStartFishing,
   onClaimDailyQuest,
   onStartEnglishRun,
   onStartMathRun,
   onStartChineseRun,
   onStartChineseListening,
   onStartRadicalFamily,
+  onStartChapterSeries,
   onStartReadingRun,
   onOpenCustomImporter,
   onDeleteCustomSet,
   onGoToMarket,
 }) => {
-  const [questMode, setQuestMode] = useState<'words' | 'stories' | 'radicals'>('words');
+  const [questMode, setQuestMode] = useState<'words' | 'stories' | 'radicals' | 'chapters'>('words');
   const effectiveQuestMode =
-    activeSubjectId !== 'chinese' && questMode === 'radicals' ? 'words' : questMode;
+    activeSubjectId !== 'chinese' && (questMode === 'radicals' || questMode === 'chapters')
+      ? 'words'
+      : questMode;
   const packsReady = Math.floor(player.tokens / MIN_PACK_COST);
   const todayKey = getLocalDateKey();
 
@@ -297,6 +311,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
               >
                 <ChefHat className="h-4 w-4" />
                 <span>{activeSubjectId === 'chinese' ? 'Boba Café 小店' : 'Boba Café'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onStartFishing(activeSubjectId)}
+                className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#0891B2] px-4 py-3 font-display text-sm font-extrabold text-white"
+                style={{ borderBottomColor: '#155E75' }}
+              >
+                <Fish className="h-4 w-4" />
+                <span>{activeSubjectId === 'chinese' ? '星海釣魚' : 'Star Fishing'}</span>
               </button>
 
               {activeSubjectId === 'chinese' && (
@@ -554,7 +578,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           )}
         </div>
 
-        {/* Mode Switcher for English & Chinese: Word Quests vs Radical Builder (ZH) vs Story Quests */}
+        {/* Mode Switcher for English & Chinese: Word Quests vs Radical Builder (ZH) vs Story Quests vs Chapter Series (ZH) */}
         {activeSubjectId !== 'math' && (
           <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl border-2 border-[#E5DFD3] bg-[#F3EFE7] p-1">
             <button
@@ -603,6 +627,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   : `Story Quests (${enReadingSets.length})`}
               </span>
             </button>
+            {activeSubjectId === 'chinese' && (
+              <button
+                type="button"
+                onClick={() => setQuestMode('chapters')}
+                className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                  effectiveQuestMode === 'chapters'
+                    ? 'bg-white text-[#1C1917] shadow-xs'
+                    : 'text-[#57534E] hover:text-[#1C1917]'
+                }`}
+              >
+                <BookMarked className="h-4 w-4 text-[#7C3AED]" />
+                <span>章節小說 ({BUILTIN_CHAPTER_SERIES.length})</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -702,6 +740,88 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Chinese Chapter Story Series Grid (4 series x 5 episodes = 20 episodes) */}
+        {activeSubjectId === 'chinese' && effectiveQuestMode === 'chapters' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {BUILTIN_CHAPTER_SERIES.map((series) => {
+              const epDone = getSeriesCompletedCount(
+                series,
+                player.completedChapterEpisodeIds ?? [],
+              );
+              const allDone = isSeriesFullyCompleted(
+                series,
+                player.completedChapterEpisodeIds ?? [],
+              );
+              const claimed = (player.claimedChapterSeriesIds ?? []).includes(series.id);
+              return (
+                <button
+                  key={series.id}
+                  type="button"
+                  onClick={() => onStartChapterSeries(series)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: series.bgHex }}
+                  >
+                    <CollectibleArt
+                      id={series.emblemCollectibleId}
+                      size={68}
+                      className="border-2 border-[#1C1917]"
+                    />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: series.accentHex }}
+                      >
+                        Tier {series.tier} · {series.genreTag}
+                      </span>
+                      {allDone && !claimed ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#F59E0B] px-2.5 py-0.5 text-xs font-extrabold text-white">
+                          <Gift className="h-3.5 w-3.5" />
+                          +40 寶箱可領！
+                        </span>
+                      ) : claimed ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          全 5 集通關！
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#1C1917] tabular-nums">
+                          已讀 {epDone}/5 集
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2">
+                    <h3 className="font-display text-xl font-extrabold text-[#1C1917]">
+                      《{series.title}》
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">{series.tagline}</p>
+                    <div className="flex items-center gap-1.5 pt-1">
+                      {series.episodes.map((ep) => {
+                        const done = (player.completedChapterEpisodeIds ?? []).includes(ep.id);
+                        return (
+                          <span
+                            key={ep.id}
+                            className={`rounded-lg px-2 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                              done
+                                ? 'bg-[#ECFDF5] text-[#047857] border border-[#6EE7B7]'
+                                : 'bg-[#F3EFE7] text-[#57534E]'
+                            }`}
+                          >
+                            EP{ep.episodeNumber}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
 

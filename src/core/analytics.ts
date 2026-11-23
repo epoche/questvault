@@ -4,6 +4,8 @@ import type {
   SubjectId,
   WordMasteryRecord,
 } from './types';
+import { BUILTIN_CHAPTER_SERIES, isSeriesFullyCompleted } from '../subjects/chinese/chapterStories';
+import { BUILTIN_RADICAL_FAMILIES } from '../subjects/chinese/radicalFamilies';
 import type { ChineseTargetWord, ChineseWordSet } from '../subjects/chinese/types';
 import { BUILTIN_CHINESE_SETS } from '../subjects/chinese/wordSets';
 import type { TargetWord, WordSet } from '../subjects/english/types';
@@ -22,6 +24,12 @@ export interface WeeklySnapshot {
   masteredWordsCount: number;
   practicedWordsCount: number;
   completedQuestsTotal: number;
+  completedRadicalsCount: number;
+  totalRadicalsCount: number;
+  completedChapterEpisodesCount: number;
+  totalChapterEpisodesCount: number;
+  completedChapterSeriesCount: number;
+  totalChapterSeriesCount: number;
 }
 
 export interface WeakSpotItem {
@@ -115,6 +123,20 @@ export function computeWeeklySnapshot(
     (rec) => classifyWordMastery(rec) === 'mastered',
   ).length;
 
+  const radicalIdSet = new Set(BUILTIN_RADICAL_FAMILIES.map((f) => f.id));
+  const completedRadicalsCount = (player.completedRadicalIds ?? []).filter((id) =>
+    radicalIdSet.has(id),
+  ).length;
+
+  const allEpIds = new Set(
+    BUILTIN_CHAPTER_SERIES.flatMap((s) => s.episodes.map((e) => e.id)),
+  );
+  const completedEpIds = player.completedChapterEpisodeIds ?? [];
+  const completedChapterEpisodesCount = completedEpIds.filter((id) => allEpIds.has(id)).length;
+  const completedChapterSeriesCount = BUILTIN_CHAPTER_SERIES.filter((s) =>
+    isSeriesFullyCompleted(s, completedEpIds),
+  ).length;
+
   return {
     windowDays,
     totalRuns: recentRuns.length,
@@ -127,6 +149,12 @@ export function computeWeeklySnapshot(
     masteredWordsCount,
     practicedWordsCount: masteryValues.length,
     completedQuestsTotal: player.completedQuestSetIds.length,
+    completedRadicalsCount,
+    totalRadicalsCount: BUILTIN_RADICAL_FAMILIES.length,
+    completedChapterEpisodesCount,
+    totalChapterEpisodesCount: allEpIds.size,
+    completedChapterSeriesCount,
+    totalChapterSeriesCount: BUILTIN_CHAPTER_SERIES.length,
   };
 }
 
@@ -302,6 +330,7 @@ export function formatWeeklyReportText(
     `近 7 天活躍天數：${snap.activeDays} 天｜連續學習：${snap.streakDays} 天`,
     `近 7 天賺取 Tokens：+${snap.tokensEarned}｜本週造句：${snap.writingCountThisWeek} 句`,
     `累積精熟詞彙／技能：${snap.masteredWordsCount} / ${snap.practicedWordsCount}`,
+    `中文偏旁工廠：${snap.completedRadicalsCount} / ${snap.totalRadicalsCount} 家族｜章節微小說：${snap.completedChapterEpisodesCount} / ${snap.totalChapterEpisodesCount} 集（全系列通關 ${snap.completedChapterSeriesCount}/${snap.totalChapterSeriesCount}）`,
     ``,
     `【待加強弱點雷達】`,
     `- 英文重點詞：${weakEn.length > 0 ? weakEn.map((w) => `${w.word}（錯 ${w.missed} 次）`).join('、') : '目前無常錯詞，表現很棒！'}`,

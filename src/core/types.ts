@@ -171,6 +171,8 @@ export interface PlayerState {
   wordMastery: Record<string, WordMasteryRecord>;
   completedQuestSetIds: string[];
   completedRadicalIds?: string[];
+  completedChapterEpisodeIds?: string[];
+  claimedChapterSeriesIds?: string[];
   runHistory: RunSummary[];
   writingLog: WritingEntry[];
   customWordSets: CustomWordSetRecord[];
@@ -182,6 +184,7 @@ export interface PlayerState {
   blitzHighScores?: Partial<Record<SubjectId, number>>;
   blitzDailyTokens?: BlitzDailyTokens;
   cafeHighScores?: Partial<Record<SubjectId, number>>;
+  fishingHighScores?: Partial<Record<SubjectId, number>>;
   arcadeDailyTokens?: BlitzDailyTokens;
   showZhuyin?: boolean;
   muted: boolean;

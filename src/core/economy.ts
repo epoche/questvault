@@ -411,6 +411,66 @@ export function awardCafeSessionRewards(
   };
 }
 
+export function awardFishingSessionRewards(
+  state: PlayerState,
+  subjectId: 'english' | 'math' | 'chinese',
+  totalLbs: number,
+  rawTokensEarned: number,
+  todayKey: string,
+): { state: PlayerState; tokensAwarded: number; remainingDailyCap: number } {
+  const earnedSoFar = getTodayArcadeTokensEarned(state, todayKey);
+  const remainingBefore = Math.max(0, ARCADE_DAILY_TOKEN_CAP - earnedSoFar);
+  const safeEarned = Math.max(0, Math.floor(rawTokensEarned));
+  const tokensAwarded = Math.min(remainingBefore, safeEarned);
+  const prevBest = state.fishingHighScores?.[subjectId] ?? 0;
+  const prevArcade =
+    state.arcadeDailyTokens?.dateKey === todayKey ? state.arcadeDailyTokens.earned : 0;
+
+  return {
+    tokensAwarded,
+    remainingDailyCap: Math.max(0, remainingBefore - tokensAwarded),
+    state: {
+      ...state,
+      tokens: state.tokens + tokensAwarded,
+      fishingHighScores: {
+        ...state.fishingHighScores,
+        [subjectId]: Math.max(prevBest, Math.max(0, Math.floor(totalLbs))),
+      },
+      arcadeDailyTokens: {
+        dateKey: todayKey,
+        earned: prevArcade + tokensAwarded,
+      },
+    },
+  };
+}
+
+export function claimChapterSeriesChest(
+  state: PlayerState,
+  seriesId: string,
+  requiredEpisodeIds: string[],
+  bonusTokens = 40,
+): { ok: true; state: PlayerState; bonusTokens: number } | { ok: false; reason: 'incomplete' | 'already_claimed' } {
+  const claimed = state.claimedChapterSeriesIds ?? [];
+  if (claimed.includes(seriesId)) {
+    return { ok: false, reason: 'already_claimed' };
+  }
+  const completed = state.completedChapterEpisodeIds ?? [];
+  const allDone =
+    requiredEpisodeIds.length > 0 && requiredEpisodeIds.every((id) => completed.includes(id));
+  if (!allDone) {
+    return { ok: false, reason: 'incomplete' };
+  }
+  return {
+    ok: true,
+    bonusTokens,
+    state: {
+      ...state,
+      tokens: state.tokens + bonusTokens,
+      claimedChapterSeriesIds: [...claimed, seriesId],
+    },
+  };
+}
+
 export function getExtraDuplicateCountByRarity(state: PlayerState, rarity: Rarity): number {
   let extras = 0;
   for (const item of COLLECTIBLES) {
