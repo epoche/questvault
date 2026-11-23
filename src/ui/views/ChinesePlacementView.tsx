@@ -50,7 +50,7 @@ export const ChinesePlacementView: React.FC<ChinesePlacementViewProps> = ({
   const [savedResult, setSavedResult] = useState(false);
 
   const q = session.currentQuestion;
-  const [bonusAmount] = useState(() => (alreadyCompleted ? 15 : CHINESE_PLACEMENT_BONUS_TOKENS));
+  const [bonusAmount] = useState(() => (alreadyCompleted ? 0 : CHINESE_PLACEMENT_BONUS_TOKENS));
   const [wasFirstRun] = useState(() => !alreadyCompleted);
 
   useEffect(() => {
@@ -130,9 +130,14 @@ export const ChinesePlacementView: React.FC<ChinesePlacementViewProps> = ({
               {session.recommendationReason}
             </p>
             <p className="mt-1.5 text-sm font-bold text-[#57534E] tabular-nums">
-              答對 {score}/{session.totalQuestions} 題 · 獲得{' '}
-              <strong className="text-[#D97706]">+{bonusAmount} Tokens</strong>
-              {wasFirstRun ? '（可抽 2 包盲盒！）' : '！'}
+              答對 {score}/{session.totalQuestions} 題 ·{' '}
+              {wasFirstRun ? (
+                <>
+                  獲得 <strong className="text-[#D97706]">+{bonusAmount} Tokens</strong>（可抽 2 包盲盒！）
+                </>
+              ) : (
+                <span>已完成等級調整（重測不重複發放代幣）</span>
+              )}
             </p>
           </div>
 

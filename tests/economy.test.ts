@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyQuestRewardMultiplier,
   calculateForgeChestTokens,
   calculateQuestionTokens,
   createInitialPlayerState,
   equipCollectibleAvatar,
+  getQuestRewardPolicy,
   openMysteryPack,
+  recordDailyQuestClaim,
   sellDuplicateCollectible,
 } from '../src/core/economy';
+import { recordWordOutcome } from '../src/core/mastery';
 import { PACK_COST, STARTER_COLLECTIBLE_ID } from '../src/core/packs';
+import { exportPlayerStateJson, importPlayerStateJson } from '../src/core/repository';
 
 describe('QuestVault Economy Seam', () => {
   it('calculates escalating Token payouts with Combo streaks up to a cap', () => {
@@ -97,4 +102,183 @@ describe('QuestVault Economy Seam', () => {
     expect(outcome.collectible.id).not.toBe(STARTER_COLLECTIBLE_ID);
     expect(outcome.state.vault[outcome.collectible.id]).toBe(1);
   });
+
+  it('enforces Plan A anti-farming policy for static quests (100% new, 0% same-day repeat, 50% later-day review, 100% SRS-due)', () => {
+    const day1 = '2026-11-23';
+    const day2 = '2026-11-24';
+    const day5 = '2026-11-27';
+    const words = ['curious', 'sparkle'];
+
+    let state = createInitialPlayerState('Maya');
+
+    // 1) Brand-new quest on day 1 -> 100%
+    const pNew = getQuestRewardPolicy(state, {
+      questSetId: 'en-t2-s1',
+      kind: 'static',
+      subjectId: 'english',
+      todayKey: day1,
+      words,
+    });
+    expect(pNew.tier).toBe('full-new');
+    expect(pNew.multiplier).toBe(1);
+    expect(applyQuestRewardMultiplier(60, pNew.multiplier)).toBe(60);
+
+    // Record completion + fresh mastery (nextReviewAt is +1 day => 2026-11-24T12:00:00Z,
+    // plus a second clean outcome pushes nextReviewAt to +3 days => 2026-11-26T12:00:00Z)
+    let mastery = recordWordOutcome(state.wordMastery, {
+      word: 'curious',
+      subjectId: 'english',
+      tier: 2,
+      outcome: 'clean',
+      nowIso: '2026-11-23T12:00:00.000Z',
+    });
+    mastery = recordWordOutcome(mastery, {
+      word: 'curious',
+      subjectId: 'english',
+      tier: 2,
+      outcome: 'clean',
+      nowIso: '2026-11-23T12:00:00.000Z',
+    });
+    state = recordDailyQuestClaim(
+      {
+        ...state,
+        completedQuestSetIds: ['en-t2-s1'],
+        wordMastery: mastery,
+      },
+      'en-t2-s1',
+      day1,
+    );
+
+    // 2) Immediate same-day replay -> 0% Practice Mode!
+    const pSameDay = getQuestRewardPolicy(state, {
+      questSetId: 'en-t2-s1',
+      kind: 'static',
+      subjectId: 'english',
+      todayKey: day1,
+      words,
+    });
+    expect(pSameDay.tier).toBe('practice-0');
+    expect(pSameDay.multiplier).toBe(0);
+    expect(applyQuestRewardMultiplier(60, pSameDay.multiplier)).toBe(0);
+
+    // 3) Next day (not yet SRS-due because nextReviewAt is Nov 26) -> 50% Review Mode!
+    const pReview = getQuestRewardPolicy(state, {
+      questSetId: 'en-t2-s1',
+      kind: 'static',
+      subjectId: 'english',
+      todayKey: day2,
+      words,
+      nowIso: '2026-11-24T12:00:00.000Z',
+    });
+    expect(pReview.tier).toBe('review-50');
+    expect(pReview.multiplier).toBe(0.5);
+    expect(applyQuestRewardMultiplier(60, pReview.multiplier)).toBe(30);
+
+    // Claiming once on day2 locks day2 2nd run to 0%
+    const stateDay2Done = recordDailyQuestClaim(state, 'en-t2-s1', day2);
+    const pDay2Repeat = getQuestRewardPolicy(stateDay2Done, {
+      questSetId: 'en-t2-s1',
+      kind: 'static',
+      subjectId: 'english',
+      todayKey: day2,
+      words,
+      nowIso: '2026-11-24T13:00:00.000Z',
+    });
+    expect(pDay2Repeat.tier).toBe('practice-0');
+    expect(pDay2Repeat.multiplier).toBe(0);
+
+    // 4) Day 5 (past SRS nextReviewAt Nov 26) -> 100% SRS Due Review!
+    const pSrsDue = getQuestRewardPolicy(state, {
+      questSetId: 'en-t2-s1',
+      kind: 'static',
+      subjectId: 'english',
+      todayKey: day5,
+      words,
+      nowIso: '2026-11-27T12:00:00.000Z',
+    });
+    expect(pSrsDue.tier).toBe('full-srs-due');
+    expect(pSrsDue.multiplier).toBe(1);
+    expect(pSrsDue.dueWordCount).toBe(1);
+  });
+
+  it('enforces Plan A dynamic Math limit (2 full runs/day, 30% on 3rd+) and keeps special review modes at 100%', () => {
+    const day1 = '2026-11-23';
+    const day2 = '2026-11-24';
+    let state = createInitialPlayerState('Maya');
+
+    // Math 1st & 2nd runs today -> 100%
+    expect(
+      getQuestRewardPolicy(state, {
+        questSetId: 'math-t2-u1',
+        kind: 'math',
+        subjectId: 'math',
+        todayKey: day1,
+      }).multiplier,
+    ).toBe(1);
+    state = recordDailyQuestClaim(state, 'math-t2-u1', day1);
+
+    expect(
+      getQuestRewardPolicy(state, {
+        questSetId: 'math-t2-u1',
+        kind: 'math',
+        subjectId: 'math',
+        todayKey: day1,
+      }).multiplier,
+    ).toBe(1);
+    state = recordDailyQuestClaim(state, 'math-t2-u1', day1);
+
+    // Math 3rd run today -> 30%
+    const third = getQuestRewardPolicy(state, {
+      questSetId: 'math-t2-u1',
+      kind: 'math',
+      subjectId: 'math',
+      todayKey: day1,
+    });
+    expect(third.tier).toBe('math-diminished');
+    expect(third.multiplier).toBe(0.3);
+    expect(applyQuestRewardMultiplier(70, third.multiplier)).toBe(21);
+
+    // Resets to 100% on a new day
+    expect(
+      getQuestRewardPolicy(state, {
+        questSetId: 'math-t2-u1',
+        kind: 'math',
+        subjectId: 'math',
+        todayKey: day2,
+      }).multiplier,
+    ).toBe(1);
+
+    // Exempt special quests stay 100% even if repeated
+    for (const specialId of [
+      'en-srs-review',
+      'zh-tricky-rematch',
+      'en-weekly-parent-review',
+      'custom-en-demo',
+    ]) {
+      const claimed = recordDailyQuestClaim(
+        { ...state, completedQuestSetIds: [specialId] },
+        specialId,
+        day1,
+      );
+      const p = getQuestRewardPolicy(claimed, {
+        questSetId: specialId,
+        kind: 'static',
+        subjectId: 'english',
+        todayKey: day1,
+      });
+      expect(p.tier).toBe('full-special');
+      expect(p.multiplier).toBe(1);
+    }
+
+    // dailyQuestClaims survives JSON export/import cleanly
+    const json = exportPlayerStateJson(state);
+    const imported = importPlayerStateJson(json);
+    expect(imported.ok).toBe(true);
+    if (!imported.ok) return;
+    expect(imported.state.dailyQuestClaims).toEqual({
+      dateKey: day1,
+      counts: { 'math-t2-u1': 2 },
+    });
+  });
 });
+

@@ -14,6 +14,10 @@ import {
 } from 'lucide-react';
 import { audioService } from '../../core/audio';
 import {
+  applyQuestRewardMultiplier,
+  type QuestRewardPolicy,
+} from '../../core/economy';
+import {
   buildRadicalBuilderQuestions,
   buildRadicalSprintQuestions,
   calculateRadicalRunTokens,
@@ -22,6 +26,7 @@ import {
 } from '../../subjects/chinese/radicalEngine';
 import type { RadicalFamily, RadicalLayout } from '../../subjects/chinese/radicalTypes';
 import { CollectibleArt } from '../artwork/CollectibleArt';
+import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 import { RubyWord } from '../components/RubyWord';
 
 export interface RadicalCompletionPayload {
@@ -29,6 +34,7 @@ export interface RadicalCompletionPayload {
   familyTitle: string;
   tier: RadicalFamily['tier'];
   tokensEarned: number;
+  rawTokensEarned?: number;
   accuracyPct: number;
   masteredChars: { char: string; firstTryCorrect: boolean }[];
 }
@@ -38,6 +44,7 @@ interface RadicalQuestViewProps {
   equippedCollectibleId: string;
   isAvatarShiny?: boolean;
   showZhuyin: boolean;
+  rewardPolicy?: QuestRewardPolicy;
   onToggleZhuyin: () => void;
   onCompleteRadical: (payload: RadicalCompletionPayload) => void;
   onExit: () => void;
@@ -62,11 +69,16 @@ export const RadicalQuestView: React.FC<RadicalQuestViewProps> = ({
   equippedCollectibleId,
   isAvatarShiny = false,
   showZhuyin,
+  rewardPolicy,
   onToggleZhuyin,
   onCompleteRadical,
   onExit,
   onGoToMarket,
 }) => {
+  const [lockedPolicy, setLockedPolicy] = useState<QuestRewardPolicy | undefined>(
+    () => rewardPolicy,
+  );
+  const policyMult = lockedPolicy?.multiplier ?? 1;
   const [stage, setStage] = useState<'learn' | 'build' | 'sprint' | 'summary'>('learn');
   const [learnIdx, setLearnIdx] = useState(0);
 
@@ -134,16 +146,18 @@ export const RadicalQuestView: React.FC<RadicalQuestViewProps> = ({
       if (completedRef.current) return;
       completedRef.current = true;
       const totalFirstTry = finalBuildFirstTry + finalSprintFirstTry;
-      const tokens = calculateRadicalRunTokens(totalUniqueQs, totalFirstTry);
+      const rawTokens = calculateRadicalRunTokens(totalUniqueQs, totalFirstTry);
+      const awardedTokens = applyQuestRewardMultiplier(rawTokens, policyMult);
       const accuracyPct = Math.round((totalFirstTry / Math.max(1, totalUniqueQs)) * 100);
-      setFinalTokens(tokens);
+      setFinalTokens(awardedTokens);
       setFinalAccuracy(accuracyPct);
       audioService.playChest();
       onCompleteRadical({
         familyId: family.id,
         familyTitle: family.title,
         tier: family.tier,
-        tokensEarned: tokens,
+        tokensEarned: awardedTokens,
+        rawTokensEarned: rawTokens,
         accuracyPct,
         masteredChars: family.items.map((it) => ({
           char: it.char,
@@ -152,7 +166,7 @@ export const RadicalQuestView: React.FC<RadicalQuestViewProps> = ({
       });
       setStage('summary');
     },
-    [family.id, family.items, family.tier, family.title, onCompleteRadical, totalUniqueQs],
+    [family.id, family.items, family.tier, family.title, onCompleteRadical, policyMult, totalUniqueQs],
   );
 
   const advanceBuildAfterWrong = useCallback(() => {
@@ -291,6 +305,7 @@ export const RadicalQuestView: React.FC<RadicalQuestViewProps> = ({
     completedRef.current = false;
     answeringRef.current = false;
     advancingRef.current = false;
+    setLockedPolicy(rewardPolicy);
     setLearnIdx(0);
     setBuildQueue(buildRadicalBuilderQuestions(family));
     setBuildCorrectBanner(null);
@@ -396,6 +411,8 @@ export const RadicalQuestView: React.FC<RadicalQuestViewProps> = ({
           </button>
         </div>
       </div>
+
+      <RewardPolicyBanner policy={lockedPolicy} lang="zh" />
 
       {/* ═══════════ STAGE 0: VISUAL RADICAL DECOMPOSITION ═══════════ */}
       {stage === 'learn' && currentLearnItem && (

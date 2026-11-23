@@ -20,7 +20,11 @@ import {
   Trash2,
   Zap,
 } from 'lucide-react';
-import { DAILY_TRI_SUBJECT_BONUS } from '../../core/economy';
+import {
+  DAILY_TRI_SUBJECT_BONUS,
+  getQuestRewardPolicy,
+  type QuestRewardPolicy,
+} from '../../core/economy';
 import { getDueReviewItems, getTrickyWords } from '../../core/mastery';
 import { MIN_PACK_COST } from '../../core/packs';
 import type { ReadingQuestSet } from '../../core/readingTypes';
@@ -134,6 +138,47 @@ export const HomeView: React.FC<HomeViewProps> = ({
       : questMode;
   const packsReady = Math.floor(player.tokens / MIN_PACK_COST);
   const todayKey = getLocalDateKey();
+
+  const renderDoneRewardBadge = (policy: QuestRewardPolicy, isZh: boolean, defaultLabel: string) => {
+    if (policy.tier === 'practice-0') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#475569]">
+          <CheckCircle2 className="h-3.5 w-3.5 text-[#64748B]" />
+          {isZh ? '今日已領 · +0' : 'Claimed · +0'}
+        </span>
+      );
+    }
+    if (policy.tier === 'full-srs-due') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF5] border border-[#059669] px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
+          <Sparkles className="h-3.5 w-3.5" />
+          {isZh ? 'SRS 複習 100%' : 'SRS Due · 100%'}
+        </span>
+      );
+    }
+    if (policy.tier === 'review-50') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-[#FFFBEB] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309]">
+          <CheckCircle2 className="h-3.5 w-3.5 text-[#047857]" />
+          {isZh ? '複習 50%' : 'Review 50%'}
+        </span>
+      );
+    }
+    if (policy.tier === 'math-diminished') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-[#FFFBEB] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309]">
+          <CheckCircle2 className="h-3.5 w-3.5 text-[#047857]" />
+          30% Practice
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        {defaultLabel}
+      </span>
+    );
+  };
 
   const enSets = getWordSetsByTier(activeTier);
   const mathSets = getMathSetsByTier(activeTier);
@@ -831,6 +876,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {zhRadicalFamilies.map((fam) => {
               const done = (player.completedRadicalIds ?? []).includes(fam.id);
               const isPhonetic = fam.kind === 'phonetic';
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: fam.id,
+                kind: 'static',
+                subjectId: 'chinese',
+                todayKey,
+                completedIds: player.completedRadicalIds ?? [],
+                words: fam.items.map((it) => it.char),
+              });
               return (
                 <button
                   key={fam.id}
@@ -860,10 +913,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         {isPhonetic ? '同聲旁家族' : '同部首家族'}
                       </span>
                       {done ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          已解鎖
-                        </span>
+                        renderDoneRewardBadge(policy, true, '已解鎖')
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
                           <Coins className="h-3.5 w-3.5" />
@@ -900,6 +950,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {(activeSubjectId === 'chinese' ? zhReadingSets : enReadingSets).map((rq) => {
               const done = player.completedQuestSetIds.includes(rq.id);
               const isZh = activeSubjectId === 'chinese';
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: rq.id,
+                kind: 'static',
+                subjectId: rq.subjectId,
+                todayKey,
+              });
               return (
                 <button
                   key={rq.id}
@@ -924,10 +980,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         {rq.shortTag}
                       </span>
                       {done ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          {isZh ? '已讀完' : 'Read'}
-                        </span>
+                        renderDoneRewardBadge(policy, isZh, isZh ? '已讀完' : 'Read')
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
                           <Coins className="h-3.5 w-3.5" />
@@ -965,6 +1018,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {enSets.map((ws) => {
               const done = player.completedQuestSetIds.includes(ws.id);
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: ws.id,
+                kind: 'static',
+                subjectId: 'english',
+                todayKey,
+                words: ws.words.map((w) => w.word),
+              });
               return (
                 <button
                   key={ws.id}
@@ -989,10 +1049,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         {ws.shortTag}
                       </span>
                       {done ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Cleared
-                        </span>
+                        renderDoneRewardBadge(policy, false, 'Cleared')
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
                           <Coins className="h-3.5 w-3.5" />
@@ -1026,6 +1083,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {mathSets.map((ms) => {
               const done = player.completedQuestSetIds.includes(ms.id);
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: ms.id,
+                kind: 'math',
+                subjectId: 'math',
+                todayKey,
+              });
               return (
                 <button
                   key={ms.id}
@@ -1050,10 +1113,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         {ms.shortTag}
                       </span>
                       {done ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Cleared
-                        </span>
+                        renderDoneRewardBadge(policy, false, 'Cleared')
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
                           <Coins className="h-3.5 w-3.5" />
@@ -1087,6 +1147,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {zhSets.map((ws) => {
               const done = player.completedQuestSetIds.includes(ws.id);
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: ws.id,
+                kind: 'static',
+                subjectId: 'chinese',
+                todayKey,
+                words: ws.words.map((w) => w.word),
+              });
               return (
                 <button
                   key={ws.id}
@@ -1111,10 +1178,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         {ws.shortTag}
                       </span>
                       {done ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          已過關
-                        </span>
+                        renderDoneRewardBadge(policy, true, '已過關')
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
                           <Coins className="h-3.5 w-3.5" />

@@ -7,7 +7,8 @@ import {
   RARITY_ORDER,
   STARTER_COLLECTIBLE_ID,
 } from './packs';
-import type { Collectible, PackId, PlayerState, Rarity } from './types';
+import { getMasteryKey, isItemDueForReview } from './mastery';
+import type { Collectible, PackId, PlayerState, Rarity, SubjectId } from './types';
 
 export const STARTER_TOKENS = 25;
 export const SHINY_CRAFT_COPIES_REQUIRED = 3;
@@ -16,6 +17,9 @@ export const MAX_FAVORITE_COLLECTIBLES = 6;
 export const DAILY_TRI_SUBJECT_BONUS = 30;
 export const BLITZ_DAILY_TOKEN_CAP = 120;
 export const ARCADE_DAILY_TOKEN_CAP = 150;
+export const STATIC_REVIEW_MULTIPLIER = 0.5;
+export const MATH_FULL_REWARD_RUNS_PER_DAY = 2;
+export const MATH_DIMINISHED_MULTIPLIER = 0.3;
 const MAX_COMBO_BONUS = 5;
 
 export const STAR_DUST_MELT_VALUE: Record<Rarity, number> = {
@@ -668,3 +672,198 @@ export function toggleFavoriteCollectible(
   };
 }
 
+export type QuestRewardKind = 'static' | 'math';
+
+export type QuestRewardTier =
+  | 'full-new'
+  | 'full-special'
+  | 'full-srs-due'
+  | 'full-math'
+  | 'review-50'
+  | 'math-diminished'
+  | 'practice-0';
+
+export interface QuestRewardPolicy {
+  multiplier: number;
+  tier: QuestRewardTier;
+  todayCount: number;
+  isAlreadyCompleted: boolean;
+  dueWordCount: number;
+  badgeLabel: string;
+  zhBadgeLabel: string;
+}
+
+const EXEMPT_FULL_REWARD_IDS = new Set([
+  'en-srs-review',
+  'zh-srs-review',
+  'math-srs-review',
+  'en-tricky-rematch',
+  'zh-tricky-rematch',
+  'math-tricky-rematch',
+  'en-weekly-parent-review',
+  'zh-weekly-parent-review',
+]);
+
+export function isExemptFullRewardQuest(questSetId: string): boolean {
+  return EXEMPT_FULL_REWARD_IDS.has(questSetId) || questSetId.startsWith('custom-');
+}
+
+export function getTodayQuestClaimCount(
+  state: PlayerState,
+  questSetId: string,
+  todayKey: string,
+): number {
+  const claims = state.dailyQuestClaims;
+  if (!claims || claims.dateKey !== todayKey) return 0;
+  return claims.counts[questSetId] ?? 0;
+}
+
+export interface QuestRewardPolicyInput {
+  questSetId: string;
+  kind: QuestRewardKind;
+  subjectId: SubjectId;
+  todayKey: string;
+  words?: string[];
+  completedIds?: string[];
+  nowIso?: string;
+}
+
+/**
+ * Plan A anti-farming reward policy:
+ * - Special review / custom quests (SRS Warm-Up, Boss Rematch, Weekly Parent Review, Custom Sets): always 100%.
+ * - Dynamic Math units: up to 2 full-reward runs per unit per day (100%), 3rd+ run same day = 30%.
+ * - Static quests (EN/ZH vocab sets, Reading Quests, Radicals, Chapter Episodes):
+ *   - Already rewarded today (todayCount >= 1) => 0% Practice Mode (prevents same-day farming).
+ *   - First time ever (!isAlreadyCompleted) => 100% Full Reward.
+ *   - Previously completed on an earlier day:
+ *     - If any word/char in this quest is currently SRS-due => 100% Full SRS Review Reward.
+ *     - Otherwise => 50% Review Reward.
+ */
+export function getQuestRewardPolicy(
+  state: PlayerState,
+  input: QuestRewardPolicyInput,
+): QuestRewardPolicy {
+  const { questSetId, kind, subjectId, todayKey, words, nowIso } = input;
+  const todayCount = getTodayQuestClaimCount(state, questSetId, todayKey);
+  const completedPool = input.completedIds ?? state.completedQuestSetIds;
+  const isAlreadyCompleted = completedPool.includes(questSetId);
+
+  if (isExemptFullRewardQuest(questSetId)) {
+    return {
+      multiplier: 1,
+      tier: 'full-special',
+      todayCount,
+      isAlreadyCompleted,
+      dueWordCount: 0,
+      badgeLabel: '100% Full Reward',
+      zhBadgeLabel: '100% 全額獎勵',
+    };
+  }
+
+  if (kind === 'math') {
+    if (todayCount < MATH_FULL_REWARD_RUNS_PER_DAY) {
+      return {
+        multiplier: 1,
+        tier: 'full-math',
+        todayCount,
+        isAlreadyCompleted,
+        dueWordCount: 0,
+        badgeLabel: '100% Dynamic Math',
+        zhBadgeLabel: '100% 動態出題獎勵',
+      };
+    }
+    return {
+      multiplier: MATH_DIMINISHED_MULTIPLIER,
+      tier: 'math-diminished',
+      todayCount,
+      isAlreadyCompleted,
+      dueWordCount: 0,
+      badgeLabel: '30% Extra Practice',
+      zhBadgeLabel: '今日第 3+ 次 · 30% 練習獎勵',
+    };
+  }
+
+  // Static quests: same-day repeat => 0% pure practice
+  if (todayCount >= 1) {
+    return {
+      multiplier: 0,
+      tier: 'practice-0',
+      todayCount,
+      isAlreadyCompleted,
+      dueWordCount: 0,
+      badgeLabel: 'Claimed Today · Practice (+0)',
+      zhBadgeLabel: '今日已領獎 · 純練習 (+0)',
+    };
+  }
+
+  if (!isAlreadyCompleted) {
+    return {
+      multiplier: 1,
+      tier: 'full-new',
+      todayCount,
+      isAlreadyCompleted: false,
+      dueWordCount: 0,
+      badgeLabel: '100% New Quest',
+      zhBadgeLabel: '100% 新關卡首通',
+    };
+  }
+
+  // Completed previously on an earlier day: reward 100% if SRS review is due!
+  let dueWordCount = 0;
+  if (words && words.length > 0) {
+    const checkIso = nowIso ?? new Date().toISOString();
+    for (const w of words) {
+      const rec = state.wordMastery[getMasteryKey(w, subjectId)];
+      if (rec && isItemDueForReview(rec, checkIso)) {
+        dueWordCount += 1;
+      }
+    }
+  }
+
+  if (dueWordCount > 0) {
+    return {
+      multiplier: 1,
+      tier: 'full-srs-due',
+      todayCount,
+      isAlreadyCompleted: true,
+      dueWordCount,
+      badgeLabel: 'SRS Review Due · 100%',
+      zhBadgeLabel: '遺忘曲線到期複習 · 100%',
+    };
+  }
+
+  return {
+    multiplier: STATIC_REVIEW_MULTIPLIER,
+    tier: 'review-50',
+    todayCount,
+    isAlreadyCompleted: true,
+    dueWordCount: 0,
+    badgeLabel: 'Review Mode · 50%',
+    zhBadgeLabel: '複習模式 · 50% 代幣',
+  };
+}
+
+export function applyQuestRewardMultiplier(rawTokens: number, multiplier: number): number {
+  if (rawTokens <= 0 || multiplier <= 0) return 0;
+  if (multiplier >= 1) return Math.round(rawTokens);
+  return Math.max(1, Math.round(rawTokens * multiplier));
+}
+
+export function recordDailyQuestClaim(
+  state: PlayerState,
+  questSetId: string,
+  todayKey: string,
+): PlayerState {
+  const prevCounts =
+    state.dailyQuestClaims?.dateKey === todayKey ? state.dailyQuestClaims.counts : {};
+  return {
+    ...state,
+    dailyQuestClaims: {
+      dateKey: todayKey,
+      counts: {
+        ...prevCounts,
+        [questSetId]: (prevCounts[questSetId] ?? 0) + 1,
+      },
+    },
+  };
+}

@@ -13,8 +13,10 @@ import {
 } from 'lucide-react';
 import { audioService } from '../../core/audio';
 import {
+  applyQuestRewardMultiplier,
   calculateForgeChestTokens,
   calculateQuestionTokens,
+  type QuestRewardPolicy,
 } from '../../core/economy';
 import type { WordOutcomeInput } from '../../core/mastery';
 import { PACK_COST } from '../../core/packs';
@@ -27,6 +29,7 @@ import type {
   ChineseWordSet,
 } from '../../subjects/chinese/types';
 import { CollectibleArt } from '../artwork/CollectibleArt';
+import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 import { RubyWord } from '../components/RubyWord';
 
 type ChineseStage = 'spotlight' | 'sprint' | 'upgrade' | 'forge' | 'complete';
@@ -35,6 +38,7 @@ export interface ChineseCompletionPayload {
   summary: RunSummary;
   writingEntry: WritingEntry;
   wordOutcomes: WordOutcomeInput[];
+  rawTokensEarned?: number;
 }
 
 interface ChineseRunViewProps {
@@ -42,6 +46,7 @@ interface ChineseRunViewProps {
   equippedCollectibleId: string;
   currentTotalTokens: number;
   showZhuyin: boolean;
+  rewardPolicy?: QuestRewardPolicy;
   onToggleZhuyin: () => void;
   onExit: () => void;
   onRecordPartialMastery?: (outcomes: WordOutcomeInput[]) => void;
@@ -62,6 +67,7 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
   equippedCollectibleId,
   currentTotalTokens,
   showZhuyin,
+  rewardPolicy,
   onToggleZhuyin,
   onExit,
   onRecordPartialMastery,
@@ -71,6 +77,8 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
   const prefersReduced = useReducedMotion();
   const plan = useMemo(() => buildChineseRun(wordSet), [wordSet]);
   const multiplier = wordSet.tokenMultiplier ?? 1;
+  const [lockedPolicy] = useState<QuestRewardPolicy | undefined>(() => rewardPolicy);
+  const policyMult = lockedPolicy?.multiplier ?? 1;
 
   const [stage, setStage] = useState<ChineseStage>('spotlight');
   const [spotIdx, setSpotIdx] = useState(0);
@@ -355,7 +363,9 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
     const bonus = Math.round(
       calculateForgeChestTokens(writingEval.passedCount, writingEval.totalCount) * multiplier,
     );
-    const totalRunTokens = tokensEarned + bonus;
+    const rawTotalRunTokens = tokensEarned + bonus;
+    const awardedRunTokens = applyQuestRewardMultiplier(rawTotalRunTokens, policyMult);
+    const awardedChestTokens = applyQuestRewardMultiplier(bonus, policyMult);
     const accuracyPct =
       attemptCount > 0 ? Math.round((cleanCount / attemptCount) * 100) : 100;
     const nowIso = new Date().toISOString();
@@ -368,8 +378,8 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
       nowIso,
     }));
 
-    setChestTokens(bonus);
-    setTokensEarned(totalRunTokens);
+    setChestTokens(awardedChestTokens);
+    setTokensEarned(rawTotalRunTokens);
     setFinalSentence(sentence.trim());
     audioService.playChest();
 
@@ -379,7 +389,7 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
         subjectId: 'chinese',
         questSetId: wordSet.id,
         questSetTitle: wordSet.title,
-        tokensEarned: totalRunTokens,
+        tokensEarned: awardedRunTokens,
         maxCombo,
         accuracyPct,
         completedAt: nowIso,
@@ -394,6 +404,7 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
         createdAt: nowIso,
       },
       wordOutcomes: [...outcomes, ...writingOutcomes],
+      rawTokensEarned: rawTotalRunTokens,
     });
 
     setStage('complete');
@@ -403,6 +414,7 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
     setSentence((prev) => `${prev}${word}`);
   };
 
+  const displayedTokens = applyQuestRewardMultiplier(tokensEarned, policyMult);
   const stageStep =
     stage === 'spotlight' ? 0 : stage === 'sprint' ? 1 : stage === 'upgrade' ? 2 : stage === 'forge' ? 3 : 4;
   const inspectedEntry = plan.forgePrompt.wordGlossary.find((w) => w.word === inspectedWord);
@@ -475,10 +487,12 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
           )}
           <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] border border-[#1C1917] px-3 py-1 text-sm font-extrabold">
             <Coins className="h-3.5 w-3.5 text-[#D97706]" />
-            +{tokensEarned}
+            +{displayedTokens}
           </span>
         </div>
       </div>
+
+      <RewardPolicyBanner policy={lockedPolicy} lang="zh" />
 
       <AnimatePresence mode="wait">
         {/* STAGE 0: WORD SPOTLIGHT (TEACH FIRST) */}
@@ -997,14 +1011,16 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
             <div>
               <h1 className="font-display text-3xl font-extrabold">中文關卡完成！</h1>
               <p className="mt-1 text-base font-bold text-[#D97706] tabular-nums">
-                +{chestTokens} 寶箱獎勵 · 共獲得 +{tokensEarned} 代幣！
+                {policyMult === 0
+                  ? '純練習模式完成！去挑戰還沒破的新關卡拿 100% 代幣吧！'
+                  : `+${chestTokens} 寶箱獎勵 · 共獲得 +${displayedTokens} 代幣！`}
               </p>
             </div>
 
             <div className="mx-auto grid max-w-md grid-cols-3 gap-3 tabular-nums">
               <div className="rounded-2xl bg-[#FEF3C7] p-3">
                 <div className="text-xs font-bold text-[#92400E]">獲得代幣</div>
-                <div className="font-display text-2xl font-extrabold">+{tokensEarned}</div>
+                <div className="font-display text-2xl font-extrabold">+{displayedTokens}</div>
               </div>
               <div className="rounded-2xl bg-[#FFF7ED] p-3">
                 <div className="text-xs font-bold text-[#9A3412]">最高連擊</div>

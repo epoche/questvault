@@ -13,21 +13,28 @@ import {
   XCircle,
 } from 'lucide-react';
 import { audioService } from '../../core/audio';
-import { calculateQuestionTokens } from '../../core/economy';
+import {
+  applyQuestRewardMultiplier,
+  calculateQuestionTokens,
+  type QuestRewardPolicy,
+} from '../../core/economy';
 import type { ReadingQuestSet } from '../../core/readingTypes';
 import type { RunSummary } from '../../core/types';
 import { CollectibleArt } from '../artwork/CollectibleArt';
+import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 import { RubySentence } from '../components/RubySentence';
 import { RubyWord } from '../components/RubyWord';
 
 export interface ReadingCompletionPayload {
   summary: RunSummary;
+  rawTokensEarned?: number;
 }
 
 interface ReadingRunViewProps {
   questSet: ReadingQuestSet;
   equippedCollectibleId: string;
   showZhuyin: boolean;
+  rewardPolicy?: QuestRewardPolicy;
   onToggleZhuyin: () => void;
   onExit: () => void;
   onCompleteReading: (payload: ReadingCompletionPayload) => void;
@@ -45,6 +52,7 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
   questSet,
   equippedCollectibleId,
   showZhuyin,
+  rewardPolicy,
   onToggleZhuyin,
   onExit,
   onCompleteReading,
@@ -52,6 +60,8 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
 }) => {
   const isZh = questSet.subjectId === 'chinese';
   const speechLang = isZh ? 'zh-TW' : 'en-US';
+  const [lockedPolicy] = useState<QuestRewardPolicy | undefined>(() => rewardPolicy);
+  const policyMult = lockedPolicy?.multiplier ?? 1;
 
   const [passageIdx, setPassageIdx] = useState(0);
   const [questionIdx, setQuestionIdx] = useState(0);
@@ -100,9 +110,10 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
     if (completedRef.current) return;
     completedRef.current = true;
     const chestBonus = 15;
-    const totalTokens = finalTokens + chestBonus;
+    const rawTotalTokens = finalTokens + chestBonus;
+    const awardedTokens = applyQuestRewardMultiplier(rawTotalTokens, policyMult);
     const accuracyPct = Math.round((finalCorrect / Math.max(1, totalQuestions)) * 100);
-    setTokensEarned(totalTokens);
+    setTokensEarned(rawTotalTokens);
     setCompleted(true);
     audioService.playChest();
 
@@ -112,11 +123,12 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
         subjectId: questSet.subjectId,
         questSetId: questSet.id,
         questSetTitle: questSet.title,
-        tokensEarned: totalTokens,
+        tokensEarned: awardedTokens,
         maxCombo: finalMaxCombo,
         accuracyPct,
         completedAt: new Date().toISOString(),
       },
+      rawTokensEarned: rawTotalTokens,
     });
   };
 
@@ -204,7 +216,7 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
             <div className="rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] p-3">
               <div className="text-xs font-bold text-[#92400E]">{isZh ? '獲得代幣' : 'Tokens'}</div>
               <div className="mt-1 inline-flex items-center gap-1 font-display text-2xl font-extrabold text-[#B45309] tabular-nums">
-                <Coins className="h-5 w-5" />+{tokensEarned}
+                <Coins className="h-5 w-5" />+{applyQuestRewardMultiplier(tokensEarned, policyMult)}
               </div>
             </div>
             <div className="rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] p-3">
@@ -221,6 +233,8 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
               </div>
             </div>
           </div>
+
+          <RewardPolicyBanner policy={lockedPolicy} lang={isZh ? 'zh' : 'en'} compact />
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <button
@@ -290,10 +304,12 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
           )}
 
           <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] border border-[#F59E0B] px-2.5 py-1 text-[#92400E]">
-            <Coins className="h-3.5 w-3.5" />+{tokensEarned}
+            <Coins className="h-3.5 w-3.5" />+{applyQuestRewardMultiplier(tokensEarned, policyMult)}
           </span>
         </div>
       </div>
+
+      <RewardPolicyBanner policy={lockedPolicy} lang={isZh ? 'zh' : 'en'} />
 
       {/* Story Passage Card */}
       <section

@@ -154,6 +154,11 @@ export interface BlitzDailyTokens {
   earned: number;
 }
 
+export interface DailyQuestClaims {
+  dateKey: string;
+  counts: Record<string, number>;
+}
+
 export interface PlayerState {
   version: 1;
   displayName: string;
@@ -179,6 +184,7 @@ export interface PlayerState {
   lastBossRematchDate?: string;
   subjectBossRematchDate?: Partial<Record<SubjectId, string>>;
   dailyQuest?: DailyQuestProgress;
+  dailyQuestClaims?: DailyQuestClaims;
   streakDays?: number;
   lastActiveDate?: string;
   blitzHighScores?: Partial<Record<SubjectId, number>>;

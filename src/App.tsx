@@ -3,6 +3,7 @@ import { MotionConfig } from 'motion/react';
 import { hashParentPin } from './core/analytics';
 import { audioService } from './core/audio';
 import {
+  applyQuestRewardMultiplier,
   awardBlitzSessionRewards,
   awardCafeSessionRewards,
   awardFishingSessionRewards,
@@ -11,9 +12,11 @@ import {
   craftShinyCollectible,
   equipCollectibleAvatar,
   fuseFiveDuplicatesUp,
+  getQuestRewardPolicy,
   getTodayArcadeTokensEarned,
   meltDuplicateForStarDust,
   openMysteryPack,
+  recordDailyQuestClaim,
   recordDailySubjectCompletion,
   sellDuplicateCollectible,
   toggleFavoriteCollectible,
@@ -338,6 +341,20 @@ export const App: React.FC = () => {
 
   const handleCompleteEnglishRun = (payload: RunCompletionPayload) => {
     setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.summary.questSetId,
+        kind: 'static',
+        subjectId: 'english',
+        todayKey,
+        words: activeEnglishSet?.words.map((w) => w.word),
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.summary.tokensEarned,
+        policy.multiplier,
+      );
+      const summary = { ...payload.summary, tokensEarned: awardedTokens };
+
       const completedSet = prev.completedQuestSetIds.includes(payload.summary.questSetId)
         ? prev.completedQuestSetIds
         : [...prev.completedQuestSetIds, payload.summary.questSetId];
@@ -348,14 +365,13 @@ export const App: React.FC = () => {
       }
 
       const isRematch = payload.summary.questSetId === 'en-tricky-rematch';
-      const todayKey = getLocalDateKey();
 
       const updated: PlayerState = {
         ...prev,
-        tokens: prev.tokens + payload.summary.tokensEarned,
+        tokens: prev.tokens + awardedTokens,
         wordMastery: nextMastery,
         completedQuestSetIds: completedSet,
-        runHistory: [payload.summary, ...prev.runHistory].slice(0, 50),
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
         writingLog: [payload.writingEntry, ...prev.writingLog].slice(0, 100),
         ...(isRematch
           ? {
@@ -364,12 +380,29 @@ export const App: React.FC = () => {
             }
           : {}),
       };
-      return recordDailySubjectCompletion(updated, 'english', todayKey);
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.summary.questSetId, todayKey),
+        'english',
+        todayKey,
+      );
     });
   };
 
   const handleCompleteMathRun = (payload: MathCompletionPayload) => {
     setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.summary.questSetId,
+        kind: 'math',
+        subjectId: 'math',
+        todayKey,
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.summary.tokensEarned,
+        policy.multiplier,
+      );
+      const summary = { ...payload.summary, tokensEarned: awardedTokens };
+
       const completedSet = prev.completedQuestSetIds.includes(payload.summary.questSetId)
         ? prev.completedQuestSetIds
         : [...prev.completedQuestSetIds, payload.summary.questSetId];
@@ -380,26 +413,43 @@ export const App: React.FC = () => {
       }
 
       const isRematch = payload.summary.questSetId === 'math-tricky-rematch';
-      const todayKey = getLocalDateKey();
 
       const updated: PlayerState = {
         ...prev,
-        tokens: prev.tokens + payload.summary.tokensEarned,
+        tokens: prev.tokens + awardedTokens,
         wordMastery: nextMastery,
         completedQuestSetIds: completedSet,
-        runHistory: [payload.summary, ...prev.runHistory].slice(0, 50),
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
         ...(isRematch
           ? {
               subjectBossRematchDate: { ...prev.subjectBossRematchDate, math: todayKey },
             }
           : {}),
       };
-      return recordDailySubjectCompletion(updated, 'math', todayKey);
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.summary.questSetId, todayKey),
+        'math',
+        todayKey,
+      );
     });
   };
 
   const handleCompleteChineseRun = (payload: ChineseCompletionPayload) => {
     setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.summary.questSetId,
+        kind: 'static',
+        subjectId: 'chinese',
+        todayKey,
+        words: activeChineseSet?.words.map((w) => w.word),
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.summary.tokensEarned,
+        policy.multiplier,
+      );
+      const summary = { ...payload.summary, tokensEarned: awardedTokens };
+
       const completedSet = prev.completedQuestSetIds.includes(payload.summary.questSetId)
         ? prev.completedQuestSetIds
         : [...prev.completedQuestSetIds, payload.summary.questSetId];
@@ -410,14 +460,13 @@ export const App: React.FC = () => {
       }
 
       const isRematch = payload.summary.questSetId === 'zh-tricky-rematch';
-      const todayKey = getLocalDateKey();
 
       const updated: PlayerState = {
         ...prev,
-        tokens: prev.tokens + payload.summary.tokensEarned,
+        tokens: prev.tokens + awardedTokens,
         wordMastery: nextMastery,
         completedQuestSetIds: completedSet,
-        runHistory: [payload.summary, ...prev.runHistory].slice(0, 50),
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
         writingLog: [payload.writingEntry, ...prev.writingLog].slice(0, 100),
         ...(isRematch
           ? {
@@ -425,7 +474,11 @@ export const App: React.FC = () => {
             }
           : {}),
       };
-      return recordDailySubjectCompletion(updated, 'chinese', todayKey);
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.summary.questSetId, todayKey),
+        'chinese',
+        todayKey,
+      );
     });
   };
 
@@ -440,7 +493,7 @@ export const App: React.FC = () => {
           : subjectId === 'math'
             ? MATH_PLACEMENT_BONUS_TOKENS
             : CHINESE_PLACEMENT_BONUS_TOKENS;
-      const bonus = prevDone ? 15 : fullBonus;
+      const bonus = prevDone ? 0 : fullBonus;
 
       const nextTiers = {
         english: prev.subjectTiers?.english ?? prev.activeTier,
@@ -485,17 +538,33 @@ export const App: React.FC = () => {
 
   const handleCompleteReadingRun = (payload: ReadingCompletionPayload) => {
     setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.summary.questSetId,
+        kind: 'static',
+        subjectId: payload.summary.subjectId,
+        todayKey,
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.summary.tokensEarned,
+        policy.multiplier,
+      );
+      const summary = { ...payload.summary, tokensEarned: awardedTokens };
+
       const completedSet = prev.completedQuestSetIds.includes(payload.summary.questSetId)
         ? prev.completedQuestSetIds
         : [...prev.completedQuestSetIds, payload.summary.questSetId];
-      const todayKey = getLocalDateKey();
       const updated: PlayerState = {
         ...prev,
-        tokens: prev.tokens + payload.summary.tokensEarned,
+        tokens: prev.tokens + awardedTokens,
         completedQuestSetIds: completedSet,
-        runHistory: [payload.summary, ...prev.runHistory].slice(0, 50),
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
       };
-      return recordDailySubjectCompletion(updated, payload.summary.subjectId, todayKey);
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.summary.questSetId, todayKey),
+        payload.summary.subjectId,
+        todayKey,
+      );
     });
   };
 
@@ -538,7 +607,21 @@ export const App: React.FC = () => {
 
   const handleCompleteRadical = (payload: RadicalCompletionPayload) => {
     setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
       const prevRadicals = prev.completedRadicalIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.familyId,
+        kind: 'static',
+        subjectId: 'chinese',
+        todayKey,
+        completedIds: prevRadicals,
+        words: activeRadicalFamily?.items.map((it) => it.char),
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.tokensEarned,
+        policy.multiplier,
+      );
+
       const nextRadicals = prevRadicals.includes(payload.familyId)
         ? prevRadicals
         : [...prevRadicals, payload.familyId];
@@ -553,52 +636,71 @@ export const App: React.FC = () => {
         });
       }
 
-      const todayKey = getLocalDateKey();
       const summary = {
         id: `zh-rad-${Date.now()}`,
         subjectId: 'chinese' as const,
         questSetId: payload.familyId,
         questSetTitle: `偏旁工廠：${payload.familyTitle}`,
-        tokensEarned: payload.tokensEarned,
+        tokensEarned: awardedTokens,
         maxCombo: payload.masteredChars.filter((c) => c.firstTryCorrect).length,
         accuracyPct: payload.accuracyPct,
         completedAt: new Date().toISOString(),
       };
       const updated: PlayerState = {
         ...prev,
-        tokens: prev.tokens + payload.tokensEarned,
+        tokens: prev.tokens + awardedTokens,
         completedRadicalIds: nextRadicals,
         wordMastery: nextMastery,
         runHistory: [summary, ...prev.runHistory].slice(0, 50),
       };
-      return recordDailySubjectCompletion(updated, 'chinese', todayKey);
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.familyId, todayKey),
+        'chinese',
+        todayKey,
+      );
     });
   };
 
   const handleCompleteChapterEpisode = (payload: ChapterEpisodeCompletionPayload) => {
     setPlayer((prev) => {
+      const todayKey = getLocalDateKey();
       const prevEps = prev.completedChapterEpisodeIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.episodeId,
+        kind: 'static',
+        subjectId: 'chinese',
+        todayKey,
+        completedIds: prevEps,
+      });
+      const awardedTokens = applyQuestRewardMultiplier(
+        payload.rawTokensEarned ?? payload.tokensEarned,
+        policy.multiplier,
+      );
+
       const nextEps = prevEps.includes(payload.episodeId)
         ? prevEps
         : [...prevEps, payload.episodeId];
-      const todayKey = getLocalDateKey();
       const summary = {
         id: `zh-chap-${Date.now()}`,
         subjectId: 'chinese' as const,
         questSetId: payload.episodeId,
         questSetTitle: `章節小說：《${payload.seriesTitle}》第 ${payload.episodeNumber} 集`,
-        tokensEarned: payload.tokensEarned,
+        tokensEarned: awardedTokens,
         maxCombo: 3,
         accuracyPct: payload.accuracyPct,
         completedAt: new Date().toISOString(),
       };
       const updated: PlayerState = {
         ...prev,
-        tokens: prev.tokens + payload.tokensEarned,
+        tokens: prev.tokens + awardedTokens,
         completedChapterEpisodeIds: nextEps,
         runHistory: [summary, ...prev.runHistory].slice(0, 50),
       };
-      return recordDailySubjectCompletion(updated, 'chinese', todayKey);
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.episodeId, todayKey),
+        'chinese',
+        todayKey,
+      );
     });
   };
 
@@ -701,6 +803,12 @@ export const App: React.FC = () => {
               questSet={activeReadingSet}
               equippedCollectibleId={player.equippedCollectibleId}
               showZhuyin={showZhuyin}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeReadingSet.id,
+                kind: 'static',
+                subjectId: activeReadingSet.subjectId,
+                todayKey,
+              })}
               onToggleZhuyin={handleToggleZhuyin}
               onExit={() => setActiveReadingSet(null)}
               onCompleteReading={handleCompleteReadingRun}
@@ -715,6 +823,15 @@ export const App: React.FC = () => {
               completedEpisodeIds={player.completedChapterEpisodeIds ?? []}
               claimedSeriesIds={player.claimedChapterSeriesIds ?? []}
               showZhuyin={showZhuyin}
+              getEpisodeRewardPolicy={(episodeId) =>
+                getQuestRewardPolicy(player, {
+                  questSetId: episodeId,
+                  kind: 'static',
+                  subjectId: 'chinese',
+                  todayKey,
+                  completedIds: player.completedChapterEpisodeIds ?? [],
+                })
+              }
               onToggleZhuyin={handleToggleZhuyin}
               onCompleteEpisode={handleCompleteChapterEpisode}
               onClaimSeriesChest={handleClaimChapterSeriesChest}
@@ -830,6 +947,13 @@ export const App: React.FC = () => {
               wordSet={activeEnglishSet}
               equippedCollectibleId={player.equippedCollectibleId}
               currentTotalTokens={player.tokens}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeEnglishSet.id,
+                kind: 'static',
+                subjectId: 'english',
+                todayKey,
+                words: activeEnglishSet.words.map((w) => w.word),
+              })}
               onExit={() => setActiveEnglishSet(null)}
               onRecordPartialMastery={(outs) => handleRecordPartialMastery('english', outs)}
               onCompleteRun={handleCompleteEnglishRun}
@@ -843,6 +967,12 @@ export const App: React.FC = () => {
               questSet={activeMathSet}
               equippedCollectibleId={player.equippedCollectibleId}
               currentTotalTokens={player.tokens}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeMathSet.id,
+                kind: 'math',
+                subjectId: 'math',
+                todayKey,
+              })}
               onExit={() => setActiveMathSet(null)}
               onRecordPartialMastery={(outs) => handleRecordPartialMastery('math', outs)}
               onCompleteRun={handleCompleteMathRun}
@@ -857,6 +987,13 @@ export const App: React.FC = () => {
               equippedCollectibleId={player.equippedCollectibleId}
               currentTotalTokens={player.tokens}
               showZhuyin={showZhuyin}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeChineseSet.id,
+                kind: 'static',
+                subjectId: 'chinese',
+                todayKey,
+                words: activeChineseSet.words.map((w) => w.word),
+              })}
               onToggleZhuyin={handleToggleZhuyin}
               onExit={() => setActiveChineseSet(null)}
               onRecordPartialMastery={(outs) => handleRecordPartialMastery('chinese', outs)}
@@ -872,6 +1009,14 @@ export const App: React.FC = () => {
               equippedCollectibleId={player.equippedCollectibleId}
               isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
               showZhuyin={showZhuyin}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeRadicalFamily.id,
+                kind: 'static',
+                subjectId: 'chinese',
+                todayKey,
+                completedIds: player.completedRadicalIds ?? [],
+                words: activeRadicalFamily.items.map((it) => it.char),
+              })}
               onToggleZhuyin={handleToggleZhuyin}
               onCompleteRadical={handleCompleteRadical}
               onExit={() => setActiveRadicalFamily(null)}

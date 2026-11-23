@@ -160,6 +160,24 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     };
   }
 
+  let sanitizedDailyQuestClaims: PlayerState['dailyQuestClaims'] = undefined;
+  if (
+    isRecord(obj.dailyQuestClaims) &&
+    typeof obj.dailyQuestClaims.dateKey === 'string' &&
+    isRecord(obj.dailyQuestClaims.counts)
+  ) {
+    const counts: Record<string, number> = {};
+    for (const [questId, rawCount] of Object.entries(obj.dailyQuestClaims.counts)) {
+      if (typeof rawCount === 'number' && Number.isFinite(rawCount) && rawCount > 0) {
+        counts[questId] = Math.floor(rawCount);
+      }
+    }
+    sanitizedDailyQuestClaims = {
+      dateKey: obj.dailyQuestClaims.dateKey,
+      counts,
+    };
+  }
+
   const activeSubjectId =
     obj.activeSubjectId === 'english' ||
     obj.activeSubjectId === 'math' ||
@@ -274,6 +292,7 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
       : {}),
     subjectBossRematchDate,
     ...(sanitizedDailyQuest ? { dailyQuest: sanitizedDailyQuest } : {}),
+    ...(sanitizedDailyQuestClaims ? { dailyQuestClaims: sanitizedDailyQuestClaims } : {}),
     streakDays:
       typeof obj.streakDays === 'number' && Number.isFinite(obj.streakDays) && obj.streakDays >= 0
         ? Math.floor(obj.streakDays)

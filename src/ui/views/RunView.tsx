@@ -13,8 +13,10 @@ import {
 } from 'lucide-react';
 import { audioService } from '../../core/audio';
 import {
+  applyQuestRewardMultiplier,
   calculateForgeChestTokens,
   calculateQuestionTokens,
+  type QuestRewardPolicy,
 } from '../../core/economy';
 import type { WordOutcomeInput } from '../../core/mastery';
 import { PACK_COST } from '../../core/packs';
@@ -23,6 +25,7 @@ import { buildEnglishRun } from '../../subjects/english/runEngine';
 import type { SprintQuestion, UpgradeQuestion, WordSet } from '../../subjects/english/types';
 import { deterministicWritingEvaluator } from '../../subjects/english/writingChecks';
 import { CollectibleArt } from '../artwork/CollectibleArt';
+import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 
 type RunStage = 'spotlight' | 'sprint' | 'upgrade' | 'forge' | 'complete';
 
@@ -30,12 +33,14 @@ export interface RunCompletionPayload {
   summary: RunSummary;
   writingEntry: WritingEntry;
   wordOutcomes: WordOutcomeInput[];
+  rawTokensEarned?: number;
 }
 
 interface RunViewProps {
   wordSet: WordSet;
   equippedCollectibleId: string;
   currentTotalTokens: number;
+  rewardPolicy?: QuestRewardPolicy;
   onExit: () => void;
   onRecordPartialMastery?: (outcomes: WordOutcomeInput[]) => void;
   onCompleteRun: (payload: RunCompletionPayload) => void;
@@ -54,6 +59,7 @@ export const RunView: React.FC<RunViewProps> = ({
   wordSet,
   equippedCollectibleId,
   currentTotalTokens,
+  rewardPolicy,
   onExit,
   onRecordPartialMastery,
   onCompleteRun,
@@ -62,6 +68,8 @@ export const RunView: React.FC<RunViewProps> = ({
   const prefersReduced = useReducedMotion();
   const plan = useMemo(() => buildEnglishRun(wordSet), [wordSet]);
   const multiplier = wordSet.tokenMultiplier ?? 1;
+  const [lockedPolicy] = useState<QuestRewardPolicy | undefined>(() => rewardPolicy);
+  const policyMult = lockedPolicy?.multiplier ?? 1;
 
   const [stage, setStage] = useState<RunStage>('spotlight');
   const [spotIdx, setSpotIdx] = useState(0);
@@ -333,7 +341,9 @@ export const RunView: React.FC<RunViewProps> = ({
     const bonus = Math.round(
       calculateForgeChestTokens(writingEval.passedCount, writingEval.totalCount) * multiplier,
     );
-    const totalRunTokens = tokensEarned + bonus;
+    const rawTotalRunTokens = tokensEarned + bonus;
+    const awardedRunTokens = applyQuestRewardMultiplier(rawTotalRunTokens, policyMult);
+    const awardedChestTokens = applyQuestRewardMultiplier(bonus, policyMult);
     const accuracyPct =
       attemptCount > 0 ? Math.round((cleanCount / attemptCount) * 100) : 100;
     const nowIso = new Date().toISOString();
@@ -345,8 +355,8 @@ export const RunView: React.FC<RunViewProps> = ({
       nowIso,
     }));
 
-    setChestTokens(bonus);
-    setTokensEarned(totalRunTokens);
+    setChestTokens(awardedChestTokens);
+    setTokensEarned(rawTotalRunTokens);
     setFinalSentence(sentence.trim());
     audioService.playChest();
 
@@ -356,7 +366,7 @@ export const RunView: React.FC<RunViewProps> = ({
         subjectId: 'english',
         questSetId: wordSet.id,
         questSetTitle: wordSet.title,
-        tokensEarned: totalRunTokens,
+        tokensEarned: awardedRunTokens,
         maxCombo,
         accuracyPct,
         completedAt: nowIso,
@@ -371,6 +381,7 @@ export const RunView: React.FC<RunViewProps> = ({
         createdAt: nowIso,
       },
       wordOutcomes: [...outcomes, ...writingOutcomes],
+      rawTokensEarned: rawTotalRunTokens,
     });
 
     setStage('complete');
@@ -384,6 +395,7 @@ export const RunView: React.FC<RunViewProps> = ({
     });
   };
 
+  const displayedTokens = applyQuestRewardMultiplier(tokensEarned, policyMult);
   const stageStep =
     stage === 'spotlight' ? 0 : stage === 'sprint' ? 1 : stage === 'upgrade' ? 2 : stage === 'forge' ? 3 : 4;
   const inspectedEntry = plan.forgePrompt.wordGlossary.find((w) => w.word === inspectedWord);
@@ -442,10 +454,12 @@ export const RunView: React.FC<RunViewProps> = ({
           )}
           <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] border border-[#1C1917] px-3 py-1 text-sm font-extrabold">
             <Coins className="h-3.5 w-3.5 text-[#D97706]" />
-            +{tokensEarned}
+            +{displayedTokens}
           </span>
         </div>
       </div>
+
+      <RewardPolicyBanner policy={lockedPolicy} lang="en" />
 
       <AnimatePresence mode="wait">
         {/* STAGE 0: WORD SPOTLIGHT (TEACH FIRST!) */}
@@ -913,14 +927,16 @@ export const RunView: React.FC<RunViewProps> = ({
             <div>
               <h1 className="font-display text-3xl font-extrabold">Run Complete!</h1>
               <p className="mt-1 text-base font-bold text-[#D97706] tabular-nums">
-                +{chestTokens} Chest Bonus · +{tokensEarned} Total Tokens!
+                {policyMult === 0
+                  ? 'Practice Mode Complete! Try a new quest for 100% Tokens!'
+                  : `+${chestTokens} Chest Bonus · +${displayedTokens} Total Tokens!`}
               </p>
             </div>
 
             <div className="mx-auto grid max-w-md grid-cols-3 gap-3 tabular-nums">
               <div className="rounded-2xl bg-[#FEF3C7] p-3">
                 <div className="text-xs font-bold text-[#92400E]">Tokens</div>
-                <div className="font-display text-2xl font-extrabold">+{tokensEarned}</div>
+                <div className="font-display text-2xl font-extrabold">+{displayedTokens}</div>
               </div>
               <div className="rounded-2xl bg-[#FFF7ED] p-3">
                 <div className="text-xs font-bold text-[#9A3412]">Max Combo</div>

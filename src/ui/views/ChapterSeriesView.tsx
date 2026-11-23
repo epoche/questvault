@@ -27,6 +27,11 @@ import {
   type ChapterSeries,
 } from '../../subjects/chinese/chapterStories';
 import { CollectibleArt } from '../artwork/CollectibleArt';
+import {
+  applyQuestRewardMultiplier,
+  type QuestRewardPolicy,
+} from '../../core/economy';
+import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 import { RubySentence } from '../components/RubySentence';
 import { RubyWord } from '../components/RubyWord';
 
@@ -38,6 +43,7 @@ export interface ChapterEpisodeCompletionPayload {
   episodeTitle: string;
   tier: ChapterSeries['tier'];
   tokensEarned: number;
+  rawTokensEarned?: number;
   accuracyPct: number;
 }
 
@@ -46,6 +52,7 @@ interface ChapterSeriesViewProps {
   completedEpisodeIds: string[];
   claimedSeriesIds: string[];
   showZhuyin: boolean;
+  getEpisodeRewardPolicy?: (episodeId: string) => QuestRewardPolicy;
   onToggleZhuyin: () => void;
   onCompleteEpisode: (payload: ChapterEpisodeCompletionPayload) => void;
   onClaimSeriesChest: (series: ChapterSeries) => boolean;
@@ -65,6 +72,7 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
   completedEpisodeIds,
   claimedSeriesIds,
   showZhuyin,
+  getEpisodeRewardPolicy,
   onToggleZhuyin,
   onCompleteEpisode,
   onClaimSeriesChest,
@@ -72,6 +80,9 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
   onGoToMarket,
 }) => {
   const [activeEpisode, setActiveEpisode] = useState<ChapterEpisode | null>(null);
+  const [activeEpisodePolicy, setActiveEpisodePolicy] = useState<QuestRewardPolicy | undefined>(
+    undefined,
+  );
   const [step, setStep] = useState<'read' | 'quiz' | 'episodeClear'>('read');
   const [showEnglishGist, setShowEnglishGist] = useState(false);
 
@@ -114,6 +125,7 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
     advancingRef.current = false;
     completedEpRef.current = false;
     setActiveEpisode(ep);
+    setActiveEpisodePolicy(getEpisodeRewardPolicy?.(ep.id));
     setStep('read');
     setShowEnglishGist(false);
     setQuizQueue([...ep.questions]);
@@ -132,6 +144,7 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
       // Ignore sandbox speech errors
     }
     setActiveEpisode(null);
+    setActiveEpisodePolicy(undefined);
     setStep('read');
   };
 
@@ -190,14 +203,18 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
           if (isLast) {
             if (!completedEpRef.current) {
               completedEpRef.current = true;
-              const tokens = calculateChapterEpisodeTokens(
+              const rawTokens = calculateChapterEpisodeTokens(
                 nextFirstTry,
                 activeEpisode.questions.length,
+              );
+              const awardedTokens = applyQuestRewardMultiplier(
+                rawTokens,
+                activeEpisodePolicy?.multiplier ?? 1,
               );
               const accuracyPct = Math.round(
                 (nextFirstTry / Math.max(1, activeEpisode.questions.length)) * 100,
               );
-              setLastEarnedTokens(tokens);
+              setLastEarnedTokens(awardedTokens);
               audioService.playChest();
               onCompleteEpisode({
                 seriesId: series.id,
@@ -206,7 +223,8 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
                 episodeNumber: activeEpisode.episodeNumber,
                 episodeTitle: activeEpisode.title,
                 tier: series.tier,
-                tokensEarned: tokens,
+                tokensEarned: awardedTokens,
+                rawTokensEarned: rawTokens,
                 accuracyPct,
               });
             }
@@ -225,6 +243,7 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
     },
     [
       activeEpisode,
+      activeEpisodePolicy,
       currentQ,
       firstTryRight,
       missedIds,
@@ -474,6 +493,8 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
           注音 {showZhuyin ? '開' : '關'}
         </button>
       </div>
+
+      <RewardPolicyBanner policy={activeEpisodePolicy} lang="zh" />
 
       {/* STEP 1: READ EPISODE */}
       {step === 'read' && (

@@ -46,7 +46,7 @@ export const MathPlacementView: React.FC<MathPlacementViewProps> = ({
   const [savedResult, setSavedResult] = useState(false);
 
   const q = session.currentQuestion;
-  const [bonusAmount] = useState(() => (alreadyCompleted ? 15 : MATH_PLACEMENT_BONUS_TOKENS));
+  const [bonusAmount] = useState(() => (alreadyCompleted ? 0 : MATH_PLACEMENT_BONUS_TOKENS));
   const [wasFirstRun] = useState(() => !alreadyCompleted);
 
   useEffect(() => {
@@ -126,9 +126,14 @@ export const MathPlacementView: React.FC<MathPlacementViewProps> = ({
               {session.recommendationReason}
             </p>
             <p className="mt-1.5 text-sm font-bold text-[#57534E] tabular-nums">
-              {score}/{session.totalQuestions} clean hits · Unlocked{' '}
-              <strong className="text-[#D97706]">+{bonusAmount} Tokens</strong>
-              {wasFirstRun ? ' (2 Mystery Packs!)' : '!'}
+              {score}/{session.totalQuestions} clean hits ·{' '}
+              {wasFirstRun ? (
+                <>
+                  Unlocked <strong className="text-[#D97706]">+{bonusAmount} Tokens</strong> (2 Mystery Packs!)
+                </>
+              ) : (
+                <span>Level updated! (Recheck · +0 Tokens)</span>
+              )}
             </p>
           </div>
 

@@ -11,7 +11,11 @@ import {
   Volume2,
 } from 'lucide-react';
 import { audioService } from '../../core/audio';
-import { calculateQuestionTokens } from '../../core/economy';
+import {
+  applyQuestRewardMultiplier,
+  calculateQuestionTokens,
+  type QuestRewardPolicy,
+} from '../../core/economy';
 import type { WordOutcomeInput } from '../../core/mastery';
 import { PACK_COST } from '../../core/packs';
 import type { RunSummary } from '../../core/types';
@@ -24,18 +28,21 @@ import type {
 } from '../../subjects/math/types';
 import { CollectibleArt } from '../artwork/CollectibleArt';
 import { MathVisual } from '../artwork/MathVisual';
+import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 
 type MathStage = 'concept' | 'sprint' | 'challenge' | 'complete';
 
 export interface MathCompletionPayload {
   summary: RunSummary;
   wordOutcomes: WordOutcomeInput[];
+  rawTokensEarned?: number;
 }
 
 interface MathRunViewProps {
   questSet: MathQuestSet;
   equippedCollectibleId: string;
   currentTotalTokens: number;
+  rewardPolicy?: QuestRewardPolicy;
   onExit: () => void;
   onRecordPartialMastery?: (outcomes: WordOutcomeInput[]) => void;
   onCompleteRun: (payload: MathCompletionPayload) => void;
@@ -54,6 +61,7 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
   questSet,
   equippedCollectibleId,
   currentTotalTokens,
+  rewardPolicy,
   onExit,
   onRecordPartialMastery,
   onCompleteRun,
@@ -62,6 +70,8 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
   const prefersReduced = useReducedMotion();
   const plan = useMemo(() => buildMathRun(questSet), [questSet]);
   const multiplier = questSet.tokenMultiplier ?? 1;
+  const [lockedPolicy] = useState<QuestRewardPolicy | undefined>(() => rewardPolicy);
+  const policyMult = lockedPolicy?.multiplier ?? 1;
 
   const [stage, setStage] = useState<MathStage>('concept');
   const [conceptIdx, setConceptIdx] = useState(0);
@@ -120,12 +130,14 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
     completedRef.current = true;
     partialSavedRef.current = true;
     const bonus = Math.round(25 * multiplier);
-    const total = finalRunningTokens + bonus;
+    const rawTotal = finalRunningTokens + bonus;
+    const awardedTotal = applyQuestRewardMultiplier(rawTotal, policyMult);
+    const awardedChest = applyQuestRewardMultiplier(bonus, policyMult);
     const accuracyPct = finalAttempts > 0 ? Math.round((finalClean / finalAttempts) * 100) : 100;
     const nowIso = new Date().toISOString();
 
-    setChestTokens(bonus);
-    setTokensEarned(total);
+    setChestTokens(awardedChest);
+    setTokensEarned(rawTotal);
     audioService.playChest();
 
     onCompleteRun({
@@ -134,12 +146,13 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
         subjectId: 'math',
         questSetId: questSet.id,
         questSetTitle: questSet.title,
-        tokensEarned: total,
+        tokensEarned: awardedTotal,
         maxCombo: finalMaxCombo,
         accuracyPct,
         completedAt: nowIso,
       },
       wordOutcomes: finalOutcomes,
+      rawTokensEarned: rawTotal,
     });
 
     setStage('complete');
@@ -423,10 +436,12 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
           )}
           <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] border border-[#1C1917] px-3 py-1 text-sm font-extrabold">
             <Coins className="h-3.5 w-3.5 text-[#D97706]" />
-            +{tokensEarned}
+            +{applyQuestRewardMultiplier(tokensEarned, policyMult)}
           </span>
         </div>
       </div>
+
+      <RewardPolicyBanner policy={lockedPolicy} lang="en" />
 
       <AnimatePresence mode="wait">
         {/* STAGE 0: VISUAL CONCEPT CARD (TEACH FIRST) */}
@@ -743,14 +758,16 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
             <div>
               <h1 className="font-display text-3xl font-extrabold">Math Quest Complete!</h1>
               <p className="mt-1 text-base font-bold text-[#D97706] tabular-nums">
-                +{chestTokens} Chest Bonus · +{tokensEarned} Total Tokens!
+                +{chestTokens} Chest Bonus · +{applyQuestRewardMultiplier(tokensEarned, policyMult)} Total Tokens!
               </p>
             </div>
 
             <div className="mx-auto grid max-w-md grid-cols-3 gap-3 tabular-nums">
               <div className="rounded-2xl bg-[#FEF3C7] p-3">
                 <div className="text-xs font-bold text-[#92400E]">Tokens</div>
-                <div className="font-display text-2xl font-extrabold">+{tokensEarned}</div>
+                <div className="font-display text-2xl font-extrabold">
+                  +{applyQuestRewardMultiplier(tokensEarned, policyMult)}
+                </div>
               </div>
               <div className="rounded-2xl bg-[#FFF7ED] p-3">
                 <div className="text-xs font-bold text-[#9A3412]">Max Combo</div>
