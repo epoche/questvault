@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Check, Coins, RefreshCw, Sparkles, UserCheck, X } from 'lucide-react';
 import { audioService } from '../../core/audio';
-import { PACK_COST, RARITY_CONFIGS } from '../../core/packs';
+import { getPackById, PACK_COST, RARITY_CONFIGS } from '../../core/packs';
 import type { Collectible, PackId } from '../../core/types';
 import { CollectibleArt, PackEnvelopeArt } from '../artwork/CollectibleArt';
 
@@ -91,6 +91,7 @@ export const PackOpeningModal: React.FC<PackOpeningModalProps> = ({
   if (!pull) return null;
 
   const rarityInfo = RARITY_CONFIGS[pull.collectible.rarity];
+  const packCost = getPackById(pull.packId)?.cost ?? PACK_COST;
   const isHighRarity =
     pull.collectible.rarity === 'epic' ||
     pull.collectible.rarity === 'legendary' ||
@@ -261,7 +262,7 @@ export const PackOpeningModal: React.FC<PackOpeningModalProps> = ({
                       <Coins className="h-4 w-4 text-[#D97706]" />
                       <span>Sell +{rarityInfo.resaleTokens}</span>
                     </button>
-                    {tokensRemaining >= PACK_COST && (
+                    {tokensRemaining >= packCost && (
                       <button
                         type="button"
                         onClick={onClose}
@@ -271,7 +272,7 @@ export const PackOpeningModal: React.FC<PackOpeningModalProps> = ({
                       </button>
                     )}
                   </div>
-                ) : tokensRemaining >= PACK_COST ? (
+                ) : tokensRemaining >= packCost ? (
                   <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
@@ -311,14 +312,14 @@ export const PackOpeningModal: React.FC<PackOpeningModalProps> = ({
                   </button>
                 )}
 
-                {tokensRemaining >= PACK_COST ? (
+                {tokensRemaining >= packCost ? (
                   <button
                     type="button"
                     onClick={() => onOpenAnother(pull.packId)}
                     className="qv-btn inline-flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#1C1917] bg-[#2563EB] px-4 py-3 font-display text-base font-extrabold text-white tabular-nums"
                   >
                     <RefreshCw className="h-4 w-4" />
-                    <span>Open Another ({PACK_COST} Tokens)</span>
+                    <span>Open Another ({packCost} Tokens)</span>
                   </button>
                 ) : (
                   <button

@@ -24,7 +24,8 @@ export const MarketView: React.FC<MarketViewProps> = ({
 }) => {
   const [showOdds, setShowOdds] = useState(false);
   const [category, setCategory] = useState<'all' | PackCategory>('all');
-  const canAfford = player.tokens >= PACK_COST;
+  const minPackCost = Math.min(...MYSTERY_PACKS.map((p) => p.cost));
+  const canAffordAny = player.tokens >= minPackCost;
 
   const visiblePacks =
     category === 'all'
@@ -104,10 +105,10 @@ export const MarketView: React.FC<MarketViewProps> = ({
         </div>
       )}
 
-      {!canAfford && (
+      {!canAffordAny && (
         <div className="rounded-3xl border-2 border-[#E7E2D8] bg-[#F3EFE7] p-4 flex flex-wrap items-center justify-between gap-3">
           <span className="font-display text-base font-extrabold tabular-nums">
-            Need {PACK_COST - player.tokens} more Tokens!
+            Need {minPackCost - player.tokens} more Tokens for a Mini Pack!
           </span>
           <button
             type="button"
@@ -125,6 +126,16 @@ export const MarketView: React.FC<MarketViewProps> = ({
           const items = getCollectiblesByPack(pack.id);
           const ownedCount = items.filter((item) => (player.vault[item.id] ?? 0) > 0).length;
           const isComplete = ownedCount === items.length;
+          const canAffordPack = player.tokens >= pack.cost;
+          const sizeBadge =
+            pack.cost < PACK_COST
+              ? { label: `Mini · ${items.length}`, cls: 'bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]' }
+              : pack.cost > PACK_COST
+                ? { label: `Deluxe · ${items.length}`, cls: 'bg-[#FAF5FF] text-[#7C3AED] border-[#DDD6FE]' }
+                : items.length !== 8
+                  ? { label: `${items.length} Cards`, cls: 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]' }
+                  : null;
+
           return (
             <div
               key={pack.id}
@@ -132,15 +143,22 @@ export const MarketView: React.FC<MarketViewProps> = ({
                 isComplete ? 'ring-2 ring-[#F59E0B]' : ''
               }`}
             >
-              <div className="w-full flex items-center justify-between text-xs font-extrabold text-[#57534E] tabular-nums">
+              <div className="w-full flex items-center justify-between gap-1.5 text-xs font-extrabold text-[#57534E] tabular-nums">
                 <span className={isComplete ? 'inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-[#B45309]' : ''}>
                   {isComplete && <Crown className="h-3.5 w-3.5 text-[#D97706]" />}
                   {ownedCount}/{items.length}
                 </span>
-                <span className="inline-flex items-center gap-1 text-[#DB2777]">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Chroma
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {sizeBadge && (
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${sizeBadge.cls}`}>
+                      {sizeBadge.label}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-[#DB2777]">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Chroma
+                  </span>
+                </div>
               </div>
 
               <div className="qv-float">
@@ -158,14 +176,14 @@ export const MarketView: React.FC<MarketViewProps> = ({
 
               <button
                 type="button"
-                disabled={!canAfford}
+                disabled={!canAffordPack}
                 onClick={() => onOpenPack(pack.id)}
                 className={`qv-arcade-btn inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border-2 px-4 py-2.5 font-display text-base font-extrabold tabular-nums ${
-                  canAfford
+                  canAffordPack
                     ? 'border-[#1C1917] text-white'
                     : 'border-[#D8D0C1] bg-[#F3EFE7] text-[#A8A29E] cursor-not-allowed'
                 }`}
-                style={canAfford ? { backgroundColor: pack.accentHex, borderBottomColor: '#1C1917' } : undefined}
+                style={canAffordPack ? { backgroundColor: pack.accentHex, borderBottomColor: '#1C1917' } : undefined}
               >
                 <Coins className="h-4 w-4" />
                 <span>Open · {pack.cost}</span>

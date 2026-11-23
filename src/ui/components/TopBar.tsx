@@ -13,7 +13,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { COLLECTIBLES, PACK_COST } from '../../core/packs';
+import { COLLECTIBLES, MIN_PACK_COST } from '../../core/packs';
 import { getSubjectById, SUBJECTS } from '../../core/registry';
 import type { PlayerState, SubjectId } from '../../core/types';
 import { CollectibleArt } from '../artwork/CollectibleArt';
@@ -249,7 +249,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             >
               <Coins className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#D97706]" />
               <span>{player.tokens}</span>
-              {player.tokens >= PACK_COST && (
+              {player.tokens >= MIN_PACK_COST && (
                 <Sparkles className="hidden sm:inline h-3.5 w-3.5 text-[#D97706]" />
               )}
             </button>

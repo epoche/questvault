@@ -164,9 +164,26 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
   if (typeof rawSubjBoss.math === 'string') subjectBossRematchDate.math = rawSubjBoss.math;
   if (typeof rawSubjBoss.chinese === 'string') subjectBossRematchDate.chinese = rawSubjBoss.chinese;
 
+  const safeStarDust =
+    typeof obj.starDust === 'number' && Number.isFinite(obj.starDust) && obj.starDust >= 0
+      ? Math.floor(obj.starDust)
+      : 0;
+
+  const sanitizedFavorites: string[] = Array.isArray(obj.favoriteCollectibleIds)
+    ? Array.from(
+        new Set(
+          obj.favoriteCollectibleIds.filter(
+            (id): id is string =>
+              typeof id === 'string' && (sanitizedVault[id] ?? 0) > 0 && Boolean(getCollectibleById(id)),
+          ),
+        ),
+      ).slice(0, 6)
+    : [];
+
   return {
     ...base,
     tokens: safeTokens,
+    starDust: safeStarDust,
     activeSubjectId,
     activeTier: subjectTiers.english,
     subjectTiers,
@@ -175,6 +192,7 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     equippedCollectibleId: equipped,
     vault: sanitizedVault,
     shinyVault: sanitizedShinyVault,
+    favoriteCollectibleIds: sanitizedFavorites,
     wordMastery: sanitizedMastery,
     completedQuestSetIds: Array.isArray(obj.completedQuestSetIds)
       ? obj.completedQuestSetIds.filter((id): id is string => typeof id === 'string')

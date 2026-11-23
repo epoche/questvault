@@ -50,7 +50,15 @@ export type PackId =
   | 'mochi'
   | 'cloudsquishy'
   | 'fairytale'
-  | 'fairyland';
+  | 'fairyland'
+  | 'valentine'
+  | 'dragonboat'
+  | 'thanksgiving'
+  | 'deepsea'
+  | 'puppypark'
+  | 'dessertsquishy'
+  | 'fairycottage'
+  | 'starunicorn';
 
 export interface RarityConfig {
   id: Rarity;
@@ -150,6 +158,7 @@ export interface PlayerState {
   version: 1;
   displayName: string;
   tokens: number;
+  starDust?: number;
   activeSubjectId?: SubjectId;
   activeTier: DifficultyTier;
   subjectTiers?: Record<SubjectId, DifficultyTier>;
@@ -158,6 +167,7 @@ export interface PlayerState {
   equippedCollectibleId: string;
   vault: Record<string, number>;
   shinyVault?: Record<string, boolean>;
+  favoriteCollectibleIds?: string[];
   wordMastery: Record<string, WordMasteryRecord>;
   completedQuestSetIds: string[];
   runHistory: RunSummary[];

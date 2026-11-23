@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MotionConfig } from 'motion/react';
 import { audioService } from './core/audio';
 import {
@@ -6,18 +6,24 @@ import {
   claimDailyTriSubjectReward,
   craftShinyCollectible,
   equipCollectibleAvatar,
+  fuseFiveDuplicatesUp,
+  meltDuplicateForStarDust,
   openMysteryPack,
   recordDailySubjectCompletion,
   sellDuplicateCollectible,
+  toggleFavoriteCollectible,
+  wishUnlockWithStarDust,
 } from './core/economy';
 import { recordWordOutcome } from './core/mastery';
 import { createLocalStorageRepository } from './core/repository';
 import type { ReadingQuestSet } from './core/readingTypes';
 import type {
+  Collectible,
   CustomWordSetRecord,
   DifficultyTier,
   PackId,
   PlayerState,
+  Rarity,
   SubjectId,
 } from './core/types';
 import { customChineseRecordToWordSet } from './subjects/chinese/chineseCustomParser';
@@ -56,6 +62,8 @@ import { WritingLogView } from './ui/views/WritingLogView';
 export const App: React.FC = () => {
   const repository = useMemo(() => createLocalStorageRepository(), []);
   const [player, setPlayer] = useState<PlayerState>(() => repository.load());
+  const playerRef = useRef<PlayerState>(player);
+  playerRef.current = player;
   const [activeTab, setActiveTab] = useState<NavTab>('quests');
 
   const [activeEnglishSet, setActiveEnglishSet] = useState<WordSet | null>(null);
@@ -154,8 +162,9 @@ export const App: React.FC = () => {
   };
 
   const handleOpenPack = (packId: PackId) => {
-    const result = openMysteryPack(player, packId);
+    const result = openMysteryPack(playerRef.current, packId);
     if (!result.ok) return;
+    playerRef.current = result.state;
     setPlayer(result.state);
     setActivePull({
       packId,
@@ -166,26 +175,62 @@ export const App: React.FC = () => {
   };
 
   const handleEquipAvatar = (collectibleId: string) => {
-    setPlayer((prev) => equipCollectibleAvatar(prev, collectibleId));
+    const next = equipCollectibleAvatar(playerRef.current, collectibleId);
+    playerRef.current = next;
+    setPlayer(next);
     audioService.playToken();
   };
 
   const handleSellDuplicate = (collectibleId: string) => {
-    setPlayer((prev) => {
-      const res = sellDuplicateCollectible(prev, collectibleId);
-      if (!res.ok) return prev;
-      audioService.playToken();
-      return res.state;
-    });
+    const res = sellDuplicateCollectible(playerRef.current, collectibleId);
+    if (!res.ok) return;
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    audioService.playToken();
   };
 
   const handleCraftShiny = (collectibleId: string) => {
-    setPlayer((prev) => {
-      const res = craftShinyCollectible(prev, collectibleId);
-      if (!res.ok) return prev;
-      audioService.playChest();
-      return res.state;
-    });
+    const res = craftShinyCollectible(playerRef.current, collectibleId);
+    if (!res.ok) return;
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    audioService.playChest();
+  };
+
+  const handleMeltForStarDust = (collectibleId: string) => {
+    const res = meltDuplicateForStarDust(playerRef.current, collectibleId);
+    if (!res.ok) return;
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    audioService.playToken();
+  };
+
+  const handleWishUnlock = (collectibleId: string): boolean => {
+    const res = wishUnlockWithStarDust(playerRef.current, collectibleId);
+    if (!res.ok) return false;
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    audioService.playPackReveal(res.collectible.rarity);
+    return true;
+  };
+
+  const handleFuseFiveUp = (
+    sourceRarity: Rarity,
+  ): { awarded: Collectible; isNew: boolean } | null => {
+    const res = fuseFiveDuplicatesUp(playerRef.current, sourceRarity);
+    if (!res.ok) return null;
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    audioService.playPackReveal(res.awarded.rarity);
+    return { awarded: res.awarded, isNew: res.isNew };
+  };
+
+  const handleToggleFavorite = (collectibleId: string) => {
+    const res = toggleFavoriteCollectible(playerRef.current, collectibleId);
+    if (!res.ok) return;
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    audioService.playToken();
   };
 
   const handleClaimDailyQuest = () => {
@@ -646,6 +691,10 @@ export const App: React.FC = () => {
               onEquipAvatar={handleEquipAvatar}
               onSellDuplicate={handleSellDuplicate}
               onCraftShiny={handleCraftShiny}
+              onMeltForStarDust={handleMeltForStarDust}
+              onWishUnlock={handleWishUnlock}
+              onFuseFiveUp={handleFuseFiveUp}
+              onToggleFavorite={handleToggleFavorite}
             />
           ) : (
             <WritingLogView

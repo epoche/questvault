@@ -121,11 +121,11 @@ describe('Math Subject (28 Quest Sets, Visuals, Placement, Boss Rematch)', () =>
   });
 });
 
-describe('Traditional Chinese Subject (60 Sets, Zhuyin, Anti-Cheese Writing, Importer)', () => {
-  it('ships 60 Chinese Word Sets (300 words) with exact per-char Zhuyin and distinct transfer sprintSentences', () => {
-    expect(BUILTIN_CHINESE_SETS).toHaveLength(60);
+describe('Traditional Chinese Subject (80 Sets, Zhuyin, Anti-Cheese Writing, Importer)', () => {
+  it('ships 80 Chinese Word Sets (400 words) with exact per-char Zhuyin and distinct transfer sprintSentences', () => {
+    expect(BUILTIN_CHINESE_SETS).toHaveLength(80);
     const tierCounts = getChineseTierWordCounts();
-    expect(tierCounts).toEqual({ 1: 70, 2: 80, 3: 80, 4: 70 });
+    expect(tierCounts).toEqual({ 1: 95, 2: 105, 3: 105, 4: 95 });
 
     for (const set of BUILTIN_CHINESE_SETS) {
       expect(set.starterChips.length).toBeGreaterThanOrEqual(3);

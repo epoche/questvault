@@ -1,9 +1,11 @@
 import React from 'react';
 import { getCollectibleById } from '../../core/packs';
+import { PHASE2D_ENVELOPE_THEMES } from '../../core/packsPhase2D';
 import type { PackId } from '../../core/types';
 import { renderExtraCollectible } from './extraCollectibles';
 import { renderPhase1Collectible } from './phase1Collectibles';
 import { renderPhase2Collectible } from './phase2Collectibles';
+import { renderPhase2DCollectible } from './phase2DCollectibles';
 
 interface CollectibleArtProps {
   id: string;
@@ -531,9 +533,12 @@ export const CollectibleArt: React.FC<CollectibleArtProps> = ({
   shiny = false,
   className = '',
 }) => {
+  const rawUid = React.useId();
+  const uid = rawUid.replace(/[^a-zA-Z0-9_-]/g, '');
   const item = getCollectibleById(id);
   const bg = silhouette ? '#E7E2D8' : (item?.bgHex ?? '#F3EFE7');
   const showShiny = shiny && !silhouette;
+  const foilGradId = `qv-foil-${id}-${uid}`;
 
   return (
     <div
@@ -558,7 +563,7 @@ export const CollectibleArt: React.FC<CollectibleArtProps> = ({
       >
         {showShiny && (
           <defs>
-            <linearGradient id={`qv-foil-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={foilGradId} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#FEF08A" stopOpacity="0.45" />
               <stop offset="45%" stopColor="#FFFFFF" stopOpacity="0.08" />
               <stop offset="55%" stopColor="#FFFFFF" stopOpacity="0.52" />
@@ -566,10 +571,10 @@ export const CollectibleArt: React.FC<CollectibleArtProps> = ({
             </linearGradient>
           </defs>
         )}
-        {renderPhase2Collectible(id) ?? renderPhase1Collectible(id) ?? renderExtraCollectible(id) ?? renderCharacter(id)}
+        {renderPhase2DCollectible(id, uid) ?? renderPhase2Collectible(id) ?? renderPhase1Collectible(id) ?? renderExtraCollectible(id) ?? renderCharacter(id)}
         {showShiny && (
           <g>
-            <rect x="0" y="0" width="100" height="100" fill={`url(#qv-foil-${id})`} />
+            <rect x="0" y="0" width="100" height="100" fill={`url(#${foilGradId})`} />
             <polygon points="16,10 18,15 23,17 18,19 16,24 14,19 9,17 14,15" fill="#FDE047" stroke="#B45309" strokeWidth="1" />
             <polygon points="84,14 85.6,18 89.6,19.6 85.6,21.2 84,25.2 82.4,21.2 78.4,19.6 82.4,18" fill="#FFFFFF" stroke="#D97706" strokeWidth="1" />
           </g>
@@ -583,6 +588,8 @@ export const PackEnvelopeArt: React.FC<{ packId: PackId; size?: number }> = ({
   packId,
   size = 112,
 }) => {
+  const rawUid = React.useId();
+  const uid = rawUid.replace(/[^a-zA-Z0-9_-]/g, '');
   const palette: Record<PackId, { main: string; top: string; accent: string; emblem: string }> = {
     critter: { main: '#EA580C', top: '#FDBA74', accent: '#FEF3C7', emblem: 'critter-crystal-fox' },
     sweet: { main: '#DB2777', top: '#F9A8D4', accent: '#FCE7F3', emblem: 'sweet-boba-bear' },
@@ -614,6 +621,7 @@ export const PackEnvelopeArt: React.FC<{ packId: PackId; size?: number }> = ({
     cloudsquishy: { main: '#7C3AED', top: '#DDD6FE', accent: '#F5F3FF', emblem: 'cloudsquishy-marshmallow-lamb' },
     fairytale: { main: '#2563EB', top: '#93C5FD', accent: '#EFF6FF', emblem: 'fairytale-slipper-bunny' },
     fairyland: { main: '#9333EA', top: '#E9D5FF', accent: '#FAF5FF', emblem: 'fairyland-dewdrop-pixie' },
+    ...PHASE2D_ENVELOPE_THEMES,
   };
 
   const p = palette[packId];
@@ -635,7 +643,7 @@ export const PackEnvelopeArt: React.FC<{ packId: PackId; size?: number }> = ({
         <rect x="16" y="116" width="88" height="14" fill={p.top} opacity="0.6" />
         <rect x="26" y="34" width="68" height="68" rx="16" fill={p.accent} stroke="#1C1917" strokeWidth="3" />
         <g transform="translate(26, 34) scale(0.68)">
-          {renderPhase2Collectible(p.emblem) ?? renderPhase1Collectible(p.emblem) ?? renderExtraCollectible(p.emblem) ?? renderCharacter(p.emblem)}
+          {renderPhase2DCollectible(p.emblem, uid) ?? renderPhase2Collectible(p.emblem) ?? renderPhase1Collectible(p.emblem) ?? renderExtraCollectible(p.emblem) ?? renderCharacter(p.emblem)}
         </g>
         <circle cx="28" cy="112" r="3" fill="#FFFFFF" opacity="0.85" />
         <circle cx="92" cy="112" r="3" fill="#FFFFFF" opacity="0.85" />

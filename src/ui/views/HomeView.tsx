@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { DAILY_TRI_SUBJECT_BONUS } from '../../core/economy';
 import { getDueReviewItems, getTrickyWords } from '../../core/mastery';
-import { PACK_COST } from '../../core/packs';
+import { MIN_PACK_COST } from '../../core/packs';
 import type { ReadingQuestSet } from '../../core/readingTypes';
 import type { DifficultyTier, PlayerState, SubjectId } from '../../core/types';
 import { customChineseRecordToWordSet } from '../../subjects/chinese/chineseCustomParser';
@@ -106,7 +106,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onGoToMarket,
 }) => {
   const [questMode, setQuestMode] = useState<'words' | 'stories'>('words');
-  const packsReady = Math.floor(player.tokens / PACK_COST);
+  const packsReady = Math.floor(player.tokens / MIN_PACK_COST);
   const todayKey = getLocalDateKey();
 
   const enSets = getWordSetsByTier(activeTier);

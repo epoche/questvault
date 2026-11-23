@@ -1,4 +1,5 @@
 import {
+  COLLECTIBLES,
   getCollectibleById,
   getCollectiblesByPack,
   getPackById,
@@ -10,15 +11,43 @@ import type { Collectible, PackId, PlayerState, Rarity } from './types';
 
 export const STARTER_TOKENS = 25;
 export const SHINY_CRAFT_COPIES_REQUIRED = 3;
+export const FUSE_COPIES_REQUIRED = 5;
+export const MAX_FAVORITE_COLLECTIBLES = 6;
 export const DAILY_TRI_SUBJECT_BONUS = 30;
 export const BLITZ_DAILY_TOKEN_CAP = 120;
 const MAX_COMBO_BONUS = 5;
+
+export const STAR_DUST_MELT_VALUE: Record<Rarity, number> = {
+  common: 1,
+  uncommon: 2,
+  rare: 5,
+  epic: 12,
+  legendary: 25,
+  chroma: 60,
+};
+
+export const STAR_DUST_WISH_COST: Record<Rarity, number> = {
+  common: 10,
+  uncommon: 15,
+  rare: 25,
+  epic: 50,
+  legendary: 95,
+  chroma: 180,
+};
+
+export const FUSE_NEXT_RARITY: Partial<Record<Rarity, Rarity>> = {
+  common: 'uncommon',
+  uncommon: 'rare',
+  rare: 'epic',
+  epic: 'legendary',
+};
 
 export function createInitialPlayerState(displayName = 'Player'): PlayerState {
   return {
     version: 1,
     displayName: displayName.trim() || 'Player',
     tokens: STARTER_TOKENS,
+    starDust: 0,
     activeSubjectId: 'english',
     activeTier: 2,
     subjectTiers: { english: 2, math: 2, chinese: 2 },
@@ -29,6 +58,7 @@ export function createInitialPlayerState(displayName = 'Player'): PlayerState {
       [STARTER_COLLECTIBLE_ID]: 1,
     },
     shinyVault: {},
+    favoriteCollectibleIds: [STARTER_COLLECTIBLE_ID],
     wordMastery: {},
     completedQuestSetIds: [],
     runHistory: [],
@@ -335,3 +365,201 @@ export function awardBlitzSessionRewards(
     },
   };
 }
+
+export function getExtraDuplicateCountByRarity(state: PlayerState, rarity: Rarity): number {
+  let extras = 0;
+  for (const item of COLLECTIBLES) {
+    if (item.rarity !== rarity) continue;
+    const count = state.vault[item.id] ?? 0;
+    if (count > 1) {
+      extras += count - 1;
+    }
+  }
+  return extras;
+}
+
+export type MeltStarDustResult =
+  | { ok: true; state: PlayerState; dustGained: number; collectible: Collectible }
+  | { ok: false; reason: 'not_found' | 'cannot_melt_last_copy' };
+
+/**
+ * Melts 1 extra duplicate copy into Star Dust (always preserving >= 1 copy in Vault).
+ */
+export function meltDuplicateForStarDust(
+  state: PlayerState,
+  collectibleId: string,
+): MeltStarDustResult {
+  const collectible = getCollectibleById(collectibleId);
+  if (!collectible) {
+    return { ok: false, reason: 'not_found' };
+  }
+  const count = state.vault[collectibleId] ?? 0;
+  if (count <= 1) {
+    return { ok: false, reason: 'cannot_melt_last_copy' };
+  }
+  const dustGained = STAR_DUST_MELT_VALUE[collectible.rarity];
+  return {
+    ok: true,
+    dustGained,
+    collectible,
+    state: {
+      ...state,
+      starDust: (state.starDust ?? 0) + dustGained,
+      vault: {
+        ...state.vault,
+        [collectibleId]: count - 1,
+      },
+    },
+  };
+}
+
+export type WishUnlockResult =
+  | { ok: true; state: PlayerState; collectible: Collectible; dustSpent: number }
+  | { ok: false; reason: 'not_found' | 'already_owned' | 'insufficient_dust' };
+
+/**
+ * Star Dust Wish Pool pity system: spend Star Dust to directly unlock ANY unowned
+ * collectible (including Chroma!).
+ */
+export function wishUnlockWithStarDust(
+  state: PlayerState,
+  collectibleId: string,
+): WishUnlockResult {
+  const collectible = getCollectibleById(collectibleId);
+  if (!collectible) {
+    return { ok: false, reason: 'not_found' };
+  }
+  if ((state.vault[collectibleId] ?? 0) > 0) {
+    return { ok: false, reason: 'already_owned' };
+  }
+  const cost = STAR_DUST_WISH_COST[collectible.rarity];
+  const currentDust = state.starDust ?? 0;
+  if (currentDust < cost) {
+    return { ok: false, reason: 'insufficient_dust' };
+  }
+  return {
+    ok: true,
+    collectible,
+    dustSpent: cost,
+    state: {
+      ...state,
+      starDust: currentDust - cost,
+      vault: {
+        ...state.vault,
+        [collectibleId]: 1,
+      },
+    },
+  };
+}
+
+export type FuseFiveResult =
+  | {
+      ok: true;
+      state: PlayerState;
+      awarded: Collectible;
+      isNew: boolean;
+      targetRarity: Rarity;
+    }
+  | { ok: false; reason: 'unsupported_rarity' | 'insufficient_duplicates' | 'empty_target_pool' };
+
+/**
+ * 5-to-1 Same-Rarity Fuse Upgrader: fuses any 5 extra duplicate copies of `sourceRarity`
+ * (always keeping >= 1 copy of every owned card!) into 1 random collectible of the next
+ * higher rarity (preferring unowned collectibles first!).
+ */
+export function fuseFiveDuplicatesUp(
+  state: PlayerState,
+  sourceRarity: Rarity,
+  rng: () => number = Math.random,
+): FuseFiveResult {
+  const targetRarity = FUSE_NEXT_RARITY[sourceRarity];
+  if (!targetRarity) {
+    return { ok: false, reason: 'unsupported_rarity' };
+  }
+
+  const extraCount = getExtraDuplicateCountByRarity(state, sourceRarity);
+  if (extraCount < FUSE_COPIES_REQUIRED) {
+    return { ok: false, reason: 'insufficient_duplicates' };
+  }
+
+  const targetAll = COLLECTIBLES.filter((c) => c.rarity === targetRarity);
+  if (targetAll.length === 0) {
+    return { ok: false, reason: 'empty_target_pool' };
+  }
+
+  // Deduct 5 extra copies from cards with the highest surplus first, never dropping any card below 1
+  const nextVault: Record<string, number> = { ...state.vault };
+  const surplusEntries = COLLECTIBLES.filter(
+    (c) => c.rarity === sourceRarity && (nextVault[c.id] ?? 0) > 1,
+  )
+    .map((c) => ({ id: c.id, extra: (nextVault[c.id] ?? 0) - 1 }))
+    .sort((a, b) => b.extra - a.extra || a.id.localeCompare(b.id));
+
+  let remainingToConsume = FUSE_COPIES_REQUIRED;
+  for (const entry of surplusEntries) {
+    if (remainingToConsume <= 0) break;
+    const take = Math.min(entry.extra, remainingToConsume);
+    nextVault[entry.id] = (nextVault[entry.id] ?? 1) - take;
+    remainingToConsume -= take;
+  }
+
+  const unownedTargets = targetAll.filter((c) => (nextVault[c.id] ?? 0) === 0);
+  const pickPool = unownedTargets.length > 0 ? unownedTargets : targetAll;
+  const pickIdx = Math.min(
+    pickPool.length - 1,
+    Math.floor(Math.max(0, Math.min(0.999999, rng())) * pickPool.length),
+  );
+  const awarded = pickPool[pickIdx];
+  const prevCount = nextVault[awarded.id] ?? 0;
+  nextVault[awarded.id] = prevCount + 1;
+
+  return {
+    ok: true,
+    awarded,
+    isNew: prevCount === 0,
+    targetRarity,
+    state: {
+      ...state,
+      vault: nextVault,
+    },
+  };
+}
+
+export type ToggleFavoriteResult =
+  | { ok: true; state: PlayerState; pinned: boolean }
+  | { ok: false; reason: 'not_owned' | 'shelf_full' };
+
+/**
+ * Vault 6-Slot Favorite Showcase Shelf: pins/unpins up to 6 owned collectibles.
+ */
+export function toggleFavoriteCollectible(
+  state: PlayerState,
+  collectibleId: string,
+): ToggleFavoriteResult {
+  const prev = state.favoriteCollectibleIds ?? [];
+  if (prev.includes(collectibleId)) {
+    return {
+      ok: true,
+      pinned: false,
+      state: {
+        ...state,
+        favoriteCollectibleIds: prev.filter((id) => id !== collectibleId),
+      },
+    };
+  }
+  if ((state.vault[collectibleId] ?? 0) < 1) {
+    return { ok: false, reason: 'not_owned' };
+  }
+  if (prev.length >= MAX_FAVORITE_COLLECTIBLES) {
+    return { ok: false, reason: 'shelf_full' };
+  }
+  return {
+    ok: true,
+    pinned: true,
+    state: {
+      ...state,
+      favoriteCollectibleIds: [...prev, collectibleId],
+    },
+  };
+}
+

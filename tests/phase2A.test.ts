@@ -39,9 +39,9 @@ const PHASE2_PACK_IDS: PackId[] = [
 
 describe('Phase 2A Layer 1: 12 New Packs (96 Original SVGs), Copyright Safety & Economy', () => {
   it('ships 12 new packs (96 collectibles) across holidays, pets, and squishy categories with 100% SVG coverage', () => {
-    expect(MYSTERY_PACKS).toHaveLength(30);
-    expect(COLLECTIBLES).toHaveLength(240);
-    expect(PACK_CATEGORIES.find((c) => c.id === 'all')?.label).toBe('All 30');
+    expect(MYSTERY_PACKS).toHaveLength(38);
+    expect(COLLECTIBLES).toHaveLength(310);
+    expect(PACK_CATEGORIES.find((c) => c.id === 'all')?.label).toBe('All 38');
 
     let phase2Count = 0;
     for (const packId of PHASE2_PACK_IDS) {
@@ -65,7 +65,7 @@ describe('Phase 2A Layer 1: 12 New Packs (96 Original SVGs), Copyright Safety & 
   });
 
   it('contains zero third-party copyrighted franchise names in packs or collectibles', () => {
-    const forbidden = /\b(disney|mickey|minnie|elsa|anna|olaf|frozen|pixar|marvel|simba|stitch|moana|ariel|cinderella|rapunzel|mulan|belle|aladdin|genie|pok[eé]mon|sanrio|hello\s*kitty|squishmallow)\b/i;
+    const forbidden = /\b(disney|mickey|minnie|elsa|anna|olaf|frozen|pixar|marvel|simba|stitch|moana|ariel|cinderella|rapunzel|mulan|belle|aladdin|genie|pok[eé]mon|sanrio|hello\s*kitty|squishmallow|dumbo|pikachu|kuromi|cinnamoroll|kirby|snoopy)\b/i;
     for (const p of MYSTERY_PACKS) {
       expect(forbidden.test(`${p.id} ${p.name} ${p.subtitle}`), `Copyright risk in pack ${p.id}`).toBe(false);
     }
@@ -101,10 +101,10 @@ describe('Phase 2A Layer 1: 12 New Packs (96 Original SVGs), Copyright Safety & 
   });
 });
 
-describe('Phase 2A Layer 1: 600-Word Expansion Rules (300 English + 300 Traditional Chinese)', () => {
-  it('validates all 30 new English sets (150 words) in Sprint, Upgrade, and Stage 3 Forge writing checks', () => {
+describe('Phase 2A Layer 1: Expansion Rules (English + Traditional Chinese)', () => {
+  it('validates all 30 Phase 2A English sets (150 words) in Sprint, Upgrade, and Stage 3 Forge writing checks', () => {
     expect(PHASE2_ENGLISH_SETS).toHaveLength(30);
-    expect(BUILTIN_WORD_SETS).toHaveLength(60);
+    expect(BUILTIN_WORD_SETS).toHaveLength(80);
 
     for (const set of PHASE2_ENGLISH_SETS) {
       const run = buildEnglishRun(set, () => 0.37);
@@ -131,9 +131,9 @@ describe('Phase 2A Layer 1: 600-Word Expansion Rules (300 English + 300 Traditio
     }
   });
 
-  it('validates all 30 new Traditional Chinese sets (150 words), 易錯辨析 proofreading safety, and 300-word importer auto-fill', () => {
+  it('validates all 30 Phase 2A Traditional Chinese sets (150 words), 易錯辨析 proofreading safety, and importer auto-fill', () => {
     expect(PHASE2_CHINESE_SETS).toHaveLength(30);
-    expect(BUILTIN_CHINESE_SETS).toHaveLength(60);
+    expect(BUILTIN_CHINESE_SETS).toHaveLength(80);
 
     const confusableSets = PHASE2_CHINESE_SETS.filter((s) => s.shortTag === '易錯辨析');
     expect(confusableSets.length).toBeGreaterThanOrEqual(5);

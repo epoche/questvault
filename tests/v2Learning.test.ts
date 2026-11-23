@@ -24,14 +24,15 @@ import {
 } from '../src/subjects/english/wordSets';
 import { evaluateWritingSubmission } from '../src/subjects/english/writingChecks';
 
-describe('v2+ 30-Pack 240-Collectible Catalog', () => {
-  it('ships 30 Mystery Packs with 8 Collectibles each (240 total) and 1 Chroma per pack', () => {
-    expect(MYSTERY_PACKS).toHaveLength(30);
-    expect(COLLECTIBLES).toHaveLength(240);
+describe('v2+ 38-Pack 310-Collectible Variable-Size Catalog', () => {
+  it('ships 38 Mystery Packs (6–12 collectibles each, 310 total) and 1 Chroma per pack', () => {
+    expect(MYSTERY_PACKS).toHaveLength(38);
+    expect(COLLECTIBLES).toHaveLength(310);
 
     for (const pack of MYSTERY_PACKS) {
       const items = COLLECTIBLES.filter((c) => c.packId === pack.id);
-      expect(items).toHaveLength(8);
+      expect(items.length).toBeGreaterThanOrEqual(6);
+      expect(items.length).toBeLessThanOrEqual(12);
       expect(items.filter((c) => c.rarity === 'chroma')).toHaveLength(1);
     }
   });
@@ -57,8 +58,8 @@ describe('v2 Word Mastery Tracking, Coverage & Daily Boss Rematch', () => {
 
     const tier3Row = getTierAccuracySummary(map, getTierWordCounts()).find((r) => r.tier === 3)!;
     expect(tier3Row.practicedWords).toBe(3);
-    expect(tier3Row.totalWords).toBe(85);
-    expect(tier3Row.coveragePct).toBe(4);
+    expect(tier3Row.totalWords).toBe(110);
+    expect(tier3Row.coveragePct).toBe(3);
   });
 
   it('builds a 1.5x Daily Boss Rematch when 3+ tricky words exist and caps it to once per day', () => {
