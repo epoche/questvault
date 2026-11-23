@@ -12,6 +12,7 @@ import {
 } from './core/economy';
 import { recordWordOutcome } from './core/mastery';
 import { createLocalStorageRepository } from './core/repository';
+import type { ReadingQuestSet } from './core/readingTypes';
 import type {
   CustomWordSetRecord,
   DifficultyTier,
@@ -41,7 +42,9 @@ import { HomeView } from './ui/views/HomeView';
 import { MarketView } from './ui/views/MarketView';
 import { MathPlacementView } from './ui/views/MathPlacementView';
 import { type MathCompletionPayload, MathRunView } from './ui/views/MathRunView';
+import { ParentView } from './ui/views/ParentView';
 import { PlacementView } from './ui/views/PlacementView';
+import { type ReadingCompletionPayload, ReadingRunView } from './ui/views/ReadingRunView';
 import { type RunCompletionPayload, RunView } from './ui/views/RunView';
 import { VaultView } from './ui/views/VaultView';
 import { WritingLogView } from './ui/views/WritingLogView';
@@ -54,8 +57,10 @@ export const App: React.FC = () => {
   const [activeEnglishSet, setActiveEnglishSet] = useState<WordSet | null>(null);
   const [activeMathSet, setActiveMathSet] = useState<MathQuestSet | null>(null);
   const [activeChineseSet, setActiveChineseSet] = useState<ChineseWordSet | null>(null);
+  const [activeReadingSet, setActiveReadingSet] = useState<ReadingQuestSet | null>(null);
   const [placementSubject, setPlacementSubject] = useState<SubjectId | null>(null);
   const [activeBlitzSubject, setActiveBlitzSubject] = useState<SubjectId | null>(null);
+  const [parentOpen, setParentOpen] = useState(false);
 
   const [activePull, setActivePull] = useState<PackPullViewData | null>(null);
   const [importerSubject, setImporterSubject] = useState<'english' | 'chinese' | null>(null);
@@ -70,7 +75,13 @@ export const App: React.FC = () => {
   const showZhuyin = Boolean(player.showZhuyin);
 
   const inActiveSession = Boolean(
-    activeEnglishSet || activeMathSet || activeChineseSet || placementSubject || activeBlitzSubject,
+    activeEnglishSet ||
+      activeMathSet ||
+      activeChineseSet ||
+      activeReadingSet ||
+      placementSubject ||
+      activeBlitzSubject ||
+      parentOpen,
   );
 
   useEffect(() => {
@@ -89,16 +100,20 @@ export const App: React.FC = () => {
     activeEnglishSet,
     activeMathSet,
     activeChineseSet,
+    activeReadingSet,
     placementSubject,
     activeBlitzSubject,
+    parentOpen,
   ]);
 
   const clearActiveSession = () => {
     setActiveEnglishSet(null);
     setActiveMathSet(null);
     setActiveChineseSet(null);
+    setActiveReadingSet(null);
     setPlacementSubject(null);
     setActiveBlitzSubject(null);
+    setParentOpen(false);
   };
 
   const handleSelectSubject = (subjectId: SubjectId) => {
@@ -349,12 +364,29 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleCompleteReadingRun = (payload: ReadingCompletionPayload) => {
+    setPlayer((prev) => {
+      const completedSet = prev.completedQuestSetIds.includes(payload.summary.questSetId)
+        ? prev.completedQuestSetIds
+        : [...prev.completedQuestSetIds, payload.summary.questSetId];
+      const todayKey = getLocalDateKey();
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + payload.summary.tokensEarned,
+        completedQuestSetIds: completedSet,
+        runHistory: [payload.summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(updated, payload.summary.subjectId, todayKey);
+    });
+  };
+
   const handleSaveCustomSet = (record: CustomWordSetRecord) => {
     setPlayer((prev) => ({
       ...prev,
       customWordSets: [record, ...prev.customWordSets],
     }));
     setImporterSubject(null);
+    setParentOpen(false);
     if (record.subjectId === 'chinese') {
       setActiveChineseSet(customChineseRecordToWordSet(record));
     } else {
@@ -392,6 +424,10 @@ export const App: React.FC = () => {
           onRenamePlayer={(displayName) =>
             setPlayer((prev) => ({ ...prev, displayName }))
           }
+          onOpenParent={() => {
+            clearActiveSession();
+            setParentOpen(true);
+          }}
         />
 
         <main
@@ -399,7 +435,35 @@ export const App: React.FC = () => {
             inActiveSession ? 'pb-8' : 'pb-24 lg:pb-12'
           }`}
         >
-          {activeBlitzSubject ? (
+          {parentOpen ? (
+            <ParentView
+              player={player}
+              onExit={() => setParentOpen(false)}
+              onStartEnglishRun={(set) => {
+                setParentOpen(false);
+                setActiveEnglishSet(set);
+              }}
+              onStartChineseRun={(set) => {
+                setParentOpen(false);
+                setActiveChineseSet(set);
+              }}
+              onOpenCustomImporter={(subj) => setImporterSubject(subj)}
+              onDeleteCustomSet={handleDeleteCustomSet}
+            />
+          ) : activeReadingSet ? (
+            <ReadingRunView
+              questSet={activeReadingSet}
+              equippedCollectibleId={player.equippedCollectibleId}
+              showZhuyin={showZhuyin}
+              onToggleZhuyin={handleToggleZhuyin}
+              onExit={() => setActiveReadingSet(null)}
+              onCompleteReading={handleCompleteReadingRun}
+              onGoToMarket={() => {
+                setActiveReadingSet(null);
+                setActiveTab('market');
+              }}
+            />
+          ) : activeBlitzSubject ? (
             <BlitzView
               subjectId={activeBlitzSubject}
               activeTier={
@@ -511,6 +575,7 @@ export const App: React.FC = () => {
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
               onStartMathRun={(set) => setActiveMathSet(set)}
               onStartChineseRun={(set) => setActiveChineseSet(set)}
+              onStartReadingRun={(set) => setActiveReadingSet(set)}
               onOpenCustomImporter={(subj) => setImporterSubject(subj)}
               onDeleteCustomSet={handleDeleteCustomSet}
               onGoToMarket={() => setActiveTab('market')}

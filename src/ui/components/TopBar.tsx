@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Coins,
   Grid2x2,
+  KeyRound,
   NotebookPen,
   Pencil,
   ShoppingBag,
@@ -28,6 +29,7 @@ interface TopBarProps {
   onSelectSubject: (subjectId: SubjectId) => void;
   onToggleMute: () => void;
   onRenamePlayer: (name: string) => void;
+  onOpenParent: () => void;
 }
 
 const NAV_ITEMS: { id: NavTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -46,6 +48,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onSelectSubject,
   onToggleMute,
   onRenamePlayer,
+  onOpenParent,
 }) => {
   const [subjectMenuOpen, setSubjectMenuOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -69,9 +72,9 @@ export const TopBar: React.FC<TopBarProps> = ({
         className="sticky top-0 z-30 border-b border-[#E5DFD3] bg-[#FAF7F2]/95 backdrop-blur-sm"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 sm:gap-3 px-3 py-2.5 sm:px-6 sm:py-3">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-1.5 sm:gap-3 px-2.5 py-2 sm:px-6 sm:py-3">
           {/* Left: Avatar + Brand + Subject Switcher */}
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
               onClick={() => onSelectTab('vault')}
@@ -80,14 +83,14 @@ export const TopBar: React.FC<TopBarProps> = ({
             >
               <CollectibleArt
                 id={player.equippedCollectibleId}
-                size={38}
+                size={36}
                 shiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
                 className="rounded-xl"
               />
             </button>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 {editingName ? (
                   <div className="flex items-center gap-1">
                     <input
@@ -123,7 +126,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <button
                       type="button"
                       onClick={() => onSelectTab('quests')}
-                      className="font-display text-base sm:text-lg font-extrabold text-[#1C1917] whitespace-nowrap hover:text-[#2563EB] transition-colors"
+                      className="font-display text-sm sm:text-lg font-extrabold text-[#1C1917] whitespace-nowrap hover:text-[#2563EB] transition-colors"
                       title="Go to Quests Home"
                     >
                       QuestVault
@@ -134,13 +137,13 @@ export const TopBar: React.FC<TopBarProps> = ({
                       <button
                         type="button"
                         onClick={() => setSubjectMenuOpen((v) => !v)}
-                        className="qv-btn inline-flex min-h-[36px] items-center gap-1 rounded-full border border-[#D8D0C1] bg-white px-3 py-1 text-xs font-bold text-[#1C1917] whitespace-nowrap"
+                        className="qv-btn inline-flex min-h-[32px] sm:min-h-[36px] items-center gap-0.5 sm:gap-1 rounded-full border border-[#D8D0C1] bg-white px-2 sm:px-3 py-0.5 sm:py-1 text-[11px] sm:text-xs font-bold text-[#1C1917] whitespace-nowrap"
                       >
                         <span>{activeSubject.shortLabel}</span>
                         <span className="hidden lg:inline text-[#57534E] font-semibold">
                           · {activeSubject.gradeTag}
                         </span>
-                        <ChevronDown className="h-3.5 w-3.5 text-[#57534E]" />
+                        <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#57534E]" />
                       </button>
 
                       {subjectMenuOpen && (
@@ -236,26 +239,36 @@ export const TopBar: React.FC<TopBarProps> = ({
             })}
           </nav>
 
-          {/* Right: Token Pill + Mute */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Right: Token Pill + Parent Corner + Mute */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={() => onSelectTab('market')}
-              className="qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-full border-2 border-[#1C1917] bg-[#FEF3C7] px-3 sm:px-3.5 py-1.5 font-display text-sm font-extrabold text-[#1C1917] tabular-nums whitespace-nowrap"
+              className="qv-btn inline-flex min-h-[36px] sm:min-h-[38px] items-center gap-1 sm:gap-1.5 rounded-full border-2 border-[#1C1917] bg-[#FEF3C7] px-2.5 sm:px-3.5 py-1 sm:py-1.5 font-display text-xs sm:text-sm font-extrabold text-[#1C1917] tabular-nums whitespace-nowrap"
               title="Spend Tokens in Packs"
             >
-              <Coins className="h-4 w-4 text-[#D97706]" />
+              <Coins className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#D97706]" />
               <span>{player.tokens}</span>
               {player.tokens >= PACK_COST && (
-                <Sparkles className="h-3.5 w-3.5 text-[#D97706]" />
+                <Sparkles className="hidden sm:inline h-3.5 w-3.5 text-[#D97706]" />
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenParent}
+              aria-label="Parent Corner"
+              title="家長檢視室 Parent Corner"
+              className="qv-btn inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-[#E5DFD3] bg-white text-[#57534E] hover:text-[#1C1917]"
+            >
+              <KeyRound className="h-4 w-4" />
             </button>
 
             <button
               type="button"
               onClick={onToggleMute}
               aria-label={player.muted ? 'Unmute audio' : 'Mute audio'}
-              className="qv-btn inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#E5DFD3] bg-white text-[#57534E] hover:text-[#1C1917]"
+              className="qv-btn inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-[#E5DFD3] bg-white text-[#57534E] hover:text-[#1C1917]"
             >
               {player.muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>

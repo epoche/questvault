@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BookOpen,
+  BookText,
   Brain,
   Calculator,
   CheckCircle2,
@@ -17,6 +18,7 @@ import {
 import { DAILY_TRI_SUBJECT_BONUS } from '../../core/economy';
 import { getDueReviewItems, getTrickyWords } from '../../core/mastery';
 import { PACK_COST } from '../../core/packs';
+import type { ReadingQuestSet } from '../../core/readingTypes';
 import type { DifficultyTier, PlayerState, SubjectId } from '../../core/types';
 import { customChineseRecordToWordSet } from '../../subjects/chinese/chineseCustomParser';
 import {
@@ -24,6 +26,7 @@ import {
   buildChineseTrickyRematchSet,
 } from '../../subjects/chinese/chineseEngine';
 import { CHINESE_PLACEMENT_BONUS_TOKENS } from '../../subjects/chinese/chinesePlacement';
+import { getChineseReadingByTier } from '../../subjects/chinese/readingQuests';
 import type { ChineseWordSet } from '../../subjects/chinese/types';
 import {
   BUILTIN_CHINESE_SETS,
@@ -32,6 +35,7 @@ import {
 } from '../../subjects/chinese/wordSets';
 import { customRecordToWordSet } from '../../subjects/english/customParser';
 import { PLACEMENT_BONUS_TOKENS } from '../../subjects/english/placement';
+import { getEnglishReadingByTier } from '../../subjects/english/readingQuests';
 import {
   buildEnglishSrsReviewSet,
   buildTrickyRematchWordSet,
@@ -61,6 +65,7 @@ interface HomeViewProps {
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartMathRun: (questSet: MathQuestSet) => void;
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
+  onStartReadingRun: (questSet: ReadingQuestSet) => void;
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
   onDeleteCustomSet: (id: string) => void;
   onGoToMarket: () => void;
@@ -92,16 +97,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartEnglishRun,
   onStartMathRun,
   onStartChineseRun,
+  onStartReadingRun,
   onOpenCustomImporter,
   onDeleteCustomSet,
   onGoToMarket,
 }) => {
+  const [questMode, setQuestMode] = useState<'words' | 'stories'>('words');
   const packsReady = Math.floor(player.tokens / PACK_COST);
   const todayKey = getLocalDateKey();
 
   const enSets = getWordSetsByTier(activeTier);
   const mathSets = getMathSetsByTier(activeTier);
   const zhSets = getChineseSetsByTier(activeTier);
+  const enReadingSets = getEnglishReadingByTier(activeTier);
+  const zhReadingSets = getChineseReadingByTier(activeTier);
 
   const enCustomSets = player.customWordSets
     .filter((s) => (s.subjectId ?? 'english') === 'english')
@@ -490,8 +499,46 @@ export const HomeView: React.FC<HomeViewProps> = ({
           )}
         </div>
 
+        {/* Mode Switcher for English & Chinese: Word Quests vs Story Quests */}
+        {activeSubjectId !== 'math' && (
+          <div className="inline-flex items-center gap-1.5 rounded-2xl border-2 border-[#E5DFD3] bg-[#F3EFE7] p-1">
+            <button
+              type="button"
+              onClick={() => setQuestMode('words')}
+              className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                questMode === 'words'
+                  ? 'bg-white text-[#1C1917] shadow-xs'
+                  : 'text-[#57534E] hover:text-[#1C1917]'
+              }`}
+            >
+              <BookOpen className="h-4 w-4 text-[#2563EB]" />
+              <span>
+                {activeSubjectId === 'chinese'
+                  ? `詞彙關卡 (${zhSets.length})`
+                  : `Word Quests (${enSets.length})`}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuestMode('stories')}
+              className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                questMode === 'stories'
+                  ? 'bg-white text-[#1C1917] shadow-xs'
+                  : 'text-[#57534E] hover:text-[#1C1917]'
+              }`}
+            >
+              <BookText className="h-4 w-4 text-[#DB2777]" />
+              <span>
+                {activeSubjectId === 'chinese'
+                  ? `短篇閱讀 (${zhReadingSets.length})`
+                  : `Story Quests (${enReadingSets.length})`}
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* Saved Custom School Word Sets — Surfaced ABOVE built-in cards for instant access */}
-        {activeSubjectId === 'english' && enCustomSets.length > 0 && (
+        {activeSubjectId === 'english' && questMode === 'words' && enCustomSets.length > 0 && (
           <div className="space-y-2.5">
             <h2 className="font-display text-base font-extrabold text-[#0F766E]">
               My School Word Sets ({enCustomSets.length})
@@ -540,7 +587,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
-        {activeSubjectId === 'chinese' && zhCustomSets.length > 0 && (
+        {activeSubjectId === 'chinese' && questMode === 'words' && zhCustomSets.length > 0 && (
           <div className="space-y-2.5">
             <h2 className="font-display text-base font-extrabold text-[#0F766E]">
               我的中文學校生字表 ({zhCustomSets.length})
@@ -589,8 +636,74 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
+        {/* Story Quests Grid (English & Traditional Chinese) */}
+        {activeSubjectId !== 'math' && questMode === 'stories' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {(activeSubjectId === 'chinese' ? zhReadingSets : enReadingSets).map((rq) => {
+              const done = player.completedQuestSetIds.includes(rq.id);
+              const isZh = activeSubjectId === 'chinese';
+              return (
+                <button
+                  key={rq.id}
+                  type="button"
+                  onClick={() => onStartReadingRun(rq)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: rq.bgHex }}
+                  >
+                    <CollectibleArt
+                      id={rq.emblemCollectibleId}
+                      size={68}
+                      className="border-2 border-[#1C1917]"
+                    />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: rq.accentHex }}
+                      >
+                        {rq.shortTag}
+                      </span>
+                      {done ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {isZh ? '已讀完' : 'Read'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
+                          <Coins className="h-3.5 w-3.5" />
+                          +50–65
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2.5">
+                    <h3 className="font-display text-xl font-extrabold text-[#1C1917]">
+                      {rq.title}
+                    </h3>
+                    <div className="space-y-1">
+                      {rq.passages.map((p, idx) => (
+                        <div
+                          key={p.id}
+                          className="text-xs font-bold text-[#57534E] flex items-center gap-1.5"
+                        >
+                          <BookText className="h-3.5 w-3.5 text-[#2563EB] shrink-0" />
+                          <span className="truncate">
+                            {isZh ? `短文 ${idx + 1}：${p.title}` : `Story ${idx + 1}: ${p.title}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Quest Cards Grid per Active Subject */}
-        {activeSubjectId === 'english' && (
+        {activeSubjectId === 'english' && questMode === 'words' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {enSets.map((ws) => {
               const done = player.completedQuestSetIds.includes(ws.id);
@@ -712,7 +825,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
-        {activeSubjectId === 'chinese' && (
+        {activeSubjectId === 'chinese' && questMode === 'words' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {zhSets.map((ws) => {
               const done = player.completedQuestSetIds.includes(ws.id);
