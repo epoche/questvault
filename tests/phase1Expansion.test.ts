@@ -76,9 +76,9 @@ describe('Layer 1: Math 20-Unit Infinite Dynamic Fuzz Suite (1,000+ generated ru
   });
 });
 
-describe('Layer 1: 300-Word Full-Catalog Quality Gate (150 English + 150 Traditional Chinese)', () => {
-  it('validates all 30 English sets (150 unique words): zero duplicates, fresh transfer sentences, zero leakage, multi-word idiom writing match', () => {
-    expect(BUILTIN_WORD_SETS).toHaveLength(30);
+describe('Layer 1: 600-Word Full-Catalog Quality Gate (300 English + 300 Traditional Chinese)', () => {
+  it('validates all 60 English sets (300 unique words): zero duplicates, fresh transfer sentences, zero leakage, multi-word idiom writing match', () => {
+    expect(BUILTIN_WORD_SETS).toHaveLength(60);
     const seenWords = new Set<string>();
     const seenSetIds = new Set<string>();
 
@@ -107,7 +107,7 @@ describe('Layer 1: 300-Word Full-Catalog Quality Gate (150 English + 150 Traditi
       }
     }
 
-    expect(seenWords.size).toBe(150);
+    expect(seenWords.size).toBe(300);
 
     // Every 5-word English set exposes all 5 words in Stage 3 Story Forge chips & checklist
     for (const set of BUILTIN_WORD_SETS) {
@@ -133,8 +133,8 @@ describe('Layer 1: 300-Word Full-Catalog Quality Gate (150 English + 150 Traditi
     ).toBe(true);
   });
 
-  it('validates all 30 Traditional Chinese sets (150 unique words): legal MOE Zhuyin, char alignment, zero leakage, and auto-fill importer', () => {
-    expect(BUILTIN_CHINESE_SETS).toHaveLength(30);
+  it('validates all 60 Traditional Chinese sets (300 unique words): legal MOE Zhuyin, char alignment, zero leakage, and auto-fill importer', () => {
+    expect(BUILTIN_CHINESE_SETS).toHaveLength(60);
     const seenWords = new Set<string>();
     const seenSetIds = new Set<string>();
     // Legal Taiwan MOE Zhuyin syllable: optional neutral dot, 1-3 Bopomofo symbols, optional tone mark
@@ -175,9 +175,9 @@ describe('Layer 1: 300-Word Full-Catalog Quality Gate (150 English + 150 Traditi
       }
     }
 
-    expect(seenWords.size).toBe(150);
+    expect(seenWords.size).toBe(300);
 
-    // Parent Chinese Importer auto-fills from the expanded 150-word dictionary!
+    // Parent Chinese Importer auto-fills from the expanded 300-word dictionary!
     const imported = parseCustomChineseList('本週成語', '畫龍點睛、蝴蝶、分辨');
     expect(imported.ok).toBe(true);
     if (imported.ok) {
@@ -188,10 +188,10 @@ describe('Layer 1: 300-Word Full-Catalog Quality Gate (150 English + 150 Traditi
   });
 });
 
-describe('Layer 1: 18 Mystery Packs (144 Collectibles), Shiny 3-to-1 Craft, SRS, Daily Quest, Blitz Cap & v1 Compat', () => {
-  it('ships 18 unique packs (144 unique collectibles) across valid categories and enforces 3-to-1 Shiny crafting', () => {
-    expect(MYSTERY_PACKS).toHaveLength(18);
-    expect(COLLECTIBLES).toHaveLength(144);
+describe('Layer 1: 30 Mystery Packs (240 Collectibles), Shiny 3-to-1 Craft, SRS, Daily Quest, Blitz Cap & v1 Compat', () => {
+  it('ships 30 unique packs (240 unique collectibles) across valid categories and enforces 3-to-1 Shiny crafting', () => {
+    expect(MYSTERY_PACKS).toHaveLength(30);
+    expect(COLLECTIBLES).toHaveLength(240);
     const validCategories = new Set(PACK_CATEGORIES.map((c) => c.id));
     const seenIds = new Set<string>();
 

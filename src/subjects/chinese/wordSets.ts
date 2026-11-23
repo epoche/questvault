@@ -1,6 +1,7 @@
 import type { DifficultyTier } from '../../core/types';
 import type { ChineseTargetWord, ChineseWordSet } from './types';
 import { EXPANSION_CHINESE_SETS } from './wordSetsExpansion';
+import { PHASE2_CHINESE_SETS } from './wordSetsPhase2';
 
 export const CHINESE_TIER_META: Record<
   DifficultyTier,
@@ -969,6 +970,7 @@ export const BUILTIN_CHINESE_SETS: ChineseWordSet[] = [
     ],
   },
   ...EXPANSION_CHINESE_SETS,
+  ...PHASE2_CHINESE_SETS,
 ];
 
 export function getChineseSetsByTier(tier: DifficultyTier): ChineseWordSet[] {

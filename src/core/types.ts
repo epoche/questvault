@@ -10,7 +10,15 @@ export type Rarity =
   | 'legendary'
   | 'chroma';
 
-export type PackCategory = 'classic' | 'food' | 'nature' | 'adventure' | 'arts';
+export type PackCategory =
+  | 'classic'
+  | 'food'
+  | 'nature'
+  | 'adventure'
+  | 'arts'
+  | 'holidays'
+  | 'pets'
+  | 'squishy';
 
 export type PackId =
   | 'critter'
@@ -30,7 +38,19 @@ export type PackId =
   | 'mythology'
   | 'music'
   | 'arcade'
-  | 'crystal';
+  | 'crystal'
+  | 'halloween'
+  | 'lunar'
+  | 'winter'
+  | 'midautumn'
+  | 'easter'
+  | 'catcafe'
+  | 'capybara'
+  | 'forest'
+  | 'mochi'
+  | 'cloudsquishy'
+  | 'fairytale'
+  | 'fairyland';
 
 export interface RarityConfig {
   id: Rarity;

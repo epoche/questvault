@@ -24,10 +24,10 @@ import {
 } from '../src/subjects/english/wordSets';
 import { evaluateWritingSubmission } from '../src/subjects/english/writingChecks';
 
-describe('v2+ 18-Pack 144-Collectible Catalog', () => {
-  it('ships 18 Mystery Packs with 8 Collectibles each (144 total) and 1 Chroma per pack', () => {
-    expect(MYSTERY_PACKS).toHaveLength(18);
-    expect(COLLECTIBLES).toHaveLength(144);
+describe('v2+ 30-Pack 240-Collectible Catalog', () => {
+  it('ships 30 Mystery Packs with 8 Collectibles each (240 total) and 1 Chroma per pack', () => {
+    expect(MYSTERY_PACKS).toHaveLength(30);
+    expect(COLLECTIBLES).toHaveLength(240);
 
     for (const pack of MYSTERY_PACKS) {
       const items = COLLECTIBLES.filter((c) => c.packId === pack.id);
@@ -57,8 +57,8 @@ describe('v2 Word Mastery Tracking, Coverage & Daily Boss Rematch', () => {
 
     const tier3Row = getTierAccuracySummary(map, getTierWordCounts()).find((r) => r.tier === 3)!;
     expect(tier3Row.practicedWords).toBe(3);
-    expect(tier3Row.totalWords).toBe(45);
-    expect(tier3Row.coveragePct).toBe(7);
+    expect(tier3Row.totalWords).toBe(85);
+    expect(tier3Row.coveragePct).toBe(4);
   });
 
   it('builds a 1.5x Daily Boss Rematch when 3+ tricky words exist and caps it to once per day', () => {

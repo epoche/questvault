@@ -3,6 +3,7 @@ import { getCollectibleById } from '../../core/packs';
 import type { PackId } from '../../core/types';
 import { renderExtraCollectible } from './extraCollectibles';
 import { renderPhase1Collectible } from './phase1Collectibles';
+import { renderPhase2Collectible } from './phase2Collectibles';
 
 interface CollectibleArtProps {
   id: string;
@@ -565,7 +566,7 @@ export const CollectibleArt: React.FC<CollectibleArtProps> = ({
             </linearGradient>
           </defs>
         )}
-        {renderPhase1Collectible(id) ?? renderExtraCollectible(id) ?? renderCharacter(id)}
+        {renderPhase2Collectible(id) ?? renderPhase1Collectible(id) ?? renderExtraCollectible(id) ?? renderCharacter(id)}
         {showShiny && (
           <g>
             <rect x="0" y="0" width="100" height="100" fill={`url(#qv-foil-${id})`} />
@@ -601,6 +602,18 @@ export const PackEnvelopeArt: React.FC<{ packId: PackId; size?: number }> = ({
     music: { main: '#EC4899', top: '#F9A8D4', accent: '#FDF2F8', emblem: 'music-guitar-cat' },
     arcade: { main: '#0D9488', top: '#5EEAD4', accent: '#F0FDFA', emblem: 'arcade-beep-bot' },
     crystal: { main: '#6366F1', top: '#C7D2FE', accent: '#EEF2FF', emblem: 'crystal-sapphire-fox' },
+    halloween: { main: '#EA580C', top: '#A855F7', accent: '#FFF7ED', emblem: 'halloween-pumpkin-cat' },
+    lunar: { main: '#DC2626', top: '#FACC15', accent: '#FEF2F2', emblem: 'lunar-lion-pup' },
+    winter: { main: '#0284C7', top: '#BAE6FD', accent: '#F0F9FF', emblem: 'winter-snow-penguin' },
+    midautumn: { main: '#D97706', top: '#FDE68A', accent: '#FFFBEB', emblem: 'midautumn-mochi-rabbit' },
+    easter: { main: '#EC4899', top: '#FBCFE8', accent: '#FDF2F8', emblem: 'easter-egg-bunny' },
+    catcafe: { main: '#C2410C', top: '#FDBA74', accent: '#FFF7ED', emblem: 'catcafe-toast-tabby' },
+    capybara: { main: '#0D9488', top: '#99F6E4', accent: '#F0FDFA', emblem: 'capybara-yuzu-chill' },
+    forest: { main: '#15803D', top: '#86EFAC', accent: '#F0FDF4', emblem: 'forest-red-panda' },
+    mochi: { main: '#E11D48', top: '#FDA4AF', accent: '#FFF1F2', emblem: 'mochi-ichigo-daifuku' },
+    cloudsquishy: { main: '#7C3AED', top: '#DDD6FE', accent: '#F5F3FF', emblem: 'cloudsquishy-marshmallow-lamb' },
+    fairytale: { main: '#2563EB', top: '#93C5FD', accent: '#EFF6FF', emblem: 'fairytale-slipper-bunny' },
+    fairyland: { main: '#9333EA', top: '#E9D5FF', accent: '#FAF5FF', emblem: 'fairyland-dewdrop-pixie' },
   };
 
   const p = palette[packId];
@@ -622,7 +635,7 @@ export const PackEnvelopeArt: React.FC<{ packId: PackId; size?: number }> = ({
         <rect x="16" y="116" width="88" height="14" fill={p.top} opacity="0.6" />
         <rect x="26" y="34" width="68" height="68" rx="16" fill={p.accent} stroke="#1C1917" strokeWidth="3" />
         <g transform="translate(26, 34) scale(0.68)">
-          {renderPhase1Collectible(p.emblem) ?? renderExtraCollectible(p.emblem) ?? renderCharacter(p.emblem)}
+          {renderPhase2Collectible(p.emblem) ?? renderPhase1Collectible(p.emblem) ?? renderExtraCollectible(p.emblem) ?? renderCharacter(p.emblem)}
         </g>
         <circle cx="28" cy="112" r="3" fill="#FFFFFF" opacity="0.85" />
         <circle cx="92" cy="112" r="3" fill="#FFFFFF" opacity="0.85" />

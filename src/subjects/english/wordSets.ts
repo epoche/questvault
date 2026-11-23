@@ -1,6 +1,7 @@
 import type { DifficultyTier } from '../../core/types';
 import type { WordSet } from './types';
 import { EXPANSION_ENGLISH_SETS } from './wordSetsExpansion';
+import { PHASE2_ENGLISH_SETS } from './wordSetsPhase2';
 
 export const TIER_META: Record<
   DifficultyTier,
@@ -909,6 +910,7 @@ export const BUILTIN_WORD_SETS: WordSet[] = [
     ],
   },
   ...EXPANSION_ENGLISH_SETS,
+  ...PHASE2_ENGLISH_SETS,
 ];
 
 export function getWordSetsByTier(tier: DifficultyTier): WordSet[] {

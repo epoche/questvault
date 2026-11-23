@@ -3,7 +3,10 @@ import type { Collectible, MysteryPack, PackCategory, PackId, Rarity, RarityConf
 export const PACK_COST = 25;
 
 export const PACK_CATEGORIES: { id: 'all' | PackCategory; label: string }[] = [
-  { id: 'all', label: 'All 18' },
+  { id: 'all', label: 'All 30' },
+  { id: 'holidays', label: 'Holidays' },
+  { id: 'pets', label: 'Cute Animals' },
+  { id: 'squishy', label: 'Squishy & Fairytale' },
   { id: 'classic', label: 'Classic' },
   { id: 'food', label: 'Food & Café' },
   { id: 'nature', label: 'Nature' },
@@ -243,6 +246,120 @@ export const MYSTERY_PACKS: MysteryPack[] = [
     accentHex: '#6366F1',
     surfaceHex: '#EEF2FF',
   },
+
+  // HOLIDAYS (5 NEW)
+  {
+    id: 'halloween',
+    name: 'Halloween Spooky Pack',
+    subtitle: 'Pumpkin kitties, candy ghosts & midnight prism pumpkins',
+    category: 'holidays',
+    cost: PACK_COST,
+    accentHex: '#EA580C',
+    surfaceHex: '#FFF7ED',
+  },
+  {
+    id: 'lunar',
+    name: 'Lunar New Year Pack',
+    subtitle: 'Lion pups, red-envelope bunnies & jade cloud dragons',
+    category: 'holidays',
+    cost: PACK_COST,
+    accentHex: '#DC2626',
+    surfaceHex: '#FEF2F2',
+  },
+  {
+    id: 'winter',
+    name: 'Winter Holiday Pack',
+    subtitle: 'Gingerbread bears, cocoa fawns & aurora snow angels',
+    category: 'holidays',
+    cost: PACK_COST,
+    accentHex: '#0284C7',
+    surfaceHex: '#F0F9FF',
+  },
+  {
+    id: 'midautumn',
+    name: 'Mid-Autumn Moon Pack',
+    subtitle: 'Jade mochi rabbits, pomelo capybaras & harvest moon deer',
+    category: 'holidays',
+    cost: PACK_COST,
+    accentHex: '#D97706',
+    surfaceHex: '#FFFBEB',
+  },
+  {
+    id: 'easter',
+    name: 'Spring & Easter Pack',
+    subtitle: 'Painted-egg bunnies, tulip chicks & prism blossom fairies',
+    category: 'holidays',
+    cost: PACK_COST,
+    accentHex: '#EC4899',
+    surfaceHex: '#FDF2F8',
+  },
+
+  // CUTE ANIMALS (3 NEW)
+  {
+    id: 'catcafe',
+    name: 'Cat Café Pack',
+    subtitle: 'Toast tabbies, calico lattes & nebula fortune cats',
+    category: 'pets',
+    cost: PACK_COST,
+    accentHex: '#C2410C',
+    surfaceHex: '#FFF7ED',
+  },
+  {
+    id: 'capybara',
+    name: 'Capybara & Otter Pack',
+    subtitle: 'Yuzu capybaras, pearl sea otters & aurora hot-spring kings',
+    category: 'pets',
+    cost: PACK_COST,
+    accentHex: '#0D9488',
+    surfaceHex: '#F0FDFA',
+  },
+  {
+    id: 'forest',
+    name: 'Forest Friends Pack',
+    subtitle: 'Red pandas, snow titmice, flying squirrels & jade stags',
+    category: 'pets',
+    cost: PACK_COST,
+    accentHex: '#15803D',
+    surfaceHex: '#F0FDF4',
+  },
+
+  // SQUISHY & ORIGINAL FAIRYTALE (4 NEW)
+  {
+    id: 'mochi',
+    name: 'Mochi Squishy Pack',
+    subtitle: 'Soft strawberry daifuku, pudding kitties & aurora mochis',
+    category: 'squishy',
+    cost: PACK_COST,
+    accentHex: '#E11D48',
+    surfaceHex: '#FFF1F2',
+  },
+  {
+    id: 'cloudsquishy',
+    name: 'Cloud Squishy Pack',
+    subtitle: 'Marshmallow lambs, starry plush bears & galaxy whale pillows',
+    category: 'squishy',
+    cost: PACK_COST,
+    accentHex: '#7C3AED',
+    surfaceHex: '#F5F3FF',
+  },
+  {
+    id: 'fairytale',
+    name: 'Fairytale Castle Pack',
+    subtitle: 'Glass-slipper bunnies, pumpkin carriages & crystal castle dragons',
+    category: 'squishy',
+    cost: PACK_COST,
+    accentHex: '#2563EB',
+    surfaceHex: '#EFF6FF',
+  },
+  {
+    id: 'fairyland',
+    name: 'Starlight Fairyland Pack',
+    subtitle: 'Dewdrop pixies, mushroom sprites & eternal aurora fairy queens',
+    category: 'squishy',
+    cost: PACK_COST,
+    accentHex: '#9333EA',
+    surfaceHex: '#FAF5FF',
+  },
 ];
 
 export const COLLECTIBLES: Collectible[] = [
@@ -425,6 +542,126 @@ export const COLLECTIBLES: Collectible[] = [
   { id: 'crystal-ruby-dragon', name: 'Ruby Crown Dragon', packId: 'crystal', rarity: 'epic', tagline: 'Blazing crimson gem guarding the secret vault.', accentHex: '#E11D48', bgHex: '#FFE4E6' },
   { id: 'crystal-opal-unicorn', name: 'Moonstone Opal Unicorn', packId: 'crystal', rarity: 'legendary', tagline: 'Shimmers with pearly blue and gold fire.', accentHex: '#6366F1', bgHex: '#E0E7FF' },
   { id: 'crystal-chroma-diamond', name: 'Prism Diamond Spirit', packId: 'crystal', rarity: 'chroma', tagline: 'The rarest jewel in QuestVault refracting every color.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 19. HALLOWEEN SPOOKY PACK (8)
+  { id: 'halloween-pumpkin-cat', name: 'Pumpkin Patch Kitty', packId: 'halloween', rarity: 'common', tagline: 'Pops out of a carved pumpkin with a cozy grin.', accentHex: '#EA580C', bgHex: '#FFEDD5' },
+  { id: 'halloween-candy-ghost', name: 'Candy Corn Ghost', packId: 'halloween', rarity: 'common', tagline: 'Floats around sharing sweet treats and gentle boos.', accentHex: '#F59E0B', bgHex: '#FEF3C7' },
+  { id: 'halloween-witch-kitty', name: 'Starry Witch Cat', packId: 'halloween', rarity: 'uncommon', tagline: 'Wears a pointed violet hat dusted with gold stars.', accentHex: '#7C3AED', bgHex: '#EDE9FE' },
+  { id: 'halloween-berry-bat', name: 'Berry Gummy Bat', packId: 'halloween', rarity: 'uncommon', tagline: 'Flutters upside down memorizing spooky idioms.', accentHex: '#9333EA', bgHex: '#F3E8FF' },
+  { id: 'halloween-broom-fox', name: 'Broomstick Fox', packId: 'halloween', rarity: 'rare', tagline: 'Zooms past the harvest moon on a lucky broom.', accentHex: '#D97706', bgHex: '#FEF3C7' },
+  { id: 'halloween-moon-owl', name: 'Midnight Moon Owl', packId: 'halloween', rarity: 'epic', tagline: 'Watches over glowing lanterns from an autumn oak.', accentHex: '#4F46E5', bgHex: '#E0E7FF' },
+  { id: 'halloween-star-vampire', name: 'Velvet Cape Bat', packId: 'halloween', rarity: 'legendary', tagline: 'A polite little count who adores classic mysteries.', accentHex: '#DC2626', bgHex: '#FEE2E2' },
+  { id: 'halloween-chroma-pumpkin', name: 'Prism Harvest King', packId: 'halloween', rarity: 'chroma', tagline: 'Glows with rainbow candlelight on Halloween night.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 20. LUNAR NEW YEAR PACK (8)
+  { id: 'lunar-lion-pup', name: 'Baby Lion Dancer Pup', packId: 'lunar', rarity: 'common', tagline: 'Bobs to cheerful drums bringing good luck all year.', accentHex: '#DC2626', bgHex: '#FEE2E2' },
+  { id: 'lunar-hongbao-bunny', name: 'Red Envelope Bunny', packId: 'lunar', rarity: 'common', tagline: 'Carries lucky gold greetings for every study streak.', accentHex: '#E11D48', bgHex: '#FFE4E6' },
+  { id: 'lunar-ingot-cat', name: 'Gold Ingot Kitten', packId: 'lunar', rarity: 'uncommon', tagline: 'Naps atop a gleaming golden yuanbao treasure.', accentHex: '#D97706', bgHex: '#FEF3C7' },
+  { id: 'lunar-niangao-bear', name: 'Sweet Rice Cake Bear', packId: 'lunar', rarity: 'uncommon', tagline: 'Wishes you higher and higher scores every new year.', accentHex: '#EA580C', bgHex: '#FFEDD5' },
+  { id: 'lunar-lantern-fish', name: 'Lantern Goldfish', packId: 'lunar', rarity: 'rare', tagline: 'Swims through warm red lantern light for abundance.', accentHex: '#F43F5E', bgHex: '#FFE4E6' },
+  { id: 'lunar-spark-fox', name: 'Firecracker Kitsune', packId: 'lunar', rarity: 'epic', tagline: 'Lights up the courtyard with festive golden sparks.', accentHex: '#B91C1C', bgHex: '#FEE2E2' },
+  { id: 'lunar-jade-dragon', name: 'Cloud Jade Dragon', packId: 'lunar', rarity: 'legendary', tagline: 'Soars gracefully above rosy spring festival clouds.', accentHex: '#059669', bgHex: '#D1FAE5' },
+  { id: 'lunar-chroma-koi', name: 'Prism Imperial Koi', packId: 'lunar', rarity: 'chroma', tagline: 'Leaps the rainbow waterfall to become a radiant dragon.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 21. WINTER HOLIDAY PACK (8)
+  { id: 'winter-ginger-bear', name: 'Gingerbread Cub', packId: 'winter', rarity: 'common', tagline: 'Frosted with white icing smiles and gumdrop buttons.', accentHex: '#B45309', bgHex: '#FEF3C7' },
+  { id: 'winter-cocoa-fawn', name: 'Hot Cocoa Fawn', packId: 'winter', rarity: 'common', tagline: 'Topped with fluffy mini marshmallows after snow play.', accentHex: '#92400E', bgHex: '#FEF3C7' },
+  { id: 'winter-snow-penguin', name: 'Snowman Penguin', packId: 'winter', rarity: 'uncommon', tagline: 'Bundles up in a striped red scarf and top hat.', accentHex: '#0284C7', bgHex: '#E0F2FE' },
+  { id: 'winter-peppermint-bunny', name: 'Candy Cane Bunny', packId: 'winter', rarity: 'uncommon', tagline: 'Minty red-and-white stripes bringing cozy cheer.', accentHex: '#DC2626', bgHex: '#FEE2E2' },
+  { id: 'winter-pinecone-owl', name: 'Evergreen Snowy Owl', packId: 'winter', rarity: 'rare', tagline: 'Perches beside twinkling holiday tree lights.', accentHex: '#15803D', bgHex: '#DCFCE7' },
+  { id: 'winter-sleigh-husky', name: 'Jingle Sleigh Husky', packId: 'winter', rarity: 'epic', tagline: 'Races through silver snow with cheerful sleigh bells.', accentHex: '#2563EB', bgHex: '#DBEAFE' },
+  { id: 'winter-aurora-reindeer', name: 'Northern Star Reindeer', packId: 'winter', rarity: 'legendary', tagline: 'Guides winter gift sleighs across the starry pole.', accentHex: '#D97706', bgHex: '#FEF3C7' },
+  { id: 'winter-chroma-snowflake', name: 'Prism Snow Angel', packId: 'winter', rarity: 'chroma', tagline: 'Crystallizes rainbow starlight in every winter flurry.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 22. MID-AUTUMN MOON PACK (8)
+  { id: 'midautumn-mochi-rabbit', name: 'Jade Mochi Rabbit', packId: 'midautumn', rarity: 'common', tagline: 'Pounds sweet rice cakes under a glowing full moon.', accentHex: '#F59E0B', bgHex: '#FEF3C7' },
+  { id: 'midautumn-mooncake-cat', name: 'Mooncake Kitty', packId: 'midautumn', rarity: 'common', tagline: 'Golden pastry crust stamped with a lucky blossom.', accentHex: '#B45309', bgHex: '#FEF3C7' },
+  { id: 'midautumn-pomelo-capy', name: 'Pomelo Hat Capybara', packId: 'midautumn', rarity: 'uncommon', tagline: 'Balances a fresh green pomelo peel hat with calm joy.', accentHex: '#65A30D', bgHex: '#ECFCCB' },
+  { id: 'midautumn-osmanthus-fawn', name: 'Osmanthus Blossom Fawn', packId: 'midautumn', rarity: 'uncommon', tagline: 'Carries the sweet autumn scent of tiny golden flowers.', accentHex: '#CA8A04', bgHex: '#FEF9C3' },
+  { id: 'midautumn-lantern-squirrel', name: 'Paper Lantern Squirrel', packId: 'midautumn', rarity: 'rare', tagline: 'Carries a glowing amber lantern along twilight trails.', accentHex: '#EA580C', bgHex: '#FFEDD5' },
+  { id: 'midautumn-star-fox', name: 'Crescent Moon Fox', packId: 'midautumn', rarity: 'epic', tagline: 'Leaps across silver clouds to visit the moon palace.', accentHex: '#4F46E5', bgHex: '#E0E7FF' },
+  { id: 'midautumn-palace-bunny', name: 'Moon Palace Rabbit', packId: 'midautumn', rarity: 'legendary', tagline: 'Royal keeper of golden tea and autumn poetry.', accentHex: '#D97706', bgHex: '#FEF3C7' },
+  { id: 'midautumn-chroma-deer', name: 'Prism Harvest Moon Deer', packId: 'midautumn', rarity: 'chroma', tagline: 'Antlers cradling a shimmering rainbow full moon.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 23. SPRING & EASTER PACK (8)
+  { id: 'easter-egg-bunny', name: 'Painted Egg Bunny', packId: 'easter', rarity: 'common', tagline: 'Hides pastel polka-dot eggs across sunny gardens.', accentHex: '#EC4899', bgHex: '#FCE7F3' },
+  { id: 'easter-tulip-chick', name: 'Tulip Sprout Chick', packId: 'easter', rarity: 'common', tagline: 'Peeks right out of a bright spring tulip cup.', accentHex: '#EAB308', bgHex: '#FEF9C3' },
+  { id: 'easter-honey-bear', name: 'Clover Honey Cub', packId: 'easter', rarity: 'uncommon', tagline: 'Wears a tiny daisy crown on sunny morning picnics.', accentHex: '#F59E0B', bgHex: '#FEF3C7' },
+  { id: 'easter-blossom-lamb', name: 'Flower Wreath Lamb', packId: 'easter', rarity: 'uncommon', tagline: 'Fluffy wool braided with lavender and pink blooms.', accentHex: '#A855F7', bgHex: '#F3E8FF' },
+  { id: 'easter-ribbon-duck', name: 'Ribbon Puddle Duckling', packId: 'easter', rarity: 'rare', tagline: 'Splashes through warm spring rain wearing a satin bow.', accentHex: '#0EA5E9', bgHex: '#E0F2FE' },
+  { id: 'easter-sakura-squirrel', name: 'Cherry Petal Squirrel', packId: 'easter', rarity: 'epic', tagline: 'Gathers drifting pink blossoms in a woven basket.', accentHex: '#F43F5E', bgHex: '#FFE4E6' },
+  { id: 'easter-rainbow-pixie', name: 'Sunshower Bloom Sprite', packId: 'easter', rarity: 'legendary', tagline: 'Paints double rainbows after every April shower.', accentHex: '#10B981', bgHex: '#D1FAE5' },
+  { id: 'easter-chroma-bunny', name: 'Prism Spring Hare', packId: 'easter', rarity: 'chroma', tagline: 'Trails glittering pastel stardust wherever it hops.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 24. CAT CAFÉ PACK (8)
+  { id: 'catcafe-toast-tabby', name: 'Butter Toast Tabby', packId: 'catcafe', rarity: 'common', tagline: 'Warm golden stripes smelling just like morning toast.', accentHex: '#EA580C', bgHex: '#FFEDD5' },
+  { id: 'catcafe-calico-latte', name: 'Calico Foam Latte', packId: 'catcafe', rarity: 'common', tagline: 'Three cozy colors swirled into sweet steamed milk.', accentHex: '#B45309', bgHex: '#FEF3C7' },
+  { id: 'catcafe-ragdoll-cream', name: 'Whipped Cream Ragdoll', packId: 'catcafe', rarity: 'uncommon', tagline: 'Sapphire blue eyes and cloud-soft fluffy cheeks.', accentHex: '#0284C7', bgHex: '#E0F2FE' },
+  { id: 'catcafe-donut-blackcat', name: 'Glazed Donut Kitty', packId: 'catcafe', rarity: 'uncommon', tagline: 'Sleek midnight fur topped with rainbow sprinkles.', accentHex: '#334155', bgHex: '#F1F5F9' },
+  { id: 'catcafe-matcha-stripe', name: 'Matcha Whisker Cat', packId: 'catcafe', rarity: 'rare', tagline: 'Whisks frothy green tea for quiet reading afternoons.', accentHex: '#16A34A', bgHex: '#DCFCE7' },
+  { id: 'catcafe-macaron-siamese', name: 'Macaron Siamese', packId: 'catcafe', rarity: 'epic', tagline: 'Elegant café host balancing a pastel berry tray.', accentHex: '#EC4899', bgHex: '#FCE7F3' },
+  { id: 'catcafe-royal-persian', name: 'Crown Persian Queen', packId: 'catcafe', rarity: 'legendary', tagline: 'Lounges on velvet cushions grading top sentences.', accentHex: '#D97706', bgHex: '#FEF3C7' },
+  { id: 'catcafe-chroma-maneki', name: 'Nebula Fortune Cat', packId: 'catcafe', rarity: 'chroma', tagline: 'Cosmic café guardian shimmering with starry luck.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 25. CAPYBARA & OTTER PACK (8)
+  { id: 'capybara-yuzu-chill', name: 'Yuzu Capybara', packId: 'capybara', rarity: 'common', tagline: 'Balances a bright yellow citrus with total zen.', accentHex: '#D97706', bgHex: '#FEF3C7' },
+  { id: 'capybara-shell-otter', name: 'Scallop Sea Otter', packId: 'capybara', rarity: 'common', tagline: 'Holds its favorite lucky shell while floating happily.', accentHex: '#0D9488', bgHex: '#CCFBF1' },
+  { id: 'capybara-onsen-steam', name: 'Hot Spring Capybara', packId: 'capybara', rarity: 'uncommon', tagline: 'Relaxes with a folded warm towel right on its head.', accentHex: '#0284C7', bgHex: '#E0F2FE' },
+  { id: 'capybara-ducky-pal', name: 'Ducky Buddy Capybara', packId: 'capybara', rarity: 'uncommon', tagline: 'Always gives its tiny yellow duck friend a piggyback.', accentHex: '#EAB308', bgHex: '#FEF9C3' },
+  { id: 'capybara-starfish-otter', name: 'Starfish River Otter', packId: 'capybara', rarity: 'rare', tagline: 'Tumbles through sparkling waves chasing sea stars.', accentHex: '#EC4899', bgHex: '#FCE7F3' },
+  { id: 'capybara-berry-capy', name: 'Strawberry Capybara', packId: 'capybara', rarity: 'epic', tagline: 'Tucks a sweet garden berry beside its rosy ear.', accentHex: '#E11D48', bgHex: '#FFE4E6' },
+  { id: 'capybara-pearl-otter', name: 'Pearl Crown Otter', packId: 'capybara', rarity: 'legendary', tagline: 'Guards a gleaming ocean pearl in a kelp palace.', accentHex: '#4F46E5', bgHex: '#E0E7FF' },
+  { id: 'capybara-chroma-king', name: 'Aurora Onsen Capybara', packId: 'capybara', rarity: 'chroma', tagline: 'Radiates peaceful rainbow mist across the whole vault.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 26. FOREST FRIENDS PACK (8)
+  { id: 'forest-red-panda', name: 'Cinnamon Red Panda', packId: 'forest', rarity: 'common', tagline: 'Fluffy striped tail curling around maple branches.', accentHex: '#EA580C', bgHex: '#FFEDD5' },
+  { id: 'forest-snow-tit', name: 'Snow Puff Titmouse', packId: 'forest', rarity: 'common', tagline: 'A tiny round winter bird soft as a cotton ball.', accentHex: '#64748B', bgHex: '#F1F5F9' },
+  { id: 'forest-glider-squirrel', name: 'Leaf Glider Squirrel', packId: 'forest', rarity: 'uncommon', tagline: 'Soars gently from pine to pine with wide bright eyes.', accentHex: '#B45309', bgHex: '#FEF3C7' },
+  { id: 'forest-berry-hog', name: 'Blueberry Hedgehog', packId: 'forest', rarity: 'uncommon', tagline: 'Carries sweet wild berries back to its mossy den.', accentHex: '#2563EB', bgHex: '#DBEAFE' },
+  { id: 'forest-cherry-fawn', name: 'Spotted Meadow Fawn', packId: 'forest', rarity: 'rare', tagline: 'Tiptoes silently through sunlit ferns and clover.', accentHex: '#16A34A', bgHex: '#DCFCE7' },
+  { id: 'forest-acorn-fox', name: 'Acorn Cap Fox', packId: 'forest', rarity: 'epic', tagline: 'Clever woodland scout wearing a tiny oak beret.', accentHex: '#D97706', bgHex: '#FEF3C7' },
+  { id: 'forest-moon-wolf', name: 'Silver Moon Wolf', packId: 'forest', rarity: 'legendary', tagline: 'Gentle guardian howling softly beneath northern pines.', accentHex: '#4F46E5', bgHex: '#E0E7FF' },
+  { id: 'forest-chroma-stag', name: 'Emerald Prism Stag', packId: 'forest', rarity: 'chroma', tagline: 'Blooming crystal antlers lighting the ancient woods.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 27. MOCHI SQUISHY PACK (8)
+  { id: 'mochi-ichigo-daifuku', name: 'Strawberry Daifuku', packId: 'mochi', rarity: 'common', tagline: 'Ultra-squishy pink mochi hugging a juicy red berry.', accentHex: '#E11D48', bgHex: '#FFE4E6' },
+  { id: 'mochi-mango-puff', name: 'Mango Cream Mochi', packId: 'mochi', rarity: 'common', tagline: 'Sunny slow-rising squishy filled with tropical cream.', accentHex: '#F59E0B', bgHex: '#FEF3C7' },
+  { id: 'mochi-pudding-cat', name: 'Caramel Pudding Kitty', packId: 'mochi', rarity: 'uncommon', tagline: 'Jiggles cheerfully with a glossy caramel hat.', accentHex: '#D97706', bgHex: '#FEF3C7' },
+  { id: 'mochi-boba-squish', name: 'Boba Cup Squishy', packId: 'mochi', rarity: 'uncommon', tagline: 'Pinchable milk-tea plush with chewy pearl cheeks.', accentHex: '#B45309', bgHex: '#FEF3C7' },
+  { id: 'mochi-cloud-souffle', name: 'Cloud Soufflé Bear', packId: 'mochi', rarity: 'rare', tagline: 'Fluffy pancake stack topped with melting golden butter.', accentHex: '#EA580C', bgHex: '#FFEDD5' },
+  { id: 'mochi-macaron-cub', name: 'Berry Macaron Cub', packId: 'mochi', rarity: 'epic', tagline: 'Pastel lavender shells sandwiching sweet vanilla cream.', accentHex: '#9333EA', bgHex: '#F3E8FF' },
+  { id: 'mochi-sundae-bunny', name: 'Rainbow Sundae Bunny', packId: 'mochi', rarity: 'legendary', tagline: 'Triple-scoop squishy crowned with a shiny cherry.', accentHex: '#EC4899', bgHex: '#FCE7F3' },
+  { id: 'mochi-chroma-star', name: 'Aurora Diamond Mochi', packId: 'mochi', rarity: 'chroma', tagline: 'Bounces back in dazzling pastel rainbow sparkles.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 28. CLOUD SQUISHY PACK (8)
+  { id: 'cloudsquishy-marshmallow-lamb', name: 'Marshmallow Lamb', packId: 'cloudsquishy', rarity: 'common', tagline: 'Puffy pillow-soft fleece ready for cozy study breaks.', accentHex: '#EC4899', bgHex: '#FCE7F3' },
+  { id: 'cloudsquishy-star-bear', name: 'Starry Pillow Bear', packId: 'cloudsquishy', rarity: 'common', tagline: 'Hugs a glowing golden star against pastel sky fur.', accentHex: '#EAB308', bgHex: '#FEF9C3' },
+  { id: 'cloudsquishy-moon-seal', name: 'Crescent Plush Seal', packId: 'cloudsquishy', rarity: 'uncommon', tagline: 'Round sleepy mochi seal drifting on silver clouds.', accentHex: '#0284C7', bgHex: '#E0F2FE' },
+  { id: 'cloudsquishy-peach-penguin', name: 'Peach Puff Penguin', packId: 'cloudsquishy', rarity: 'uncommon', tagline: 'Pastel coral tummy as squishy as a warm marshmallow.', accentHex: '#F97316', bgHex: '#FFEDD5' },
+  { id: 'cloudsquishy-mint-dino', name: 'Mint Marshmallow Dino', packId: 'cloudsquishy', rarity: 'rare', tagline: 'Tiny rounded spikes and the gentlest squishy hugs.', accentHex: '#10B981', bgHex: '#D1FAE5' },
+  { id: 'cloudsquishy-lavender-uni', name: 'Lavender Plush Unicorn', packId: 'cloudsquishy', rarity: 'epic', tagline: 'Dreamy lilac mane sparkling with sleepy stardust.', accentHex: '#7C3AED', bgHex: '#EDE9FE' },
+  { id: 'cloudsquishy-galaxy-whale', name: 'Galaxy Whale Pillow', packId: 'cloudsquishy', rarity: 'legendary', tagline: 'Sails across nebula clouds carrying bedtime stories.', accentHex: '#2563EB', bgHex: '#DBEAFE' },
+  { id: 'cloudsquishy-chroma-cloud', name: 'Prism Nebula Squishy', packId: 'cloudsquishy', rarity: 'chroma', tagline: 'The squishiest rainbow cloud creature ever imagined.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 29. FAIRYTALE CASTLE PACK (8 — 100% Original Public-Domain Folklore Inspired)
+  { id: 'fairytale-slipper-bunny', name: 'Glass Slipper Bunny', packId: 'fairytale', rarity: 'common', tagline: 'Dances to midnight chimes wearing shimmering crystal bows.', accentHex: '#0284C7', bgHex: '#E0F2FE' },
+  { id: 'fairytale-rose-teacup', name: 'Enchanted Rose Kitty', packId: 'fairytale', rarity: 'common', tagline: 'Perches beside a blooming crimson rose in a library.', accentHex: '#E11D48', bgHex: '#FFE4E6' },
+  { id: 'fairytale-carriage-mouse', name: 'Pumpkin Coach Mouse', packId: 'fairytale', rarity: 'uncommon', tagline: 'Steers a golden storybook carriage down starlit lanes.', accentHex: '#EA580C', bgHex: '#FFEDD5' },
+  { id: 'fairytale-lamp-fox', name: 'Golden Lamp Fox', packId: 'fairytale', rarity: 'uncommon', tagline: 'Grants three clever word wishes from swirling starlight.', accentHex: '#D97706', bgHex: '#FEF3C7' },
+  { id: 'fairytale-shell-mermaid', name: 'Pearl Shell Seahorse', packId: 'fairytale', rarity: 'rare', tagline: 'Sings coral ballads beneath sunlit ocean arches.', accentHex: '#0D9488', bgHex: '#CCFBF1' },
+  { id: 'fairytale-frost-swan', name: 'Snow Crystal Swan', packId: 'fairytale', rarity: 'epic', tagline: 'Glides across an icy mirror lake in a silver tiara.', accentHex: '#3B82F6', bgHex: '#DBEAFE' },
+  { id: 'fairytale-harp-pegasus', name: 'Golden Harp Pegasus', packId: 'fairytale', rarity: 'legendary', tagline: 'Climbs giant beanstalk clouds to celestial castles.', accentHex: '#CA8A04', bgHex: '#FEF9C3' },
+  { id: 'fairytale-chroma-dragon', name: 'Prism Castle Dragon', packId: 'fairytale', rarity: 'chroma', tagline: 'Protects every happily-ever-after in shimmering turrets.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
+
+  // 30. STARLIGHT FAIRYLAND PACK (8 — 100% Original Fairyland Fantasy)
+  { id: 'fairyland-dewdrop-pixie', name: 'Dewdrop Petal Pixie', packId: 'fairyland', rarity: 'common', tagline: 'Collects morning raindrops in tiny bellflower cups.', accentHex: '#0EA5E9', bgHex: '#E0F2FE' },
+  { id: 'fairyland-mushroom-cat', name: 'Toadstool Sprite Cat', packId: 'fairyland', rarity: 'common', tagline: 'Naps beneath a glowing spotted fairy-ring umbrella.', accentHex: '#DC2626', bgHex: '#FEE2E2' },
+  { id: 'fairyland-firefly-fawn', name: 'Glow-Lantern Fawn', packId: 'fairyland', rarity: 'uncommon', tagline: 'Guides lost fireflies home through twilight meadows.', accentHex: '#65A30D', bgHex: '#ECFCCB' },
+  { id: 'fairyland-rainbow-foal', name: 'Pastel Rainbow Foal', packId: 'fairyland', rarity: 'uncommon', tagline: 'Gallops along prism bridges above misty waterfalls.', accentHex: '#EC4899', bgHex: '#FCE7F3' },
+  { id: 'fairyland-wand-owl', name: 'Starwand Owl', packId: 'fairyland', rarity: 'rare', tagline: 'Traces sparkling constellations in the evening sky.', accentHex: '#7C3AED', bgHex: '#EDE9FE' },
+  { id: 'fairyland-moon-butterfly', name: 'Moonbeam Fairy Moth', packId: 'fairyland', rarity: 'epic', tagline: 'Dusts storybooks with gentle silver wing-shimmer.', accentHex: '#4F46E5', bgHex: '#E0E7FF' },
+  { id: 'fairyland-dream-pegasus', name: 'Cloudspire Alicorn', packId: 'fairyland', rarity: 'legendary', tagline: 'Weaves glowing dreams from moonbeams and cloud fluff.', accentHex: '#9333EA', bgHex: '#F3E8FF' },
+  { id: 'fairyland-chroma-queen', name: 'Aurora Fairy Sovereign', packId: 'fairyland', rarity: 'chroma', tagline: 'Crowned in northern lights across the entire starlight realm.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
 ];
 
 export const STARTER_COLLECTIBLE_ID = 'critter-sprout-bunny';
