@@ -30,6 +30,7 @@ import {
   getQuestRewardPolicy,
   getTodayArcadeTokensEarned,
 } from '../../core/economy';
+import { pickFocusRecommendation } from '../../core/focusPlanner';
 import { getDueReviewItems, getTrickyWords } from '../../core/mastery';
 import { countClinicPatients, type MixedWarmupMode } from '../../core/mixedWarmupEngine';
 import { getPackById, MIN_PACK_COST } from '../../core/packs';
@@ -375,14 +376,53 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const nextMath = mathSets.find((s) => !player.completedQuestSetIds.includes(s.id)) ?? mathSets[0];
   const nextZh = zhSets.find((s) => !player.completedQuestSetIds.includes(s.id)) ?? zhSets[0];
 
+  const focusRec = useMemo(
+    () => pickFocusRecommendation(player, activeSubjectId),
+    [player, activeSubjectId],
+  );
+
+  const focusLaunchAvailable =
+    focusRec !== null &&
+    ((focusRec.action.kind === 'clock-measure' && Boolean(onStartClockMeasureUnit)) ||
+      (focusRec.action.kind === 'bar-model' && Boolean(onStartBarModelUnit)) ||
+      focusRec.action.kind === 'chinese-reading' ||
+      focusRec.action.kind === 'english-word' ||
+      (focusRec.action.kind === 'logic-lab' && Boolean(onOpenLogicLab)));
+
   const heroTitle =
-    activeSubjectId === 'english'
-      ? `Play ${nextEn.title}`
-      : activeSubjectId === 'math'
-        ? `Play ${nextMath.title}`
-        : `開始 ${nextZh.title}`;
+    focusLaunchAvailable && focusRec
+      ? isZh
+        ? focusRec.ctaTitleZh
+        : focusRec.ctaTitleEn
+      : activeSubjectId === 'english'
+        ? `Play ${nextEn.title}`
+        : activeSubjectId === 'math'
+          ? `Play ${nextMath.title}`
+          : `開始 ${nextZh.title}`;
+
+  const heroFocusBadge =
+    focusLaunchAvailable && focusRec ? (isZh ? focusRec.badgeZh : focusRec.badgeEn) : undefined;
 
   const handleHeroPlay = () => {
+    if (focusLaunchAvailable && focusRec) {
+      switch (focusRec.action.kind) {
+        case 'clock-measure':
+          onStartClockMeasureUnit?.(focusRec.action.unit);
+          return;
+        case 'bar-model':
+          onStartBarModelUnit?.(focusRec.action.unit);
+          return;
+        case 'chinese-reading':
+          onStartReadingRun(focusRec.action.set);
+          return;
+        case 'english-word':
+          onStartEnglishRun(focusRec.action.set);
+          return;
+        case 'logic-lab':
+          onOpenLogicLab?.();
+          return;
+      }
+    }
     if (activeSubjectId === 'english') onStartEnglishRun(nextEn);
     else if (activeSubjectId === 'math') onStartMathRun(nextMath);
     else onStartChineseRun(nextZh);
@@ -459,6 +499,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         activeSubjectId={activeSubjectId}
         todayKey={todayKey}
         heroTitle={heroTitle}
+        focusBadge={heroFocusBadge}
         packsReady={packsReady}
         placementCompleted={placementCompleted}
         warmUpBonus={warmUpBonus}

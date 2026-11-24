@@ -14,12 +14,14 @@ import { HomeView } from '../../src/ui/views/HomeView';
 import { LookAlikeHanziView } from '../../src/ui/views/LookAlikeHanziView';
 import { MarketView } from '../../src/ui/views/MarketView';
 import { MathRunView } from '../../src/ui/views/MathRunView';
+import { MixedWarmupView } from '../../src/ui/views/MixedWarmupView';
 import { PlacementView } from '../../src/ui/views/PlacementView';
 import { VaultView } from '../../src/ui/views/VaultView';
 import { WritingLogView } from '../../src/ui/views/WritingLogView';
 import { getWeekDateKeys, recordAdventureStamp } from '../../src/core/adventureMap';
 import { compute14DayTrend } from '../../src/core/analytics';
 import { feedCritterTreat, petCritter, recordCritterPopQuizResult } from '../../src/core/critterCare';
+import { recordWordOutcome } from '../../src/core/mastery';
 import { ParentTrendSvg } from '../../src/ui/artwork/ParentTrendSvg';
 import { CritterRoomPanel } from '../../src/ui/components/CritterRoomPanel';
 import { DeviceVoiceSyncPanel } from '../../src/ui/components/DeviceVoiceSyncPanel';
@@ -610,7 +612,85 @@ describe('UI Component Regressions (happy-dom + React Testing Library)', () => {
     // Offline badge safely degrades in happy-dom / strict sandbox without throwing
     expect(screen.getByTestId('pwa-offline-status-badge').textContent).toContain('離線');
   });
+
+  it('auto-pilots HomeView Hero CTA with Weekly Focus badge and renders ClockMeasureSvg in Mistake Clinic', () => {
+    const player = createInitialPlayerState('Chloe');
+    player.weeklyFocusTracks = ['clock-measure'];
+    player.wordMastery = recordWordOutcome(player.wordMastery, {
+      word: 'Clock: Read 3:15',
+      subjectId: 'math',
+      tier: 1,
+      outcome: 'missed',
+    });
+
+    const onStartClockMeasure = vi.fn();
+    const { unmount } = render(
+      <HomeView
+        player={player}
+        activeSubjectId="english"
+        activeTier={1}
+        placementCompleted={false}
+        showZhuyin={false}
+        onSelectSubject={vi.fn()}
+        onSelectTier={vi.fn()}
+        onToggleZhuyin={vi.fn()}
+        onStartPlacement={vi.fn()}
+        onStartBlitz={vi.fn()}
+        onStartCafe={vi.fn()}
+        onStartFishing={vi.fn()}
+        onStartBossBattle={vi.fn()}
+        onStartTowerDefense={vi.fn()}
+        onOpenLogicLab={vi.fn()}
+        onOpenMixedWarmup={vi.fn()}
+        onClaimDailyQuest={vi.fn()}
+        onStartEnglishRun={vi.fn()}
+        onStartEnglishRootFamily={vi.fn()}
+        onStartGrammarRepairSet={vi.fn()}
+        onStartMathRun={vi.fn()}
+        onStartClockMeasureUnit={onStartClockMeasure}
+        onStartChineseRun={vi.fn()}
+        onStartChineseListening={vi.fn()}
+        onStartRadicalFamily={vi.fn()}
+        onStartMeasureIdiomSet={vi.fn()}
+        onStartChapterSeries={vi.fn()}
+        onStartReadingRun={vi.fn()}
+        onOpenCustomImporter={vi.fn()}
+        onDeleteCustomSet={vi.fn()}
+        onGoToMarket={vi.fn()}
+      />,
+    );
+
+    const badge = screen.getByTestId('hero-focus-badge');
+    expect(badge.textContent).toContain('Weekly Focus');
+    fireEvent.click(badge.closest('button') as HTMLButtonElement);
+    expect(onStartClockMeasure).toHaveBeenCalledTimes(1);
+    expect(onStartClockMeasure.mock.calls[0][0].id).toBe('clock-basic');
+    unmount();
+
+    // Mistake Clinic renders ClockMeasureSvg for missed Clock & Measure skill
+    const { container } = render(
+      <MixedWarmupView
+        mode="mistake-clinic"
+        player={player}
+        showZhuyin={false}
+        onToggleZhuyin={vi.fn()}
+        onComplete={vi.fn(() => ({
+          tokensAwarded: 15,
+          healedCount: 1,
+          alreadyClaimedToday: false,
+          passed: true,
+        }))}
+        onSwitchMode={vi.fn()}
+        onExit={vi.fn()}
+        onGoToMarket={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelectorAll('form, [type="submit"]').length).toBe(0);
+    expect(screen.getByTestId('clinic-clock-measure-visual')).toBeTruthy();
+  });
 });
+
 
 
 

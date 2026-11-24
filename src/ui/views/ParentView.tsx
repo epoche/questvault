@@ -38,8 +38,20 @@ import {
   verifyParentPin,
   WEEKLY_REWARD_PRESETS,
 } from '../../core/analytics';
+import {
+  FOCUS_TRACK_CATALOG,
+  MAX_WEEKLY_FOCUS_TRACKS,
+  sanitizeFocusTracks,
+  toggleFocusTrack,
+} from '../../core/focusPlanner';
 import { exportPlayerStateJson } from '../../core/repository';
-import type { PlayerState, SpeechRateMode, SubjectId, WeeklyGoalConfig } from '../../core/types';
+import type {
+  FocusTrackId,
+  PlayerState,
+  SpeechRateMode,
+  SubjectId,
+  WeeklyGoalConfig,
+} from '../../core/types';
 import { customChineseRecordToWordSet } from '../../subjects/chinese/chineseCustomParser';
 import type { ChineseWordSet } from '../../subjects/chinese/types';
 import { customRecordToWordSet } from '../../subjects/english/customParser';
@@ -61,6 +73,7 @@ interface ParentViewProps {
   onDeleteCustomSet: (id: string) => void;
   onSetParentPin: (pin: string | undefined) => void;
   onUpdateWeeklyGoal?: (goal: WeeklyGoalConfig) => void;
+  onUpdateWeeklyFocusTracks?: (tracks: FocusTrackId[]) => void;
   onRedeemWeeklyReward?: (weekKey: string) => void;
   onRecordBackup?: () => void;
   onImportState?: (nextState: PlayerState) => void;
@@ -78,6 +91,7 @@ export const ParentView: React.FC<ParentViewProps> = ({
   onDeleteCustomSet,
   onSetParentPin,
   onUpdateWeeklyGoal,
+  onUpdateWeeklyFocusTracks,
   onRedeemWeeklyReward,
   onRecordBackup,
   onImportState,
@@ -570,6 +584,96 @@ export const ParentView: React.FC<ParentViewProps> = ({
           </button>
         </section>
       )}
+
+      {/* Phase 10B: Weekly Focus Track Selector (Auto-Pilot on HomeView Hero CTA) */}
+      <section
+        data-testid="parent-weekly-focus-section"
+        className="qv-surface rounded-3xl p-5 sm:p-6 space-y-4 border-2 border-[#C4B5FD] bg-[#FBF9FF]"
+      >
+        {(() => {
+          const activeTracks = sanitizeFocusTracks(player.weeklyFocusTracks);
+          return (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-[#7C3AED]" />
+                  <h2 className="font-display text-lg font-extrabold text-[#1C1917]">
+                    🎯 本週重點加強（首頁自動排課 · 最多選 {MAX_WEEKLY_FOCUS_TRACKS} 項）
+                  </h2>
+                </div>
+                <span className="rounded-full bg-white border border-[#C4B5FD] px-3 py-1 text-xs font-extrabold text-[#6D28D9] tabular-nums">
+                  已選 {activeTracks.length} / {MAX_WEEKLY_FOCUS_TRACKS} 項
+                </span>
+              </div>
+
+              <p className="text-xs sm:text-sm font-semibold text-[#57534E]">
+                勾選 1～2 個本週最想加強的主題後，首頁藍色主按鈕會自動優先帶出該重點中尚未完成或最久未練的關卡，並附上「🎯 本週重點」小徽章（不增加額外按鈕、零選擇障礙）。
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {FOCUS_TRACK_CATALOG.map((track) => {
+                  const selected = activeTracks.includes(track.id);
+                  return (
+                    <button
+                      key={track.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        const next = toggleFocusTrack(activeTracks, track.id);
+                        onUpdateWeeklyFocusTracks?.(next);
+                      }}
+                      className={`qv-btn flex items-start justify-between gap-2 rounded-2xl border-2 p-3 text-left transition-colors ${
+                        selected
+                          ? 'border-[#1C1917] shadow-[0_3px_0_#1C1917]'
+                          : 'border-[#E5DFD3] bg-white hover:border-[#A8A29E]'
+                      }`}
+                      style={selected ? { backgroundColor: track.bgHex } : undefined}
+                    >
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-1.5 font-display text-sm font-extrabold text-[#1C1917]">
+                          <span>{track.emoji}</span>
+                          <span>{track.titleZh}</span>
+                        </div>
+                        <p className="text-[11px] font-semibold text-[#57534E] leading-snug">
+                          {track.subtitleZh}
+                        </p>
+                      </div>
+                      <span
+                        className={`shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs font-extrabold ${
+                          selected
+                            ? 'border-[#1C1917] text-white'
+                            : 'border-[#D6D3D1] bg-[#FAF7F2] text-transparent'
+                        }`}
+                        style={selected ? { backgroundColor: track.accentHex } : undefined}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeTracks.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <span className="text-xs font-bold text-[#6D28D9]">
+                    ✅ 首頁已自動排課：
+                    {activeTracks
+                      .map((id) => FOCUS_TRACK_CATALOG.find((t) => t.id === id)?.titleZh ?? id)
+                      .join(' ＋ ')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateWeeklyFocusTracks?.([])}
+                    className="qv-btn rounded-xl border border-[#DDD6FE] bg-white px-3 py-1 text-xs font-extrabold text-[#6D28D9]"
+                  >
+                    清除重點（恢復預設順序）
+                  </button>
+                </div>
+              )}
+            </>
+          );
+        })()}
+      </section>
 
       {/* Phase 4D: Weekly Goal & Real-World Reward Voucher */}
       <section className="qv-surface rounded-3xl p-5 sm:p-6 space-y-4 border-2 border-[#FDE68A] bg-[#FFFDF8]">

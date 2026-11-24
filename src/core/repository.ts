@@ -807,6 +807,26 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
         : {}),
     showZhuyin: Boolean(obj.showZhuyin),
     ...(obj.speechRateMode === 'slow' ? { speechRateMode: 'slow' as const } : {}),
+    ...(() => {
+      const validFocus = new Set<string>([
+        'clock-measure',
+        'math-bar',
+        'chinese-reading',
+        'english-ela',
+        'logic-spatial',
+      ]);
+      if (!Array.isArray(obj.weeklyFocusTracks)) return {};
+      const cleaned: NonNullable<PlayerState['weeklyFocusTracks']> = [];
+      for (const item of obj.weeklyFocusTracks) {
+        if (typeof item !== 'string' || !validFocus.has(item)) continue;
+        const id = item as NonNullable<PlayerState['weeklyFocusTracks']>[number];
+        if (!cleaned.includes(id)) {
+          cleaned.push(id);
+          if (cleaned.length >= 2) break;
+        }
+      }
+      return cleaned.length > 0 ? { weeklyFocusTracks: cleaned } : {};
+    })(),
     muted: Boolean(obj.muted),
   };
 }

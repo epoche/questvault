@@ -25,6 +25,7 @@ import {
 } from '../../core/mixedWarmupEngine';
 import type { PlayerState } from '../../core/types';
 import { getLocalDateKey } from '../../subjects/english/runEngine';
+import { ClockMeasureSvg } from '../artwork/ClockMeasureSvg';
 import { LogicVisual } from '../artwork/LogicVisual';
 import { MathVisual } from '../artwork/MathVisual';
 import { RubyWord } from '../components/RubyWord';
@@ -436,6 +437,16 @@ export const MixedWarmupView: React.FC<MixedWarmupViewProps> = ({
         {current.mathVisual && (!current.revealMathVisualOnFeedback || answered) && (
           <div className="rounded-2xl border-2 border-[#E7E2D8] bg-[#FAF8F4] p-4 flex justify-center">
             <MathVisual spec={current.mathVisual} />
+          </div>
+        )}
+
+        {/* Clock & Measure Visual (Phase 10B Mistake Clinic Closed Loop) */}
+        {current.clockMeasureVisual && (
+          <div
+            data-testid="clinic-clock-measure-visual"
+            className="rounded-2xl border-2 border-[#E7E2D8] bg-[#FAF8F4] p-4 flex justify-center"
+          >
+            <ClockMeasureSvg spec={current.clockMeasureVisual} revealed={answered} />
           </div>
         )}
 

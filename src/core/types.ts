@@ -284,6 +284,7 @@ export interface PlayerState {
   towerHighScores?: Partial<Record<SubjectId, number>>;
   arcadeDailyTokens?: BlitzDailyTokens;
   weeklyGoal?: WeeklyGoalConfig;
+  weeklyFocusTracks?: FocusTrackId[];
   pinnedWishlistPackId?: PackId;
   lastBackupAt?: string;
   parentPinHash?: string;
@@ -291,6 +292,13 @@ export interface PlayerState {
   speechRateMode?: SpeechRateMode;
   muted: boolean;
 }
+
+export type FocusTrackId =
+  | 'clock-measure'
+  | 'math-bar'
+  | 'chinese-reading'
+  | 'english-ela'
+  | 'logic-spatial';
 
 export type SpeechRateMode = 'normal' | 'slow';
 

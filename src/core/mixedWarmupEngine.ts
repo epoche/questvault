@@ -20,6 +20,11 @@ import {
   type SpatialModuleId,
 } from '../subjects/logic/logicTypes';
 import { generateSpatialQuestion } from '../subjects/logic/spatialEngine';
+import {
+  generateClockMeasureQuestion,
+  type ClockMeasureUnitId,
+  type ClockMeasureVisualSpec,
+} from '../subjects/math/clockMeasureEngine';
 import { classifyHeatmapCell, getFactHeatmapKey } from '../subjects/math/factFluencyEngine';
 import { generateDynamicMathItem } from '../subjects/math/mathGenerator';
 import { BUILTIN_MATH_SETS } from '../subjects/math/questSets';
@@ -50,6 +55,7 @@ export interface MixedWarmupItem {
   speakLang?: 'en-US' | 'zh-TW';
   mathVisual?: MathVisualSpec;
   revealMathVisualOnFeedback?: boolean;
+  clockMeasureVisual?: ClockMeasureVisualSpec;
   logicVisual?: LogicVisualSpec;
   logicFeedbackVisual?: LogicVisualSpec;
   choices: MixedWarmupChoice[];
@@ -349,6 +355,60 @@ function getWeakMathFacts(player: PlayerState): { a: number; b: number; severity
 }
 
 /**
+ * Maps a Clock & Measure Lab `wordMastery` skillKey (e.g. "Clock: Read 3:15", "Ruler (in): Zero 3 1/2 in",
+ * "Convert: 1 ft = 12 in") back to its ClockMeasureUnitId so Mistake Clinic and Daily Warmup can
+ * dynamically generate matching visual review problems and heal the exact mastery entry.
+ */
+export function matchClockMeasureUnitFromSkillKey(skillKey: string): ClockMeasureUnitId | null {
+  const s = skillKey.trim().toLowerCase();
+  if (s.startsWith('clock 1-min:')) return 'clock-exact';
+  if (s.startsWith('clock:')) return 'clock-basic';
+  if (s.startsWith('elapsed:')) return 'clock-elapsed';
+  if (s.startsWith('am/pm:')) return 'clock-schedule';
+  if (s.startsWith('ruler (')) return 'measure-ruler';
+  if (s.startsWith('unit sense:')) return 'measure-unit-sense';
+  if (s.startsWith('beaker (') || s.startsWith('scale (')) return 'measure-beaker-scale';
+  if (s.startsWith('convert:')) return 'measure-conversions';
+  return null;
+}
+
+function buildClockMeasureMixedItem(
+  unitId: ClockMeasureUnitId,
+  skillWord: string,
+  tier: DifficultyTier,
+  seq: number,
+  sourceLabelEn: string,
+  sourceLabelZh: string,
+  rng: () => number,
+  usedIds?: Set<string>,
+): MixedWarmupItem {
+  const q = generateClockMeasureQuestion(unitId, seq, rng, {
+    allowInteractive: false,
+    usedIds,
+  });
+  const itemId = `mw-cm-${seq}-${q.id}`;
+  const correctIdx = q.choices.indexOf(q.correctChoice);
+  return {
+    id: itemId,
+    subjectTag: 'math',
+    sourceLabelEn,
+    sourceLabelZh,
+    prompt: q.prompt,
+    subHint:
+      unitId === 'measure-conversions'
+        ? '大單位轉小單位用「乘法」（先回想換算倍率再相乘）！'
+        : q.zhHint,
+    speakText: q.prompt,
+    speakLang: 'en-US',
+    clockMeasureVisual: q.visual,
+    choices: q.choices.map((label, idx) => ({ id: `${itemId}-opt-${idx}`, label })),
+    correctIndex: correctIdx >= 0 ? correctIdx : 0,
+    explanation: `${q.explanation}（${q.zhExplanation}）`,
+    masteryRef: { kind: 'word', word: skillWord, subjectId: 'math', tier },
+  };
+}
+
+/**
  * Counts how many active mistakes / weak spots are currently waiting in the Mistake Clinic.
  */
 export function countClinicPatients(player: PlayerState): number {
@@ -362,8 +422,8 @@ export function countClinicPatients(player: PlayerState): number {
   const trickyZh = getTrickyWords(player.wordMastery, 'chinese').filter((r) =>
     zhLookup.has(r.word),
   );
-  const trickyMath = getTrickyWords(player.wordMastery, 'math').filter((r) =>
-    mathLookup.has(r.word.toLowerCase()),
+  const trickyMath = getTrickyWords(player.wordMastery, 'math').filter(
+    (r) => mathLookup.has(r.word.toLowerCase()) || matchClockMeasureUnitFromSkillKey(r.word) !== null,
   );
   const weakFacts = getWeakMathFacts(player).filter((f) => f.severity >= 100);
 
@@ -452,6 +512,22 @@ export function buildDailyMixedWarmup(
     if (mathItems.length >= 2) break;
     const key = rec.word.toLowerCase();
     if (usedMathKeys.has(key)) continue;
+    const cmUnitId = matchClockMeasureUnitFromSkillKey(rec.word);
+    if (cmUnitId) {
+      usedMathKeys.add(key);
+      mathItems.push(
+        buildClockMeasureMixedItem(
+          cmUnitId,
+          rec.word,
+          rec.tier,
+          mathItems.length + 1,
+          'Math · Clock & Measure Review',
+          '數學 · 時鐘度量衡複習',
+          rng,
+        ),
+      );
+      continue;
+    }
     const hit = mathLookup.get(key);
     if (!hit) continue;
     usedMathKeys.add(key);
@@ -644,7 +720,26 @@ export function buildMistakeClinicSession(
     });
   }
 
+  const cmUsedIds = new Set<string>();
   for (const rec of getTrickyWords(player.wordMastery, 'math')) {
+    const cmUnitId = matchClockMeasureUnitFromSkillKey(rec.word);
+    if (cmUnitId) {
+      candidates.push({
+        priority: rec.missed * 10 - rec.correctFirstTry,
+        build: (seq) =>
+          buildClockMeasureMixedItem(
+            cmUnitId,
+            rec.word,
+            rec.tier,
+            seq,
+            `Clinic · Clock & Measure (${rec.missed}×)`,
+            `時鐘度量衡急救 · 曾錯 ${rec.missed} 次`,
+            rng,
+            cmUsedIds,
+          ),
+      });
+      continue;
+    }
     const hit = mathLookup.get(rec.word.toLowerCase());
     if (!hit) continue;
     candidates.push({

@@ -15,6 +15,7 @@ import {
   type RoomTreatItem,
 } from './core/critterCare';
 import { getLocalDateKey } from './core/date';
+import { sanitizeFocusTracks } from './core/focusPlanner';
 import {
   awardBlitzSessionRewards,
   awardBossSessionRewards,
@@ -1193,6 +1194,15 @@ export const App: React.FC = () => {
             }
             onUpdateWeeklyGoal={(goal) =>
               commitPlayer((prev) => ({ ...prev, weeklyGoal: goal }))
+            }
+            onUpdateWeeklyFocusTracks={(tracks) =>
+              commitPlayer((prev) => {
+                const cleaned = sanitizeFocusTracks(tracks);
+                return {
+                  ...prev,
+                  weeklyFocusTracks: cleaned.length > 0 ? cleaned : undefined,
+                };
+              })
             }
             onRedeemWeeklyReward={(weekKey) =>
               commitPlayer((prev) => ({

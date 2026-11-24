@@ -28,6 +28,7 @@ export interface HeroStageProps {
   activeSubjectId: SubjectId;
   todayKey: string;
   heroTitle: string;
+  focusBadge?: string;
   packsReady: number;
   placementCompleted: boolean;
   warmUpBonus: number;
@@ -54,6 +55,7 @@ export const HeroStage: React.FC<HeroStageProps> = ({
   activeSubjectId,
   todayKey,
   heroTitle,
+  focusBadge,
   packsReady,
   placementCompleted,
   warmUpBonus,
@@ -157,11 +159,19 @@ export const HeroStage: React.FC<HeroStageProps> = ({
               <button
                 type="button"
                 onClick={onHeroPlay}
-                className="qv-arcade-btn inline-flex min-h-[46px] items-center gap-2 rounded-2xl border-2 border-[#1C1917] bg-[#2563EB] px-5 py-2.5 font-display text-base font-extrabold text-white"
+                className="qv-arcade-btn inline-flex min-h-[46px] flex-wrap items-center gap-2 rounded-2xl border-2 border-[#1C1917] bg-[#2563EB] px-5 py-2.5 font-display text-base font-extrabold text-white"
                 style={{ borderBottomColor: '#1E3A8A' }}
               >
-                <Play className="h-4 w-4 fill-current" />
+                <Play className="h-4 w-4 fill-current shrink-0" />
                 <span>{heroTitle}</span>
+                {focusBadge && (
+                  <span
+                    data-testid="hero-focus-badge"
+                    className="rounded-full bg-[#FEF08A] border border-[#1C1917]/20 px-2 py-0.5 text-[11px] font-extrabold text-[#713F12]"
+                  >
+                    {focusBadge}
+                  </span>
+                )}
               </button>
 
               {onOpenMixedWarmup && (
