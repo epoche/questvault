@@ -116,7 +116,7 @@ import {
 import { HomeView } from './ui/views/HomeView';
 import { LogicLabView } from './ui/views/LogicLabView';
 import { MarketView } from './ui/views/MarketView';
-import type { SpatialModuleId } from './subjects/logic/logicTypes';
+import type { LogicModuleId } from './subjects/logic/logicTypes';
 import { MathPlacementView } from './ui/views/MathPlacementView';
 import { type MathCompletionPayload, MathRunView } from './ui/views/MathRunView';
 import {
@@ -507,7 +507,7 @@ export const App: React.FC = () => {
   };
 
   const handleCompleteLogicModule = (
-    moduleId: SpatialModuleId,
+    moduleId: LogicModuleId,
     correctCount: number,
     totalQuestions: number,
   ) => {

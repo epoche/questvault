@@ -71,7 +71,10 @@ export default defineConfig({
                 if (id.includes('/src/ui/artwork/TowerDefenseSvg')) {
                   return 'artwork-phase6';
                 }
-                if (id.includes('/src/ui/artwork/SpatialVisual')) {
+                if (
+                  id.includes('/src/ui/artwork/SpatialVisual') ||
+                  id.includes('/src/ui/artwork/LogicVisual')
+                ) {
                   return 'artwork-logic';
                 }
                 if (id.includes('/src/ui/artwork/')) return 'artwork-svg';

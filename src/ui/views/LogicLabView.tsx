@@ -15,18 +15,22 @@ import { getTodayLogicTokensEarned, LOGIC_DAILY_TOKEN_CAP } from '../../core/eco
 import type { PlayerState } from '../../core/types';
 import { getLocalDateKey } from '../../subjects/english/runEngine';
 import {
+  LOGIC_REASONING_MODULES,
   SPATIAL_MODULES,
+  type LogicModuleId,
   type LogicModuleMeta,
   type LogicQuestion,
+  type LogicReasoningModuleId,
   type SpatialModuleId,
 } from '../../subjects/logic/logicTypes';
+import { buildLogicReasoningSession } from '../../subjects/logic/logicReasoningEngine';
 import { buildSpatialSession } from '../../subjects/logic/spatialEngine';
-import { SpatialVisual } from '../artwork/SpatialVisual';
+import { LogicVisual } from '../artwork/LogicVisual';
 
 interface LogicLabViewProps {
   player: PlayerState;
   onCompleteModule: (
-    moduleId: SpatialModuleId,
+    moduleId: LogicModuleId,
     correctCount: number,
     totalQuestions: number,
   ) => { tokensAwarded: number; remainingDailyCap: number };
@@ -53,6 +57,7 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
   const [qIndex, setQIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [correctCount, setCorrectCount] = useState(0);
+  const [scratchpad, setScratchpad] = useState<Record<string, 'x' | 'check'>>({});
   const [sessionSummary, setSessionSummary] = useState<{
     correctCount: number;
     total: number;
@@ -73,9 +78,23 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
     [player.completedLogicModuleIds],
   );
 
+  const handleToggleScratchpad = (key: string) => {
+    setScratchpad((prev) => {
+      const cur = prev[key];
+      const next = { ...prev };
+      if (!cur) next[key] = 'x';
+      else if (cur === 'x') next[key] = 'check';
+      else delete next[key];
+      return next;
+    });
+  };
+
   const startModule = (mod: LogicModuleMeta) => {
     const seed = Date.now() ^ (mod.id.length * 2654435761);
-    const qs = buildSpatialSession(mod.id as SpatialModuleId, seed, 5);
+    const qs =
+      mod.category === 'spatial'
+        ? buildSpatialSession(mod.id as SpatialModuleId, seed, 5)
+        : buildLogicReasoningSession(mod.id as LogicReasoningModuleId, seed, 5);
     answeringRef.current = false;
     settledRef.current = false;
     correctCountRef.current = 0;
@@ -84,6 +103,7 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
     setQIndex(0);
     setSelectedChoice(null);
     setCorrectCount(0);
+    setScratchpad({});
     setSessionSummary(null);
     audioService.playToken();
   };
@@ -112,7 +132,7 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
     if (nextIdx >= questions.length) {
       settledRef.current = true;
       const result = onCompleteModule(
-        activeModule.id as SpatialModuleId,
+        activeModule.id,
         correctCountRef.current,
         questions.length,
       );
@@ -129,6 +149,7 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
     answeringRef.current = false;
     setQIndex(nextIdx);
     setSelectedChoice(null);
+    setScratchpad({});
   };
 
   const handleBackToHub = () => {
@@ -137,6 +158,7 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
     setActiveModule(null);
     setQuestions([]);
     setSelectedChoice(null);
+    setScratchpad({});
     setSessionSummary(null);
   };
 
@@ -284,20 +306,29 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
           {/* Prompt or Feedback Visual */}
           {(answered && q.feedbackVisual) || q.promptVisual ? (
             <div className="rounded-2xl border-2 border-[#E7E2D8] bg-[#FAF8F4] p-4 flex flex-col items-center justify-center gap-2">
-              <SpatialVisual
+              <LogicVisual
                 spec={answered && q.feedbackVisual ? q.feedbackVisual : q.promptVisual!}
                 isZh={isZh}
+                scratchpad={scratchpad}
+                onToggleScratchpad={handleToggleScratchpad}
               />
               {answered && q.feedbackVisual && (
                 <span className="rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-3 py-0.5 text-[11px] font-extrabold text-[#047857]">
-                  {isZh ? '✨ 答案圖解（含標註／對稱軸）' : '✨ Visual Solution Guide'}
+                  {isZh ? '✨ 答案圖解（含標註／路徑／推理表）' : '✨ Visual Solution Guide'}
                 </span>
               )}
             </div>
           ) : null}
 
           {/* 4 Choices Grid */}
-          <div className="grid grid-cols-2 gap-3">
+          <div
+            className={`grid gap-3 ${
+              !hasVisualChoices &&
+              q.choices.some((c) => ((isZh ? c.labelZh : c.labelEn) ?? '').length > 16)
+                ? 'grid-cols-1 sm:grid-cols-2'
+                : 'grid-cols-2'
+            }`}
+          >
             {q.choices.map((choice, idx) => {
               const style = CHOICE_COLORS[idx % CHOICE_COLORS.length];
               const isSelected = selectedChoice === idx;
@@ -327,7 +358,7 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
                       {style.badge}
                     </span>
                     <div className="pt-3">
-                      <SpatialVisual spec={choice.visual} compact isZh={isZh} />
+                      <LogicVisual spec={choice.visual} compact isZh={isZh} />
                     </div>
                   </button>
                 );
@@ -349,19 +380,24 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
                     ? '#9F1239'
                     : '#94A3B8';
 
+              const labelText = (isZh ? choice.labelZh : choice.labelEn) ?? '';
+              const isLongLabel = labelText.length > 18;
+
               return (
                 <button
                   key={choice.id}
                   type="button"
                   disabled={answered}
                   onClick={() => handleChoose(idx)}
-                  className="qv-arcade-btn min-h-[64px] rounded-2xl border-2 border-[#1C1917] px-4 py-3 font-display text-base sm:text-lg font-extrabold text-white flex items-center justify-center gap-2 transition-all"
+                  className={`qv-arcade-btn min-h-[64px] rounded-2xl border-2 border-[#1C1917] px-3.5 py-3 font-display font-extrabold text-white flex items-center justify-center gap-2 transition-all text-left sm:text-center ${
+                    isLongLabel ? 'text-xs sm:text-sm leading-snug' : 'text-base sm:text-lg'
+                  }`}
                   style={{ backgroundColor: btnBg, borderBottomColor: btnBorder }}
                 >
                   <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-black/20 text-xs font-extrabold">
                     {style.badge}
                   </span>
-                  <span>{isZh ? choice.labelZh : choice.labelEn}</span>
+                  <span>{labelText}</span>
                 </button>
               );
             })}
@@ -390,8 +426,8 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
                   >
                     {isCorrect
                       ? isZh
-                        ? '太厲害了！空間推理完全正確！'
-                        : 'Spot on! Brilliant spatial thinking!'
+                        ? '太厲害了！邏輯推理完全正確！'
+                        : 'Spot on! Brilliant logical thinking!'
                       : isZh
                         ? `答案是選項 ${CHOICE_COLORS[q.correctIndex].badge}，看看圖解原因：`
                         : `The correct answer is Option ${CHOICE_COLORS[q.correctIndex].badge}:`}
@@ -427,8 +463,71 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
   }
 
   // ── 3. Logic & Spatial Lab Hub ──
+  const renderModuleCard = (mod: LogicModuleMeta) => {
+    const cleared = completedIds.has(mod.id);
+    const stat = player.logicStats?.[mod.id];
+    const acc =
+      stat && stat.totalQuestions > 0
+        ? Math.round((stat.totalCorrect / stat.totalQuestions) * 100)
+        : null;
+    return (
+      <button
+        key={mod.id}
+        type="button"
+        onClick={() => startModule(mod)}
+        className="qv-surface qv-hover-lift rounded-3xl p-5 text-left flex flex-col justify-between gap-3 border-2 border-[#1C1917]"
+        style={{ backgroundColor: mod.bgHex }}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-[#1C1917] bg-white text-2xl shadow-sm">
+              {mod.emoji}
+            </span>
+            <div>
+              <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
+                {isZh ? mod.zhTitle : mod.enTitle}
+              </h3>
+              <p className="text-xs font-bold text-[#57534E]">
+                {isZh ? mod.enTitle : mod.zhTitle}
+              </p>
+            </div>
+          </div>
+          {cleared && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF5] border border-[#10B981] px-2.5 py-0.5 text-[11px] font-extrabold text-[#047857] shrink-0">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>{isZh ? '已通關' : 'Cleared'}</span>
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs sm:text-sm font-semibold text-[#44403C] leading-snug">
+          {isZh ? mod.zhSubtitle : mod.enSubtitle}
+        </p>
+
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-xs font-extrabold text-[#57534E] tabular-nums">
+            {acc !== null
+              ? isZh
+                ? `累計 ${stat!.runs} 回合 · 正確率 ${acc}%`
+                : `${stat!.runs} runs · ${acc}% accuracy`
+              : isZh
+                ? '5 題動態挑戰 · 最高 +30 Tokens'
+                : '5 dynamic puzzles · Up to +30 Tokens'}
+          </span>
+          <span
+            className="inline-flex items-center gap-1 rounded-xl px-3 py-1.5 font-display text-xs font-extrabold text-white"
+            style={{ backgroundColor: mod.accentHex }}
+          >
+            <span>{isZh ? '開始挑戰' : 'Start'}</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </span>
+        </div>
+      </button>
+    );
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
@@ -446,8 +545,8 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
             </h1>
             <p className="text-xs sm:text-sm font-semibold text-[#57534E]">
               {isZh
-                ? '100% 動態視覺幾何出題，每一題都經過數學矩陣與 3D 模擬器驗證唯一正解！'
-                : '100% dynamic visual geometry puzzles — every single problem mathematically verified for one unique answer!'}
+                ? '8 大動態視覺與邏輯推演引擎，每一題都經過數學求解器與模擬器驗證唯一正解！'
+                : '8 dynamic spatial & logic engines — every single puzzle mathematically verified for one unique answer!'}
             </p>
           </div>
         </div>
@@ -484,7 +583,7 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
         </div>
       </div>
 
-      {/* Spatial Reasoning Section (4 Modules) */}
+      {/* Section 1: Spatial Reasoning (4 Modules) */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-extrabold text-[#1C1917] flex items-center gap-2">
@@ -500,68 +599,27 @@ export const LogicLabView: React.FC<LogicLabViewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {SPATIAL_MODULES.map((mod) => {
-            const cleared = completedIds.has(mod.id);
-            const stat = player.logicStats?.[mod.id];
-            const acc =
-              stat && stat.totalQuestions > 0
-                ? Math.round((stat.totalCorrect / stat.totalQuestions) * 100)
-                : null;
-            return (
-              <button
-                key={mod.id}
-                type="button"
-                onClick={() => startModule(mod)}
-                className="qv-surface qv-hover-lift rounded-3xl p-5 text-left flex flex-col justify-between gap-3 border-2 border-[#1C1917]"
-                style={{ backgroundColor: mod.bgHex }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-[#1C1917] bg-white text-2xl shadow-sm">
-                      {mod.emoji}
-                    </span>
-                    <div>
-                      <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
-                        {isZh ? mod.zhTitle : mod.enTitle}
-                      </h3>
-                      <p className="text-xs font-bold text-[#57534E]">
-                        {isZh ? mod.enTitle : mod.zhTitle}
-                      </p>
-                    </div>
-                  </div>
-                  {cleared && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF5] border border-[#10B981] px-2.5 py-0.5 text-[11px] font-extrabold text-[#047857] shrink-0">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>{isZh ? '已通關' : 'Cleared'}</span>
-                    </span>
-                  )}
-                </div>
+          {SPATIAL_MODULES.map(renderModuleCard)}
+        </div>
+      </section>
 
-                <p className="text-xs sm:text-sm font-semibold text-[#44403C] leading-snug">
-                  {isZh ? mod.zhSubtitle : mod.enSubtitle}
-                </p>
+      {/* Section 2: Logic, Pattern & Coding (4 Modules) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-extrabold text-[#1C1917] flex items-center gap-2">
+            <span>🧩</span>
+            <span>{isZh ? '邏輯推演與運算思維（Logic & Coding · 4 大唯一解模組）' : 'Logic, Pattern & Coding Lab · 4 Unique-Solution Modules'}</span>
+          </h2>
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-0.5 text-xs font-extrabold text-[#047857] tabular-nums">
+            <Trophy className="h-3.5 w-3.5" />
+            <span>
+              {LOGIC_REASONING_MODULES.filter((m) => completedIds.has(m.id)).length} / {LOGIC_REASONING_MODULES.length}
+            </span>
+          </span>
+        </div>
 
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs font-extrabold text-[#57534E] tabular-nums">
-                    {acc !== null
-                      ? isZh
-                        ? `累計 ${stat!.runs} 回合 · 正確率 ${acc}%`
-                        : `${stat!.runs} runs · ${acc}% accuracy`
-                      : isZh
-                        ? '5 題動態挑戰 · 最高 +30 Tokens'
-                        : '5 dynamic puzzles · Up to +30 Tokens'}
-                  </span>
-                  <span
-                    className="inline-flex items-center gap-1 rounded-xl px-3 py-1.5 font-display text-xs font-extrabold text-white"
-                    style={{ backgroundColor: mod.accentHex }}
-                  >
-                    <span>{isZh ? '開始挑戰' : 'Start'}</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {LOGIC_REASONING_MODULES.map(renderModuleCard)}
         </div>
       </section>
     </div>
