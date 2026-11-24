@@ -41,6 +41,8 @@ export const TowerDefenseSvg: React.FC<TowerDefenseSvgProps> = ({
   volleyActive,
   onSelectSlot,
 }) => {
+  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const grassGradId = `${uid}-td-grass`;
   const activeMonsters = MONSTER_POSITIONS.slice(0, currentWave.monsterCount);
 
   return (
@@ -53,12 +55,12 @@ export const TowerDefenseSvg: React.FC<TowerDefenseSvgProps> = ({
       >
         {/* Sunlit Meadow Backdrop */}
         <defs>
-          <linearGradient id="td-grass" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={grassGradId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#D1FAE5" />
             <stop offset="100%" stopColor="#A7F3D0" />
           </linearGradient>
         </defs>
-        <rect x="0" y="0" width="640" height="226" fill="url(#td-grass)" />
+        <rect x="0" y="0" width="640" height="226" fill={`url(#${grassGradId})`} />
 
         {/* Decorative Meadow Hills & Flowers */}
         <circle cx="52" cy="36" r="22" fill="#6EE7B7" opacity="0.5" />

@@ -20,7 +20,7 @@ function Cheeks({ y = 63, spread = 23, color = '#FDA4AF' }: { y?: number; spread
   );
 }
 
-export function renderExtraCollectible(id: string): React.ReactNode | null {
+export function renderExtraCollectible(id: string, uid = 'ex'): React.ReactNode | null {
   switch (id) {
     // ────────── OCEAN PACK (8) ──────────
     case 'ocean-pearl-clam':
@@ -114,14 +114,14 @@ export function renderExtraCollectible(id: string): React.ReactNode | null {
       return (
         <g>
           <defs>
-            <linearGradient id="oceanChroma" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={`${uid}-oceanChroma`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#06B6D4" />
               <stop offset="50%" stopColor="#8B5CF6" />
               <stop offset="100%" stopColor="#EC4899" />
             </linearGradient>
           </defs>
           <polygon points="34,26 42,8 50,24 58,8 66,26" fill="#FDE047" stroke="#1C1917" strokeWidth="3" strokeLinejoin="round" />
-          <rect x="16" y="24" width="68" height="62" rx="20" fill="url(#oceanChroma)" stroke="#1C1917" strokeWidth="3.4" />
+          <rect x="16" y="24" width="68" height="62" rx="20" fill={`url(#${uid}-oceanChroma)`} stroke="#1C1917" strokeWidth="3.4" />
           <path d="M 18 68 Q 50 56 82 68 L 80 78 Q 74 86 50 86 Q 26 86 20 78 Z" fill="#FFFFFF" opacity="0.88" />
           <Eyes y={52} />
           <path d="M 43 65 Q 50 71 57 65" stroke="#1C1917" strokeWidth="2.8" strokeLinecap="round" fill="none" />
@@ -213,14 +213,14 @@ export function renderExtraCollectible(id: string): React.ReactNode | null {
       return (
         <g>
           <defs>
-            <linearGradient id="dinoChroma" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={`${uid}-dinoChroma`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#34D399" />
               <stop offset="50%" stopColor="#60A5FA" />
               <stop offset="100%" stopColor="#F472B6" />
             </linearGradient>
           </defs>
-          <rect x="34" y="10" width="32" height="34" rx="14" fill="url(#dinoChroma)" stroke="#1C1917" strokeWidth="3.2" />
-          <rect x="16" y="34" width="68" height="52" rx="22" fill="url(#dinoChroma)" stroke="#1C1917" strokeWidth="3.4" />
+          <rect x="34" y="10" width="32" height="34" rx="14" fill={`url(#${uid}-dinoChroma)`} stroke="#1C1917" strokeWidth="3.2" />
+          <rect x="16" y="34" width="68" height="52" rx="22" fill={`url(#${uid}-dinoChroma)`} stroke="#1C1917" strokeWidth="3.4" />
           <circle cx="30" cy="48" r="5" fill="#FEF08A" />
           <circle cx="70" cy="52" r="4" fill="#FFFFFF" />
           <Eyes y={28} spread={8} />
@@ -313,7 +313,7 @@ export function renderExtraCollectible(id: string): React.ReactNode | null {
       return (
         <g>
           <defs>
-            <linearGradient id="magicChroma" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={`${uid}-magicChroma`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#F472B6" />
               <stop offset="50%" stopColor="#A78BFA" />
               <stop offset="100%" stopColor="#38BDF8" />
@@ -323,7 +323,7 @@ export function renderExtraCollectible(id: string): React.ReactNode | null {
           <polygon points="22,38 26,18 40,30" fill="#FFFFFF" stroke="#1C1917" strokeWidth="3" />
           <polygon points="78,38 74,18 60,30" fill="#FFFFFF" stroke="#1C1917" strokeWidth="3" />
           <rect x="18" y="28" width="64" height="58" rx="20" fill="#FFFFFF" stroke="#1C1917" strokeWidth="3.4" />
-          <path d="M 20 34 Q 50 48 80 34 L 78 28 Q 50 22 22 28 Z" fill="url(#magicChroma)" />
+          <path d="M 20 34 Q 50 48 80 34 L 78 28 Q 50 22 22 28 Z" fill={`url(#${uid}-magicChroma)`} />
           <Eyes y={56} />
           <Cheeks y={65} color="#F472B6" />
           <path d="M 44 68 Q 50 73 56 68" stroke="#1C1917" strokeWidth="2.8" strokeLinecap="round" fill="none" />

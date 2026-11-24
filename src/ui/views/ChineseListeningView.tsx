@@ -15,12 +15,14 @@ import {
   XCircle,
 } from 'lucide-react';
 import { audioService } from '../../core/audio';
+import { applyQuestRewardMultiplier, type QuestRewardPolicy } from '../../core/economy';
 import type { DifficultyTier } from '../../core/types';
 import {
   buildChineseListeningSession,
   type ChineseListeningChoice,
 } from '../../subjects/chinese/listeningEngine';
 import { CHINESE_TIER_META } from '../../subjects/chinese/wordSets';
+import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 import { RubyWord } from '../components/RubyWord';
 
 export interface ChineseListeningCompletionPayload {
@@ -28,12 +30,14 @@ export interface ChineseListeningCompletionPayload {
   correctCount: number;
   totalCount: number;
   tokensEarned: number;
+  rawTokensEarned: number;
   wordOutcomes: { word: string; correct: boolean }[];
 }
 
 interface ChineseListeningViewProps {
   tier: DifficultyTier;
   showZhuyin: boolean;
+  rewardPolicy?: QuestRewardPolicy;
   onToggleZhuyin: () => void;
   onExit: () => void;
   onComplete: (payload: ChineseListeningCompletionPayload) => void;
@@ -48,25 +52,19 @@ const BLOO_COLORS = [
   { bg: '#9333EA', border: '#6B21A8' },
 ];
 
-function cancelSpeechSafely(): void {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    try {
-      window.speechSynthesis.cancel();
-    } catch {
-      // Ignore blocked speech synthesis in restricted sandboxes
-    }
-  }
-}
-
-function calculateListeningTokens(correctCount: number, totalCount: number): {
+export function calculateListeningTokens(correctCount: number, totalCount: number): {
   base: number;
   perCorrect: number;
   perfectBonus: number;
   total: number;
 } {
-  const base = 8;
+  if (correctCount <= 0 || totalCount <= 0) {
+    return { base: 0, perCorrect: 0, perfectBonus: 0, total: 0 };
+  }
+  const passThreshold = Math.ceil(totalCount / 2);
+  const base = correctCount >= passThreshold ? 8 : 0;
   const perCorrect = correctCount * 2;
-  const perfectBonus = totalCount > 0 && correctCount === totalCount ? 4 : 0;
+  const perfectBonus = correctCount === totalCount ? 4 : 0;
   return {
     base,
     perCorrect,
@@ -78,11 +76,13 @@ function calculateListeningTokens(correctCount: number, totalCount: number): {
 export const ChineseListeningView: React.FC<ChineseListeningViewProps> = ({
   tier,
   showZhuyin,
+  rewardPolicy,
   onToggleZhuyin,
   onExit,
   onComplete,
 }) => {
   const prefersReduced = useReducedMotion();
+  const [lockedPolicy] = useState<QuestRewardPolicy | undefined>(() => rewardPolicy);
   const session = useMemo(() => buildChineseListeningSession(tier), [tier]);
   const tierMeta = CHINESE_TIER_META[tier];
 
@@ -106,7 +106,11 @@ export const ChineseListeningView: React.FC<ChineseListeningViewProps> = ({
   const totalCount = session.questions.length;
   const currentQuestion = session.questions[questionIdx];
   const correctCount = wordOutcomes.filter((item) => item.correct).length;
-  const reward = calculateListeningTokens(correctCount, totalCount);
+  const rawReward = calculateListeningTokens(correctCount, totalCount);
+  const finalTokens = lockedPolicy
+    ? applyQuestRewardMultiplier(rawReward.total, lockedPolicy.multiplier)
+    : rawReward.total;
+  const reward = { ...rawReward, total: finalTokens };
 
   // Reset locks cleanly whenever question or phase transitions
   useEffect(() => {
@@ -123,7 +127,7 @@ export const ChineseListeningView: React.FC<ChineseListeningViewProps> = ({
   // Cancel any ongoing speech synthesis when leaving the view
   useEffect(() => {
     return () => {
-      cancelSpeechSafely();
+      audioService.stopSpeech();
     };
   }, []);
 
@@ -157,7 +161,7 @@ export const ChineseListeningView: React.FC<ChineseListeningViewProps> = ({
   };
 
   const handleExit = () => {
-    cancelSpeechSafely();
+    audioService.stopSpeech();
     onExit();
   };
 
@@ -191,7 +195,7 @@ export const ChineseListeningView: React.FC<ChineseListeningViewProps> = ({
   const handleNextQuestion = () => {
     if (phase !== 'playing' || !feedback || advancingRef.current || completedRef.current) return;
     advancingRef.current = true;
-    cancelSpeechSafely();
+    audioService.stopSpeech();
 
     setFeedback(null);
     setShowHint(false);
@@ -208,7 +212,7 @@ export const ChineseListeningView: React.FC<ChineseListeningViewProps> = ({
     if (completedRef.current) return;
     completedRef.current = true;
     setClaimed(true);
-    cancelSpeechSafely();
+    audioService.stopSpeech();
     audioService.playToken();
 
     onComplete({
@@ -216,6 +220,7 @@ export const ChineseListeningView: React.FC<ChineseListeningViewProps> = ({
       correctCount,
       totalCount,
       tokensEarned: reward.total,
+      rawTokensEarned: rawReward.total,
       wordOutcomes,
     });
   };
@@ -261,6 +266,7 @@ export const ChineseListeningView: React.FC<ChineseListeningViewProps> = ({
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
+      {lockedPolicy && <RewardPolicyBanner policy={lockedPolicy} lang="zh" />}
       {/* Top Arcade HUD */}
       <div className="qv-surface rounded-2xl px-4 py-3 space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2.5">

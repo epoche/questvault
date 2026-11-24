@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowLeft, ArrowRight, Coins, ShoppingBag, Sparkles, Volume2 } from 'lucide-react';
 import { audioService } from '../../core/audio';
@@ -42,29 +42,60 @@ export const PlacementView: React.FC<PlacementViewProps> = ({
     bridge: string;
     canContinue: boolean;
   } | null>(null);
-  const [savedResult, setSavedResult] = useState(false);
+
+  const answeringRef = useRef(false);
+  const advancingRef = useRef(false);
+  const completedRef = useRef(false);
+  const timersRef = useRef<number[]>([]);
+  const unmountedRef = useRef(false);
+
+  const scheduleTimeout = (fn: () => void, ms: number) => {
+    const id = window.setTimeout(() => {
+      timersRef.current = timersRef.current.filter((t) => t !== id);
+      if (unmountedRef.current) return;
+      fn();
+    }, ms);
+    timersRef.current.push(id);
+  };
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      timersRef.current.forEach((id) => window.clearTimeout(id));
+      timersRef.current = [];
+      audioService.stopSpeech();
+    };
+  }, []);
 
   const q = session.currentQuestion;
   const [bonusAmount] = useState(() => (alreadyCompleted ? 0 : PLACEMENT_BONUS_TOKENS));
   const [wasFirstRun] = useState(() => !alreadyCompleted);
 
   useEffect(() => {
-    if (session.completed && !savedResult) {
-      setSavedResult(true);
+    answeringRef.current = false;
+    advancingRef.current = false;
+  }, [q?.index]);
+
+  useEffect(() => {
+    if (session.completed && !completedRef.current) {
+      completedRef.current = true;
       audioService.playChest();
       onComplete(session.recommendedTier);
     }
-  }, [session.completed, session.recommendedTier, savedResult, onComplete]);
+  }, [session.completed, session.recommendedTier, onComplete]);
 
   const advanceAfterWrong = () => {
-    if (!feedback || feedback.correct || !feedback.canContinue) return;
+    if (!feedback || feedback.correct || !feedback.canContinue || advancingRef.current) return;
+    advancingRef.current = true;
     const picked = feedback.choice;
     setFeedback(null);
     setSession((prev) => submitPlacementAnswer(prev, picked));
   };
 
   const handlePick = (choice: string) => {
-    if (!q || feedback) return;
+    if (!q || feedback || answeringRef.current) return;
+    answeringRef.current = true;
     const isCorrect = choice === q.correctWord;
     if (isCorrect) {
       audioService.playCorrect(2);
@@ -75,7 +106,7 @@ export const PlacementView: React.FC<PlacementViewProps> = ({
         bridge: q.targetWord.plainBridge,
         canContinue: false,
       });
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         setFeedback(null);
         setSession((prev) => submitPlacementAnswer(prev, choice));
       }, 650);
@@ -88,7 +119,7 @@ export const PlacementView: React.FC<PlacementViewProps> = ({
         bridge: q.targetWord.plainBridge,
         canContinue: false,
       });
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         setFeedback((cur) => (cur ? { ...cur, canContinue: true } : null));
       }, 750);
     }

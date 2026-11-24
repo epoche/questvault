@@ -3,6 +3,7 @@ import type { Rarity } from './types';
 export interface AudioService {
   setMuted(muted: boolean): void;
   speak(text: string, lang?: string, rate?: number): void;
+  stopSpeech(): void;
   playCorrect(combo: number): void;
   playNudge(): void;
   playChest(): void;
@@ -17,18 +18,26 @@ class BrowserAudioService implements AudioService {
 
   setMuted(muted: boolean): void {
     this.muted = muted;
-    if (muted && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-      } catch {
-        // Ignore blocked speech synthesis in restricted sandboxes
-      }
+    if (muted) {
+      this.stopSpeech();
+    }
+  }
+
+  stopSpeech(): void {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      // Ignore blocked speech synthesis in restricted sandboxes
     }
   }
 
   private getContext(): AudioContext | null {
     if (this.muted || typeof window === 'undefined') return null;
     try {
+      if (this.ctx && this.ctx.state === 'closed') {
+        this.ctx = null;
+      }
       if (!this.ctx) {
         const AudioCtx =
           window.AudioContext ||
@@ -56,22 +65,35 @@ class BrowserAudioService implements AudioService {
     const ctx = this.getContext();
     if (!ctx) return;
 
-    const now = ctx.currentTime + delaySec;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    try {
+      const now = ctx.currentTime + delaySec;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, now);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, now);
 
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(gainLevel, now + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSec);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(gainLevel, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSec);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
 
-    osc.start(now);
-    osc.stop(now + durationSec + 0.02);
+      osc.onended = () => {
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {
+          // Ignore already-disconnected nodes
+        }
+      };
+
+      osc.start(now);
+      osc.stop(now + durationSec + 0.02);
+    } catch {
+      // Fail silently in strict sandboxes or when AudioContext rejects scheduling
+    }
   }
 
   speak(text: string, lang = 'en-US', rate = 0.94): void {

@@ -103,6 +103,7 @@ export const BlitzView: React.FC<BlitzViewProps> = ({
       if (advanceTimerRef.current !== null) {
         window.clearTimeout(advanceTimerRef.current);
       }
+      audioService.stopSpeech();
     };
   }, []);
 

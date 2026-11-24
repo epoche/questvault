@@ -69,6 +69,7 @@ export const FigurativeLabView: React.FC<FigurativeLabViewProps> = ({
   onExit,
   onGoToMarket,
 }) => {
+  const [lockedPolicy, setLockedPolicy] = useState<QuestRewardPolicy>(() => rewardPolicy);
   const [qIndex, setQIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [correctCount, setCorrectCount] = useState(0);
@@ -80,20 +81,11 @@ export const FigurativeLabView: React.FC<FigurativeLabViewProps> = ({
   const outcomesRef = useRef<FigurativeCompletionPayload['wordOutcomes']>([]);
   const correctCountRef = useRef(0);
 
-  const stopSpeech = () => {
-    try {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    } catch {
-      // Ignore sandboxed speechSynthesis errors
-    }
-  };
-
-  useEffect(() => () => stopSpeech(), []);
+  useEffect(() => () => audioService.stopSpeech(), []);
 
   const handleRestart = () => {
-    stopSpeech();
+    audioService.stopSpeech();
+    setLockedPolicy(rewardPolicy);
     answeringRef.current = false;
     settledRef.current = false;
     outcomesRef.current = [];
@@ -130,7 +122,7 @@ export const FigurativeLabView: React.FC<FigurativeLabViewProps> = ({
 
   const handleNext = () => {
     if (!answeringRef.current || selectedChoice === null || settledRef.current) return;
-    stopSpeech();
+    audioService.stopSpeech();
     const nextIdx = qIndex + 1;
     if (nextIdx >= questSet.questions.length) {
       settledRef.current = true;
@@ -138,7 +130,7 @@ export const FigurativeLabView: React.FC<FigurativeLabViewProps> = ({
         15 +
         correctCountRef.current * 4 +
         (correctCountRef.current === questSet.questions.length ? 5 : 0);
-      const awarded = applyQuestRewardMultiplier(rawTokens, rewardPolicy.multiplier);
+      const awarded = applyQuestRewardMultiplier(rawTokens, lockedPolicy.multiplier);
       setFinalAwarded(awarded);
       onComplete({
         setId: questSet.id,
@@ -245,7 +237,7 @@ export const FigurativeLabView: React.FC<FigurativeLabViewProps> = ({
         </div>
       </div>
 
-      <RewardPolicyBanner policy={rewardPolicy} lang="en" />
+      <RewardPolicyBanner policy={lockedPolicy} lang="en" />
 
       <div className="rounded-3xl border-3 border-[#1C1917] bg-white p-5 sm:p-6 shadow-[0_6px_0_#1C1917] space-y-5">
         <div className="space-y-3">

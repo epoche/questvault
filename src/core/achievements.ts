@@ -117,7 +117,7 @@ function countTotalLogicCorrect(state: PlayerState): number {
   }, 0);
 }
 
-function countTotalCompletedQuests(state: PlayerState): number {
+export function countTotalCompletedQuests(state: PlayerState): number {
   return (
     state.completedQuestSetIds.length +
     (state.completedRadicalIds?.length ?? 0) +

@@ -86,6 +86,27 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
   const partialSavedRef = useRef(false);
   const completedRef = useRef(false);
   const answeringRef = useRef(false);
+  const timersRef = useRef<number[]>([]);
+  const unmountedRef = useRef(false);
+
+  const scheduleTimeout = (fn: () => void, ms: number) => {
+    const id = window.setTimeout(() => {
+      timersRef.current = timersRef.current.filter((t) => t !== id);
+      if (unmountedRef.current) return;
+      fn();
+    }, ms);
+    timersRef.current.push(id);
+  };
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      timersRef.current.forEach((id) => window.clearTimeout(id));
+      timersRef.current = [];
+      audioService.stopSpeech();
+    };
+  }, []);
 
   const [sprintQueue, setSprintQueue] = useState<
     { question: ChineseSprintQuestion; requeued: boolean }[]
@@ -134,6 +155,9 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
   );
 
   const handleExitWithMastery = () => {
+    timersRef.current.forEach((id) => window.clearTimeout(id));
+    timersRef.current = [];
+    audioService.stopSpeech();
     if (stage !== 'complete' && outcomes.length > 0 && !partialSavedRef.current) {
       partialSavedRef.current = true;
       onRecordPartialMastery?.(outcomes);
@@ -209,7 +233,7 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
         canContinue: false,
       });
 
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         answeringRef.current = false;
         setFeedback(null);
         setSprintQueue((prev) => {
@@ -240,7 +264,7 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
         canContinue: false,
       });
 
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         setFeedback((cur) => (cur ? { ...cur, canContinue: true } : null));
       }, 800);
     }
@@ -282,7 +306,7 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
         canContinue: false,
       });
 
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         answeringRef.current = false;
         setFeedback(null);
         setUpgradeQueue((prev) => {
@@ -313,47 +337,49 @@ export const ChineseRunView: React.FC<ChineseRunViewProps> = ({
         canContinue: false,
       });
 
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         setFeedback((cur) => (cur ? { ...cur, canContinue: true } : null));
       }, 800);
     }
   };
 
+  const onKeyDownRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  onKeyDownRef.current = (e: KeyboardEvent) => {
+    if (stage === 'forge' || stage === 'complete') return;
+    const tag = (document.activeElement as HTMLElement | null)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    if (feedback?.kind === 'requeue' && feedback.canContinue && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      handleAdvanceAfterMiss();
+      return;
+    }
+
+    if (feedback) return;
+
+    if (stage === 'spotlight' && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      handleSpotlightNext(spotIdx);
+      return;
+    }
+
+    const idx = CHOICE_KEYS.indexOf(e.key);
+    if (idx === -1) return;
+
+    if (stage === 'sprint' && currentSprintItem?.question.choices[idx]) {
+      e.preventDefault();
+      handleSprintPick(currentSprintItem.question.choices[idx].word);
+    } else if (stage === 'upgrade' && currentUpgradeItem?.question.choices[idx]) {
+      e.preventDefault();
+      handleUpgradePick(currentUpgradeItem.question.choices[idx].word);
+    }
+  };
+
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (stage === 'forge' || stage === 'complete') return;
-      const tag = (document.activeElement as HTMLElement | null)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      if (feedback?.kind === 'requeue' && feedback.canContinue && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        handleAdvanceAfterMiss();
-        return;
-      }
-
-      if (feedback) return;
-
-      if (stage === 'spotlight' && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        handleSpotlightNext(spotIdx);
-        return;
-      }
-
-      const idx = CHOICE_KEYS.indexOf(e.key);
-      if (idx === -1) return;
-
-      if (stage === 'sprint' && currentSprintItem?.question.choices[idx]) {
-        e.preventDefault();
-        handleSprintPick(currentSprintItem.question.choices[idx].word);
-      } else if (stage === 'upgrade' && currentUpgradeItem?.question.choices[idx]) {
-        e.preventDefault();
-        handleUpgradePick(currentUpgradeItem.question.choices[idx].word);
-      }
-    };
-
+    const onKeyDown = (e: KeyboardEvent) => onKeyDownRef.current(e);
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  });
+  }, []);
 
   const handleForgeSubmit = () => {
     if (!writingEval.canUnlockChest || completedRef.current) return;

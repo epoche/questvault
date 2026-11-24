@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -93,6 +93,8 @@ export const MixedWarmupView: React.FC<MixedWarmupViewProps> = ({
   const settledRef = useRef(false);
   const outcomesRef = useRef<MixedWarmupOutcomeInput[]>([]);
 
+  useEffect(() => () => audioService.stopSpeech(), []);
+
   const isClinic = mode === 'mistake-clinic';
   const todayKey = getLocalDateKey();
   const alreadyClaimedWarmupToday = player.dailyMixedWarmupDate === todayKey;
@@ -107,6 +109,7 @@ export const MixedWarmupView: React.FC<MixedWarmupViewProps> = ({
   }, [mode, roundNonce]);
 
   const handleRestart = () => {
+    audioService.stopSpeech();
     answeringRef.current = false;
     settledRef.current = false;
     outcomesRef.current = [];
@@ -162,6 +165,7 @@ export const MixedWarmupView: React.FC<MixedWarmupViewProps> = ({
 
   const handleNext = () => {
     if (!answeringRef.current || selectedChoice === null || settledRef.current) return;
+    audioService.stopSpeech();
     const nextIdx = qIndex + 1;
     if (nextIdx >= items.length) {
       settledRef.current = true;

@@ -1,3 +1,4 @@
+import { ALL_LOGIC_MODULES } from '../subjects/logic/logicTypes';
 import { hashParentPin, ISO_WEEK_KEY_RE, PARENT_PIN_HASH_RE } from './analytics';
 import { createInitialPlayerState } from './economy';
 import { getCollectibleById, getPackById, STARTER_COLLECTIBLE_ID } from './packs';
@@ -6,7 +7,7 @@ import {
   VALID_CRITTER_ROOM_THEME_IDS,
   VALID_ROOM_DECOR_IDS,
 } from './roomCatalog';
-import type { CritterRoomThemeId, PackId, PlayerState } from './types';
+import type { CritterRoomThemeId, PackId, PlayerState, SubjectId } from './types';
 
 export const STORAGE_KEY = 'questvault.player.v1';
 
@@ -311,7 +312,9 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     ...(sanitizedCritterRoom ? { critterRoom: sanitizedCritterRoom } : {}),
     wordMastery: sanitizedMastery,
     completedQuestSetIds: Array.isArray(obj.completedQuestSetIds)
-      ? obj.completedQuestSetIds.filter((id): id is string => typeof id === 'string')
+      ? Array.from(
+          new Set(obj.completedQuestSetIds.filter((id): id is string => typeof id === 'string')),
+        )
       : [],
     completedRadicalIds: Array.isArray(obj.completedRadicalIds)
       ? Array.from(
@@ -383,16 +386,7 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
         )
       : [],
     ...(() => {
-      const validLogicIds = new Set([
-        'rotation-mirror',
-        'iso-cubes',
-        'cube-nets',
-        'paper-folding',
-        'balance-scale',
-        'pattern-matrix',
-        'logic-grid',
-        'robot-coding',
-      ]);
+      const validLogicIds = new Set<string>(ALL_LOGIC_MODULES.map((m) => m.id));
       const completedLogicModuleIds = Array.isArray(obj.completedLogicModuleIds)
         ? Array.from(
             new Set(
@@ -522,23 +516,82 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
         )
       : [],
     runHistory: Array.isArray(obj.runHistory)
-      ? (obj.runHistory.filter(
-          (r) => isRecord(r) && typeof r.id === 'string' && typeof r.tokensEarned === 'number',
-        ) as PlayerState['runHistory'])
+      ? (obj.runHistory
+          .filter((r) => isRecord(r) && typeof r.id === 'string')
+          .map((r) => {
+            const subj: SubjectId =
+              r.subjectId === 'english' || r.subjectId === 'math' || r.subjectId === 'chinese'
+                ? r.subjectId
+                : 'english';
+            const acc =
+              typeof r.accuracyPct === 'number' && Number.isFinite(r.accuracyPct)
+                ? Math.max(0, Math.min(100, Math.round(r.accuracyPct)))
+                : 0;
+            const tok =
+              typeof r.tokensEarned === 'number' && Number.isFinite(r.tokensEarned)
+                ? Math.max(0, Math.floor(r.tokensEarned))
+                : 0;
+            const maxCombo =
+              typeof r.maxCombo === 'number' && Number.isFinite(r.maxCombo)
+                ? Math.max(0, Math.floor(r.maxCombo))
+                : 0;
+            const completedAt =
+              typeof r.completedAt === 'string' && Number.isFinite(Date.parse(r.completedAt))
+                ? r.completedAt
+                : new Date(0).toISOString();
+            return {
+              id: r.id as string,
+              subjectId: subj,
+              questSetId: typeof r.questSetId === 'string' ? r.questSetId : (r.id as string),
+              questSetTitle: typeof r.questSetTitle === 'string' ? r.questSetTitle : 'Quest',
+              tokensEarned: tok,
+              maxCombo,
+              accuracyPct: acc,
+              completedAt,
+            };
+          })
+          .slice(0, 50) as PlayerState['runHistory'])
       : [],
     writingLog: Array.isArray(obj.writingLog)
-      ? (obj.writingLog.filter(
-          (w) => isRecord(w) && typeof w.id === 'string' && typeof w.sentence === 'string',
-        ) as PlayerState['writingLog'])
+      ? (obj.writingLog
+          .filter(
+            (w) =>
+              isRecord(w) &&
+              typeof w.id === 'string' &&
+              typeof w.sentence === 'string',
+          )
+          .map((w) => ({
+            id: w.id as string,
+            subjectId:
+              w.subjectId === 'english' || w.subjectId === 'math' || w.subjectId === 'chinese'
+                ? (w.subjectId as SubjectId)
+                : 'english',
+            questSetId: typeof w.questSetId === 'string' ? w.questSetId : '',
+            questSetTitle: typeof w.questSetTitle === 'string' ? w.questSetTitle : 'Writing',
+            targetWords: Array.isArray(w.targetWords)
+              ? w.targetWords.filter((tw: unknown): tw is string => typeof tw === 'string')
+              : [],
+            sentence: w.sentence as string,
+            createdAt:
+              typeof w.createdAt === 'string' && Number.isFinite(Date.parse(w.createdAt))
+                ? w.createdAt
+                : new Date(0).toISOString(),
+          }))
+          .slice(0, 100) as PlayerState['writingLog'])
       : [],
     customWordSets: Array.isArray(obj.customWordSets)
-      ? (obj.customWordSets.filter(
-          (c) =>
-            isRecord(c) &&
-            typeof c.id === 'string' &&
-            typeof c.title === 'string' &&
-            Array.isArray(c.words),
-        ) as PlayerState['customWordSets'])
+      ? (obj.customWordSets
+          .filter(
+            (c) =>
+              isRecord(c) &&
+              typeof c.id === 'string' &&
+              typeof c.title === 'string' &&
+              Array.isArray(c.words) &&
+              (c.subjectId === undefined ||
+                c.subjectId === 'english' ||
+                c.subjectId === 'chinese'),
+          )
+          .slice(0, 50) as PlayerState['customWordSets'])
       : [],
     ...(typeof subjectBossRematchDate.english === 'string'
       ? { lastBossRematchDate: subjectBossRematchDate.english }
@@ -660,7 +713,17 @@ export function createLocalStorageRepository(
       try {
         resolvedStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch {
-        // Ignore storage quota or sandbox errors cleanly
+        // Fallback when localStorage approaches quota: trim older logs and retry once
+        try {
+          const compact: PlayerState = {
+            ...state,
+            runHistory: state.runHistory.slice(0, 20),
+            writingLog: state.writingLog.slice(0, 30),
+          };
+          resolvedStorage.setItem(STORAGE_KEY, JSON.stringify(compact));
+        } catch {
+          // Ignore unrecoverable storage quota or sandbox errors cleanly
+        }
       }
     },
   };

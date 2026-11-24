@@ -770,11 +770,11 @@ function renderP2Detail(
   }
 }
 
-export function renderPhase2Collectible(id: string): React.ReactNode | null {
+export function renderPhase2Collectible(id: string, uid = 'p2'): React.ReactNode | null {
   const spec = PHASE2_COLLECTIBLE_SPECS[id];
   if (!spec) return null;
 
-  const gradId = `qv-p2-grad-${id}`;
+  const gradId = `${uid}-qv-p2-grad-${id}`;
   const fillRef = spec.chroma ? `url(#${gradId})` : spec.body;
   const lum = hexLuminance(spec.body);
   const isDarkBody = !spec.chroma && lum < 0.28;

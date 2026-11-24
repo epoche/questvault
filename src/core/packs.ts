@@ -6,18 +6,6 @@ import type { Collectible, MysteryPack, PackCategory, PackId, Rarity, RarityConf
 export const PACK_COST = 25;
 export const MIN_PACK_COST = 20;
 
-export const PACK_CATEGORIES: { id: 'all' | PackCategory; label: string }[] = [
-  { id: 'all', label: 'All 48' },
-  { id: 'holidays', label: 'Holidays' },
-  { id: 'pets', label: 'Cute Animals' },
-  { id: 'squishy', label: 'Squishy & Fairytale' },
-  { id: 'classic', label: 'Classic' },
-  { id: 'food', label: 'Food & Café' },
-  { id: 'nature', label: 'Nature' },
-  { id: 'adventure', label: 'Adventure' },
-  { id: 'arts', label: 'Arts & Gems' },
-];
-
 export const RARITY_ORDER: Rarity[] = [
   'common',
   'uncommon',
@@ -369,6 +357,18 @@ export const MYSTERY_PACKS: MysteryPack[] = [
   ...PHASE8_PACKS,
 ];
 
+export const PACK_CATEGORIES: { id: 'all' | PackCategory; label: string }[] = [
+  { id: 'all', label: `All ${MYSTERY_PACKS.length}` },
+  { id: 'holidays', label: 'Holidays' },
+  { id: 'pets', label: 'Cute Animals' },
+  { id: 'squishy', label: 'Squishy & Fairytale' },
+  { id: 'classic', label: 'Classic' },
+  { id: 'food', label: 'Food & Café' },
+  { id: 'nature', label: 'Nature' },
+  { id: 'adventure', label: 'Adventure' },
+  { id: 'arts', label: 'Arts & Gems' },
+];
+
 export const COLLECTIBLES: Collectible[] = [
   // 1. CRITTER PACK (8)
   { id: 'critter-sprout-bunny', name: 'Clover Bunny', packId: 'critter', rarity: 'common', tagline: 'Hops through every chapter with lucky ears.', accentHex: '#65A30D', bgHex: '#ECFCCB' },
@@ -676,14 +676,30 @@ export const COLLECTIBLES: Collectible[] = [
 
 export const STARTER_COLLECTIBLE_ID = 'critter-sprout-bunny';
 
+const COLLECTIBLE_BY_ID = new Map<string, Collectible>(
+  COLLECTIBLES.map((item) => [item.id, item]),
+);
+const PACK_BY_ID = new Map<PackId, MysteryPack>(
+  MYSTERY_PACKS.map((pack) => [pack.id, pack]),
+);
+const COLLECTIBLES_BY_PACK = new Map<PackId, Collectible[]>();
+for (const item of COLLECTIBLES) {
+  const bucket = COLLECTIBLES_BY_PACK.get(item.packId);
+  if (bucket) {
+    bucket.push(item);
+  } else {
+    COLLECTIBLES_BY_PACK.set(item.packId, [item]);
+  }
+}
+
 export function getCollectibleById(id: string): Collectible | undefined {
-  return COLLECTIBLES.find((item) => item.id === id);
+  return COLLECTIBLE_BY_ID.get(id);
 }
 
 export function getCollectiblesByPack(packId: PackId): Collectible[] {
-  return COLLECTIBLES.filter((item) => item.packId === packId);
+  return COLLECTIBLES_BY_PACK.get(packId) ?? [];
 }
 
 export function getPackById(packId: PackId): MysteryPack | undefined {
-  return MYSTERY_PACKS.find((pack) => pack.id === packId);
+  return PACK_BY_ID.get(packId);
 }

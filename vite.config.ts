@@ -92,61 +92,6 @@ export default defineConfig({
                   return 'artwork-logic';
                 }
                 if (id.includes('/src/ui/artwork/')) return 'artwork-svg';
-                if (
-                  id.includes('/src/ui/views/LogicLabView') ||
-                  id.includes('/src/ui/views/MixedWarmupView')
-                ) {
-                  return 'views-logic';
-                }
-                if (
-                  id.includes('/src/ui/views/BossBattleView') ||
-                  id.includes('/src/ui/views/FishingGameView') ||
-                  id.includes('/src/ui/views/CafeGameView') ||
-                  id.includes('/src/ui/views/BlitzView') ||
-                  id.includes('/src/ui/views/TowerDefenseView')
-                ) {
-                  return 'views-arcade';
-                }
-                if (
-                  id.includes('/src/ui/views/MathRunView') ||
-                  id.includes('/src/ui/views/MathPlacementView') ||
-                  id.includes('/src/ui/views/FactFluencyView') ||
-                  id.includes('/src/ui/views/BarModelQuestView')
-                ) {
-                  return 'views-math';
-                }
-                if (
-                  id.includes('/src/ui/views/RunView') ||
-                  id.includes('/src/ui/views/PlacementView') ||
-                  id.includes('/src/ui/views/EnglishRootQuestView') ||
-                  id.includes('/src/ui/views/GrammarRepairView') ||
-                  id.includes('/src/ui/views/SpellingBeeView') ||
-                  id.includes('/src/ui/views/EnglishChapterSeriesView') ||
-                  id.includes('/src/ui/views/FigurativeLabView')
-                ) {
-                  return 'views-english';
-                }
-                if (
-                  id.includes('/src/ui/views/ChineseRunView') ||
-                  id.includes('/src/ui/views/ChinesePlacementView') ||
-                  id.includes('/src/ui/views/ChineseListeningView') ||
-                  id.includes('/src/ui/views/RadicalQuestView') ||
-                  id.includes('/src/ui/views/MeasureIdiomQuestView') ||
-                  id.includes('/src/ui/views/ChapterSeriesView') ||
-                  id.includes('/src/ui/views/SentencePatternView') ||
-                  id.includes('/src/ui/views/LookAlikeHanziView')
-                ) {
-                  return 'views-chinese';
-                }
-                if (
-                  id.includes('/src/ui/views/VaultView') ||
-                  id.includes('/src/ui/views/MarketView') ||
-                  id.includes('/src/ui/views/ParentView') ||
-                  id.includes('/src/ui/views/WritingLogView') ||
-                  id.includes('/src/ui/views/ReadingRunView')
-                ) {
-                  return 'views-secondary';
-                }
                 return undefined;
               },
             },

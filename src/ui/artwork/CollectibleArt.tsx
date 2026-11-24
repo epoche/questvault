@@ -57,7 +57,7 @@ function Cheeks({ y = 63, spread = 23, color = '#FDA4AF' }: { y?: number; spread
   );
 }
 
-function renderCharacter(id: string): React.ReactNode {
+function renderCharacter(id: string, uid = 'base'): React.ReactNode {
   switch (id) {
     // ────────── CRITTER PACK ──────────
     case 'critter-sprout-bunny':
@@ -198,7 +198,7 @@ function renderCharacter(id: string): React.ReactNode {
       return (
         <g>
           <defs>
-            <linearGradient id="chromaDragonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={`${uid}-chromaDragonGrad`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#F472B6" />
               <stop offset="35%" stopColor="#A78BFA" />
               <stop offset="70%" stopColor="#38BDF8" />
@@ -211,7 +211,7 @@ function renderCharacter(id: string): React.ReactNode {
           {/* Little wings */}
           <path d="M 18 52 L 5 38 L 12 66 Z" fill="#38BDF8" stroke="#1C1917" strokeWidth="3" strokeLinejoin="round" />
           <path d="M 82 52 L 95 38 L 88 66 Z" fill="#F472B6" stroke="#1C1917" strokeWidth="3" strokeLinejoin="round" />
-          <rect x="18" y="28" width="64" height="58" rx="18" fill="url(#chromaDragonGrad)" stroke="#1C1917" strokeWidth="3.4" />
+          <rect x="18" y="28" width="64" height="58" rx="18" fill={`url(#${uid}-chromaDragonGrad)`} stroke="#1C1917" strokeWidth="3.4" />
           <ellipse cx="50" cy="72" rx="22" ry="11" fill="#FFFFFF" opacity="0.88" />
           <Eyes y={54} />
           <circle cx="44" cy="66" r="2.2" fill="#1C1917" />
@@ -352,7 +352,7 @@ function renderCharacter(id: string): React.ReactNode {
       return (
         <g>
           <defs>
-            <linearGradient id="chromaSundaeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={`${uid}-chromaSundaeGrad`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#F472B6" />
               <stop offset="50%" stopColor="#38BDF8" />
               <stop offset="100%" stopColor="#FDE047" />
@@ -365,7 +365,7 @@ function renderCharacter(id: string): React.ReactNode {
           <circle cx="64" cy="36" r="14" fill="#FFFFFF" stroke="#1C1917" strokeWidth="3" />
           <circle cx="50" cy="31" r="16" fill="#FFFFFF" stroke="#1C1917" strokeWidth="3" />
           {/* Parfait prism bowl */}
-          <path d="M 20 42 L 80 42 L 70 84 Q 50 90 30 84 Z" fill="url(#chromaSundaeGrad)" stroke="#1C1917" strokeWidth="3.4" strokeLinejoin="round" />
+          <path d="M 20 42 L 80 42 L 70 84 Q 50 90 30 84 Z" fill={`url(#${uid}-chromaSundaeGrad)`} stroke="#1C1917" strokeWidth="3.4" strokeLinejoin="round" />
           <Eyes y={60} />
           <Cheeks y={68} color="#FFFFFF" />
           <path d="M 45 68 Q 50 73 55 68" stroke="#1C1917" strokeWidth="2.8" strokeLinecap="round" fill="none" />
@@ -510,7 +510,7 @@ function renderCharacter(id: string): React.ReactNode {
       return (
         <g>
           <defs>
-            <linearGradient id="chromaNarwhalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={`${uid}-chromaNarwhalGrad`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#38BDF8" />
               <stop offset="45%" stopColor="#A855F7" />
               <stop offset="100%" stopColor="#EC4899" />
@@ -520,7 +520,7 @@ function renderCharacter(id: string): React.ReactNode {
           <polygon points="44,32 50,4 56,32" fill="#FDE047" stroke="#1C1917" strokeWidth="3" strokeLinejoin="round" />
           <line x1="46" y1="24" x2="54" y2="20" stroke="#EC4899" strokeWidth="2.6" />
           <line x1="47" y1="16" x2="53" y2="13" stroke="#06B6D4" strokeWidth="2.6" />
-          <rect x="16" y="30" width="68" height="56" rx="22" fill="url(#chromaNarwhalGrad)" stroke="#1C1917" strokeWidth="3.4" />
+          <rect x="16" y="30" width="68" height="56" rx="22" fill={`url(#${uid}-chromaNarwhalGrad)`} stroke="#1C1917" strokeWidth="3.4" />
           <path d="M 18 68 Q 50 58 82 68 L 80 78 Q 74 86 50 86 Q 26 86 20 78 Z" fill="#FFFFFF" opacity="0.9" />
           <Eyes y={54} />
           <Cheeks y={62} color="#F9A8D4" />
@@ -575,7 +575,7 @@ export const CollectibleArt: React.FC<CollectibleArtProps> = ({
             </linearGradient>
           </defs>
         )}
-        {renderPhase8Collectible(id, uid) ?? renderPhase6Collectible(id, uid) ?? renderPhase2DCollectible(id, uid) ?? renderPhase2Collectible(id) ?? renderPhase1Collectible(id) ?? renderExtraCollectible(id) ?? renderCharacter(id)}
+        {renderPhase8Collectible(id, uid) ?? renderPhase6Collectible(id, uid) ?? renderPhase2DCollectible(id, uid) ?? renderPhase2Collectible(id, uid) ?? renderPhase1Collectible(id, uid) ?? renderExtraCollectible(id, uid) ?? renderCharacter(id, uid)}
         {showShiny && (
           <g>
             <rect x="0" y="0" width="100" height="100" fill={`url(#${foilGradId})`} />
@@ -588,49 +588,49 @@ export const CollectibleArt: React.FC<CollectibleArtProps> = ({
   );
 };
 
+const PACK_ENVELOPE_PALETTE: Record<PackId, { main: string; top: string; accent: string; emblem: string }> = {
+  critter: { main: '#EA580C', top: '#FDBA74', accent: '#FEF3C7', emblem: 'critter-crystal-fox' },
+  sweet: { main: '#DB2777', top: '#F9A8D4', accent: '#FCE7F3', emblem: 'sweet-boba-bear' },
+  space: { main: '#2563EB', top: '#93C5FD', accent: '#DBEAFE', emblem: 'space-astro-corgi' },
+  ocean: { main: '#0284C7', top: '#7DD3FC', accent: '#E0F2FE', emblem: 'ocean-dolphin-scout' },
+  dino: { main: '#15803D', top: '#86EFAC', accent: '#DCFCE7', emblem: 'dino-amber-raptor' },
+  magic: { main: '#7C3AED', top: '#C4B5FD', accent: '#EDE9FE', emblem: 'magic-spellbook-fox' },
+  boba: { main: '#B45309', top: '#FDE68A', accent: '#FEF3C7', emblem: 'boba-milk-cat' },
+  bakery: { main: '#D97706', top: '#FCD34D', accent: '#FFFBEB', emblem: 'bakery-croissant-bear' },
+  sushi: { main: '#E11D48', top: '#FDA4AF', accent: '#FFF1F2', emblem: 'sushi-onigiri-cat' },
+  botanical: { main: '#16A34A', top: '#86EFAC', accent: '#F0FDF4', emblem: 'botanical-sakura-bunny' },
+  arctic: { main: '#0EA5E9', top: '#BAE6FD', accent: '#F0F9FF', emblem: 'arctic-penguin-knight' },
+  butterfly: { main: '#9333EA', top: '#D8B4FE', accent: '#FAF5FF', emblem: 'butterfly-blue-morpho' },
+  safari: { main: '#CA8A04', top: '#FEF08A', accent: '#FEFCE8', emblem: 'safari-golden-lion' },
+  festival: { main: '#DC2626', top: '#FCA5A5', accent: '#FEF2F2', emblem: 'festival-lucky-cat' },
+  mythology: { main: '#4F46E5', top: '#A5B4FC', accent: '#EEF2FF', emblem: 'mythology-baby-pegasus' },
+  music: { main: '#EC4899', top: '#F9A8D4', accent: '#FDF2F8', emblem: 'music-guitar-cat' },
+  arcade: { main: '#0D9488', top: '#5EEAD4', accent: '#F0FDFA', emblem: 'arcade-beep-bot' },
+  crystal: { main: '#6366F1', top: '#C7D2FE', accent: '#EEF2FF', emblem: 'crystal-sapphire-fox' },
+  halloween: { main: '#EA580C', top: '#A855F7', accent: '#FFF7ED', emblem: 'halloween-pumpkin-cat' },
+  lunar: { main: '#DC2626', top: '#FACC15', accent: '#FEF2F2', emblem: 'lunar-lion-pup' },
+  winter: { main: '#0284C7', top: '#BAE6FD', accent: '#F0F9FF', emblem: 'winter-snow-penguin' },
+  midautumn: { main: '#D97706', top: '#FDE68A', accent: '#FFFBEB', emblem: 'midautumn-mochi-rabbit' },
+  easter: { main: '#EC4899', top: '#FBCFE8', accent: '#FDF2F8', emblem: 'easter-egg-bunny' },
+  catcafe: { main: '#C2410C', top: '#FDBA74', accent: '#FFF7ED', emblem: 'catcafe-toast-tabby' },
+  capybara: { main: '#0D9488', top: '#99F6E4', accent: '#F0FDFA', emblem: 'capybara-yuzu-chill' },
+  forest: { main: '#15803D', top: '#86EFAC', accent: '#F0FDF4', emblem: 'forest-red-panda' },
+  mochi: { main: '#E11D48', top: '#FDA4AF', accent: '#FFF1F2', emblem: 'mochi-ichigo-daifuku' },
+  cloudsquishy: { main: '#7C3AED', top: '#DDD6FE', accent: '#F5F3FF', emblem: 'cloudsquishy-marshmallow-lamb' },
+  fairytale: { main: '#2563EB', top: '#93C5FD', accent: '#EFF6FF', emblem: 'fairytale-slipper-bunny' },
+  fairyland: { main: '#9333EA', top: '#E9D5FF', accent: '#FAF5FF', emblem: 'fairyland-dewdrop-pixie' },
+  ...PHASE2D_ENVELOPE_THEMES,
+  ...PHASE6_ENVELOPE_THEMES,
+  ...PHASE8_ENVELOPE_THEMES,
+};
+
 export const PackEnvelopeArt: React.FC<{ packId: PackId; size?: number }> = ({
   packId,
   size = 112,
 }) => {
   const rawUid = React.useId();
   const uid = rawUid.replace(/[^a-zA-Z0-9_-]/g, '');
-  const palette: Record<PackId, { main: string; top: string; accent: string; emblem: string }> = {
-    critter: { main: '#EA580C', top: '#FDBA74', accent: '#FEF3C7', emblem: 'critter-crystal-fox' },
-    sweet: { main: '#DB2777', top: '#F9A8D4', accent: '#FCE7F3', emblem: 'sweet-boba-bear' },
-    space: { main: '#2563EB', top: '#93C5FD', accent: '#DBEAFE', emblem: 'space-astro-corgi' },
-    ocean: { main: '#0284C7', top: '#7DD3FC', accent: '#E0F2FE', emblem: 'ocean-dolphin-scout' },
-    dino: { main: '#15803D', top: '#86EFAC', accent: '#DCFCE7', emblem: 'dino-amber-raptor' },
-    magic: { main: '#7C3AED', top: '#C4B5FD', accent: '#EDE9FE', emblem: 'magic-spellbook-fox' },
-    boba: { main: '#B45309', top: '#FDE68A', accent: '#FEF3C7', emblem: 'boba-milk-cat' },
-    bakery: { main: '#D97706', top: '#FCD34D', accent: '#FFFBEB', emblem: 'bakery-croissant-bear' },
-    sushi: { main: '#E11D48', top: '#FDA4AF', accent: '#FFF1F2', emblem: 'sushi-onigiri-cat' },
-    botanical: { main: '#16A34A', top: '#86EFAC', accent: '#F0FDF4', emblem: 'botanical-sakura-bunny' },
-    arctic: { main: '#0EA5E9', top: '#BAE6FD', accent: '#F0F9FF', emblem: 'arctic-penguin-knight' },
-    butterfly: { main: '#9333EA', top: '#D8B4FE', accent: '#FAF5FF', emblem: 'butterfly-blue-morpho' },
-    safari: { main: '#CA8A04', top: '#FEF08A', accent: '#FEFCE8', emblem: 'safari-golden-lion' },
-    festival: { main: '#DC2626', top: '#FCA5A5', accent: '#FEF2F2', emblem: 'festival-lucky-cat' },
-    mythology: { main: '#4F46E5', top: '#A5B4FC', accent: '#EEF2FF', emblem: 'mythology-baby-pegasus' },
-    music: { main: '#EC4899', top: '#F9A8D4', accent: '#FDF2F8', emblem: 'music-guitar-cat' },
-    arcade: { main: '#0D9488', top: '#5EEAD4', accent: '#F0FDFA', emblem: 'arcade-beep-bot' },
-    crystal: { main: '#6366F1', top: '#C7D2FE', accent: '#EEF2FF', emblem: 'crystal-sapphire-fox' },
-    halloween: { main: '#EA580C', top: '#A855F7', accent: '#FFF7ED', emblem: 'halloween-pumpkin-cat' },
-    lunar: { main: '#DC2626', top: '#FACC15', accent: '#FEF2F2', emblem: 'lunar-lion-pup' },
-    winter: { main: '#0284C7', top: '#BAE6FD', accent: '#F0F9FF', emblem: 'winter-snow-penguin' },
-    midautumn: { main: '#D97706', top: '#FDE68A', accent: '#FFFBEB', emblem: 'midautumn-mochi-rabbit' },
-    easter: { main: '#EC4899', top: '#FBCFE8', accent: '#FDF2F8', emblem: 'easter-egg-bunny' },
-    catcafe: { main: '#C2410C', top: '#FDBA74', accent: '#FFF7ED', emblem: 'catcafe-toast-tabby' },
-    capybara: { main: '#0D9488', top: '#99F6E4', accent: '#F0FDFA', emblem: 'capybara-yuzu-chill' },
-    forest: { main: '#15803D', top: '#86EFAC', accent: '#F0FDF4', emblem: 'forest-red-panda' },
-    mochi: { main: '#E11D48', top: '#FDA4AF', accent: '#FFF1F2', emblem: 'mochi-ichigo-daifuku' },
-    cloudsquishy: { main: '#7C3AED', top: '#DDD6FE', accent: '#F5F3FF', emblem: 'cloudsquishy-marshmallow-lamb' },
-    fairytale: { main: '#2563EB', top: '#93C5FD', accent: '#EFF6FF', emblem: 'fairytale-slipper-bunny' },
-    fairyland: { main: '#9333EA', top: '#E9D5FF', accent: '#FAF5FF', emblem: 'fairyland-dewdrop-pixie' },
-    ...PHASE2D_ENVELOPE_THEMES,
-    ...PHASE6_ENVELOPE_THEMES,
-    ...PHASE8_ENVELOPE_THEMES,
-  };
-
-  const p = palette[packId];
+  const p = PACK_ENVELOPE_PALETTE[packId];
 
   return (
     <div
@@ -649,7 +649,7 @@ export const PackEnvelopeArt: React.FC<{ packId: PackId; size?: number }> = ({
         <rect x="16" y="116" width="88" height="14" fill={p.top} opacity="0.6" />
         <rect x="26" y="34" width="68" height="68" rx="16" fill={p.accent} stroke="#1C1917" strokeWidth="3" />
         <g transform="translate(26, 34) scale(0.68)">
-          {renderPhase8Collectible(p.emblem, uid) ?? renderPhase6Collectible(p.emblem, uid) ?? renderPhase2DCollectible(p.emblem, uid) ?? renderPhase2Collectible(p.emblem) ?? renderPhase1Collectible(p.emblem) ?? renderExtraCollectible(p.emblem) ?? renderCharacter(p.emblem)}
+          {renderPhase8Collectible(p.emblem, uid) ?? renderPhase6Collectible(p.emblem, uid) ?? renderPhase2DCollectible(p.emblem, uid) ?? renderPhase2Collectible(p.emblem, uid) ?? renderPhase1Collectible(p.emblem, uid) ?? renderExtraCollectible(p.emblem, uid) ?? renderCharacter(p.emblem, uid)}
         </g>
         <circle cx="28" cy="112" r="3" fill="#FFFFFF" opacity="0.85" />
         <circle cx="92" cy="112" r="3" fill="#FFFFFF" opacity="0.85" />

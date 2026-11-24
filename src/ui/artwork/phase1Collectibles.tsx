@@ -653,11 +653,11 @@ function renderDetail(detail: DetailKind, secondary: string, accent: string) {
   }
 }
 
-export function renderPhase1Collectible(id: string): React.ReactNode | null {
+export function renderPhase1Collectible(id: string, uid = 'p1'): React.ReactNode | null {
   const spec = SPECS[id];
   if (!spec) return null;
 
-  const gradId = `qv-p1-grad-${id}`;
+  const gradId = `${uid}-qv-p1-grad-${id}`;
   const fillRef = spec.chroma ? `url(#${gradId})` : spec.body;
   const eyeColor = spec.detail === 'visor' ? '#22D3EE' : '#1C1917';
   const eyeY = spec.shape === 'bowl' ? 46 : spec.shape === 'onigiri' ? 56 : 54;

@@ -57,6 +57,7 @@ export const LookAlikeHanziView: React.FC<LookAlikeHanziViewProps> = ({
   onExit,
   onGoToMarket,
 }) => {
+  const [lockedPolicy, setLockedPolicy] = useState<QuestRewardPolicy>(() => rewardPolicy);
   const [stage, setStage] = useState<'compare' | 'sprint' | 'done'>('compare');
   const [qIndex, setQIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
@@ -68,20 +69,11 @@ export const LookAlikeHanziView: React.FC<LookAlikeHanziViewProps> = ({
   const outcomesRef = useRef<LookAlikeCompletionPayload['wordOutcomes']>([]);
   const correctCountRef = useRef(0);
 
-  const stopSpeech = () => {
-    try {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    } catch {
-      // Ignore sandboxed speechSynthesis errors
-    }
-  };
-
-  useEffect(() => () => stopSpeech(), []);
+  useEffect(() => () => audioService.stopSpeech(), []);
 
   const handleRestart = () => {
-    stopSpeech();
+    audioService.stopSpeech();
+    setLockedPolicy(rewardPolicy);
     answeringRef.current = false;
     settledRef.current = false;
     outcomesRef.current = [];
@@ -117,12 +109,12 @@ export const LookAlikeHanziView: React.FC<LookAlikeHanziViewProps> = ({
 
   const handleNext = () => {
     if (!answeringRef.current || selectedChoice === null || settledRef.current) return;
-    stopSpeech();
+    audioService.stopSpeech();
     const nextIdx = qIndex + 1;
     if (nextIdx >= questSet.questions.length) {
       settledRef.current = true;
       const rawTokens = 15 + correctCountRef.current * 4 + (correctCountRef.current === questSet.questions.length ? 5 : 0);
-      const awarded = applyQuestRewardMultiplier(rawTokens, rewardPolicy.multiplier);
+      const awarded = applyQuestRewardMultiplier(rawTokens, lockedPolicy.multiplier);
       setFinalAwarded(awarded);
       onComplete({
         setId: questSet.id,
@@ -229,7 +221,7 @@ export const LookAlikeHanziView: React.FC<LookAlikeHanziViewProps> = ({
           </div>
         </div>
 
-        <RewardPolicyBanner policy={rewardPolicy} lang="zh" />
+        <RewardPolicyBanner policy={lockedPolicy} lang="zh" />
 
         <div className="rounded-3xl border-3 border-[#1C1917] bg-white p-5 sm:p-6 shadow-[0_6px_0_#1C1917] space-y-5">
           <div className="text-center space-y-1">
@@ -356,7 +348,7 @@ export const LookAlikeHanziView: React.FC<LookAlikeHanziViewProps> = ({
         </div>
       </div>
 
-      <RewardPolicyBanner policy={rewardPolicy} lang="zh" />
+      <RewardPolicyBanner policy={lockedPolicy} lang="zh" />
 
       <div className="rounded-3xl border-3 border-[#1C1917] bg-white p-5 sm:p-6 shadow-[0_6px_0_#1C1917] space-y-5">
         <div className="text-center space-y-2.5">
@@ -455,7 +447,9 @@ export const LookAlikeHanziView: React.FC<LookAlikeHanziViewProps> = ({
                 >
                   {isCorrect
                     ? `答對了！就是「${q.targetChar}」`
-                    : `正解是「${q.targetChar}」（${q.targetZhuyin}）`}
+                    : showZhuyin
+                      ? `正解是「${q.targetChar}」（${q.targetZhuyin}）`
+                      : `正解是「${q.targetChar}」`}
                 </p>
                 <p className="text-xs sm:text-sm font-semibold text-[#1C1917] leading-snug">
                   {q.explanation}

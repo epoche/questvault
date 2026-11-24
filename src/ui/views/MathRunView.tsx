@@ -79,6 +79,27 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
   const partialSavedRef = useRef(false);
   const completedRef = useRef(false);
   const answeringRef = useRef(false);
+  const timersRef = useRef<number[]>([]);
+  const unmountedRef = useRef(false);
+
+  const scheduleTimeout = (fn: () => void, ms: number) => {
+    const id = window.setTimeout(() => {
+      timersRef.current = timersRef.current.filter((t) => t !== id);
+      if (unmountedRef.current) return;
+      fn();
+    }, ms);
+    timersRef.current.push(id);
+  };
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      timersRef.current.forEach((id) => window.clearTimeout(id));
+      timersRef.current = [];
+      audioService.stopSpeech();
+    };
+  }, []);
 
   const [sprintQueue, setSprintQueue] = useState<
     { question: MathSprintQuestion; requeued: boolean }[]
@@ -112,6 +133,9 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
   const currentChallenge = challengeQueue[0];
 
   const handleExitWithMastery = () => {
+    timersRef.current.forEach((id) => window.clearTimeout(id));
+    timersRef.current = [];
+    audioService.stopSpeech();
     if (stage !== 'complete' && outcomes.length > 0 && !partialSavedRef.current) {
       partialSavedRef.current = true;
       onRecordPartialMastery?.(outcomes);
@@ -126,7 +150,7 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
     finalAttempts: number,
     finalOutcomes: WordOutcomeInput[],
   ) => {
-    if (completedRef.current) return;
+    if (completedRef.current || unmountedRef.current) return;
     completedRef.current = true;
     partialSavedRef.current = true;
     const bonus = Math.round(25 * multiplier);
@@ -227,7 +251,7 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
         canContinue: false,
       });
 
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         answeringRef.current = false;
         setFeedback(null);
         setSprintQueue((prev) => {
@@ -258,7 +282,7 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
         canContinue: false,
       });
 
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         setFeedback((cur) => (cur ? { ...cur, canContinue: true } : null));
       }, 800);
     }
@@ -306,7 +330,8 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
       });
 
       const isLast = challengeQueue.length <= 1;
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
+        if (unmountedRef.current) return;
         answeringRef.current = false;
         setFeedback(null);
         setShowHint(false);
@@ -339,47 +364,49 @@ export const MathRunView: React.FC<MathRunViewProps> = ({
         canContinue: false,
       });
 
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         setFeedback((cur) => (cur ? { ...cur, canContinue: true } : null));
       }, 800);
     }
   };
 
+  const onKeyDownRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  onKeyDownRef.current = (e: KeyboardEvent) => {
+    if (stage === 'complete') return;
+    const tag = (document.activeElement as HTMLElement | null)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    if (feedback?.kind === 'requeue' && feedback.canContinue && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      handleAdvanceAfterMiss();
+      return;
+    }
+
+    if (feedback) return;
+
+    if (stage === 'concept' && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      handleConceptNext(conceptIdx);
+      return;
+    }
+
+    const idx = CHOICE_KEYS.indexOf(e.key);
+    if (idx === -1) return;
+
+    if (stage === 'sprint' && currentSprint?.question.choices[idx]) {
+      e.preventDefault();
+      handleSprintPick(currentSprint.question.choices[idx]);
+    } else if (stage === 'challenge' && currentChallenge?.question.choices[idx]) {
+      e.preventDefault();
+      handleChallengePick(currentChallenge.question.choices[idx]);
+    }
+  };
+
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (stage === 'complete') return;
-      const tag = (document.activeElement as HTMLElement | null)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      if (feedback?.kind === 'requeue' && feedback.canContinue && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        handleAdvanceAfterMiss();
-        return;
-      }
-
-      if (feedback) return;
-
-      if (stage === 'concept' && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        handleConceptNext(conceptIdx);
-        return;
-      }
-
-      const idx = CHOICE_KEYS.indexOf(e.key);
-      if (idx === -1) return;
-
-      if (stage === 'sprint' && currentSprint?.question.choices[idx]) {
-        e.preventDefault();
-        handleSprintPick(currentSprint.question.choices[idx]);
-      } else if (stage === 'challenge' && currentChallenge?.question.choices[idx]) {
-        e.preventDefault();
-        handleChallengePick(currentChallenge.question.choices[idx]);
-      }
-    };
-
+    const onKeyDown = (e: KeyboardEvent) => onKeyDownRef.current(e);
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  });
+  }, []);
 
   const stageStep = stage === 'concept' ? 0 : stage === 'sprint' ? 1 : stage === 'challenge' ? 2 : 3;
 

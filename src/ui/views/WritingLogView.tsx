@@ -87,6 +87,8 @@ export const WritingLogView: React.FC<WritingLogViewProps> = ({
     setSelectedSubject(activeSubjectId);
   }, [activeSubjectId]);
 
+  useEffect(() => () => audioService.stopSpeech(), []);
+
   const handleSubjectSwitch = (subjectId: SubjectId) => {
     setSelectedSubject(subjectId);
     onSelectSubject(subjectId);

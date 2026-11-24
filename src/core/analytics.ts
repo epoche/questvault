@@ -16,6 +16,8 @@ import {
   SPATIAL_MODULES,
   type LogicModuleMeta,
 } from '../subjects/logic/logicTypes';
+import { countTotalCompletedQuests } from './achievements';
+import { isoToLocalDateKey } from './date';
 import { classifyWordMastery } from './mastery';
 
 export interface WeeklySnapshot {
@@ -210,7 +212,7 @@ export function computeWeeklySnapshot(
     runsBySubject[r.subjectId] = (runsBySubject[r.subjectId] ?? 0) + 1;
     accSum += r.accuracyPct;
     tokensEarned += r.tokensEarned;
-    daySet.add(r.completedAt.slice(0, 10));
+    daySet.add(isoToLocalDateKey(r.completedAt));
   }
 
   const writingCountThisWeek = player.writingLog.filter((w) => {
@@ -248,7 +250,7 @@ export function computeWeeklySnapshot(
     writingCountThisWeek,
     masteredWordsCount,
     practicedWordsCount: masteryValues.length,
-    completedQuestsTotal: player.completedQuestSetIds.length,
+    completedQuestsTotal: countTotalCompletedQuests(player),
     completedRadicalsCount,
     totalRadicalsCount: BUILTIN_RADICAL_FAMILIES.length,
     completedChapterEpisodesCount,
@@ -497,7 +499,7 @@ export function formatWeeklyReportText(
   const weakEn = getWeakSpotRadar(player.wordMastery, 'english', 5);
   const weakZh = getWeakSpotRadar(player.wordMastery, 'chinese', 5);
   const weakMath = getWeakSpotRadar(player.wordMastery, 'math', 5);
-  const dateLabel = nowIso.slice(0, 10);
+  const dateLabel = isoToLocalDateKey(nowIso);
 
   const lines: string[] = [
     `QuestVault 每週學習報告（${player.displayName}｜截至 ${dateLabel}）`,
