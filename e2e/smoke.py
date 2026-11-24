@@ -132,6 +132,9 @@ def main() -> int:
                     if not sync_val.startswith(("QV1Z:", "QV1R:")):
                         errors.append(f"[ipad] Unexpected sync code prefix: {sync_val[:12]}")
 
+                    # Phase 10A PWA offline cache badge in Progress -> DeviceVoiceSyncPanel
+                    page.wait_for_selector("[data-testid='pwa-offline-status-badge']", timeout=10000)
+
                     page.get_by_role("button", name="Parent Corner").first.click()
                     page.wait_for_selector("text=Parent", timeout=10000)
                     page.get_by_role("button", name="Quests").first.click()
@@ -153,8 +156,15 @@ def main() -> int:
                     page.get_by_role("button", name="Exit").first.click()
                     page.locator("h1", has_text="Hi, Player!").wait_for(timeout=10000)
 
-                    # Chinese Listening lazy route
+                    # Phase 10C Chinese Story Tap-to-Read Highlight + Chinese Listening
                     page.get_by_role("button", name="中文").first.click()
+                    page.get_by_role("button", name="短篇閱讀").first.click()
+                    page.locator("main button", has_text="+50–65").first.click()
+                    page.wait_for_selector("[data-testid='zh-sentence-btn-0']", timeout=10000)
+                    page.locator("[data-testid='zh-sentence-btn-0']").click()
+                    if page.locator("[data-testid='zh-sentence-btn-0']").get_attribute("aria-pressed") != "true":
+                        errors.append("[ipad] Chinese Reading tap-to-read did not highlight sentence 0")
+                    page.get_by_role("button", name="離開").or_(page.get_by_role("button", name="Exit")).first.click()
                     page.get_by_role("button", name="聽音辨字").click()
                     page.wait_for_selector("text=聽音辨字特訓", timeout=10000)
 

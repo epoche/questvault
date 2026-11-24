@@ -894,21 +894,53 @@ export function generateDynamicMathItem(
 
     // ═══════════ TIER 2 NEW: MONEY & MAKING CHANGE ═══════════
     case 'm-t2-money-coins': {
-      const q = randInt(rng, 1, 4);
-      const d = randInt(rng, 1, 4);
-      const n = randInt(rng, 1, 3);
-      const total = q * 25 + d * 10 + n * 5;
+      const hasDollar = randInt(rng, 0, 1);
+      const q = randInt(rng, 1, 3);
+      const d = randInt(rng, 1, 3);
+      const n = randInt(rng, 1, 2);
+      const p = randInt(rng, 0, 3);
+      const bills: (1 | 5 | 10)[] = hasDollar === 1 ? [1] : [];
+      const coins: ('quarter' | 'dime' | 'nickel' | 'penny')[] = [
+        ...Array<'quarter'>(q).fill('quarter'),
+        ...Array<'dime'>(d).fill('dime'),
+        ...Array<'nickel'>(n).fill('nickel'),
+        ...Array<'penny'>(p).fill('penny'),
+      ];
+      const total = hasDollar * 100 + q * 25 + d * 10 + n * 5 + p;
       const ans = formatMoney(total);
+      const parts: string[] = [];
+      if (hasDollar === 1) parts.push('1 $1 bill');
+      parts.push(`${q} ${q === 1 ? 'quarter' : 'quarters'}`);
+      parts.push(`${d} ${d === 1 ? 'dime' : 'dimes'}`);
+      parts.push(`${n} ${n === 1 ? 'nickel' : 'nickels'}`);
+      if (p > 0) parts.push(`${p} ${p === 1 ? 'penny' : 'pennies'}`);
+      const listText =
+        parts.length > 1
+          ? `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}`
+          : parts[0];
+      const expParts: string[] = [];
+      if (hasDollar === 1) expParts.push('$1.00');
+      expParts.push(`${q}×25¢ (${q * 25}¢)`);
+      expParts.push(`${d}×10¢ (${d * 10}¢)`);
+      expParts.push(`${n}×5¢ (${n * 5}¢)`);
+      if (p > 0) expParts.push(`${p}×1¢ (${p}¢)`);
       return {
         ...base,
-        sprintPrompt: `How much money is ${q} ${q === 1 ? 'quarter' : 'quarters'}, ${d} ${d === 1 ? 'dime' : 'dimes'}, and ${n} ${n === 1 ? 'nickel' : 'nickels'}?`,
+        sprintPrompt: `How much money is ${listText}?`,
+        sprintVisual: {
+          kind: 'us-money',
+          bills,
+          coins,
+          mode: 'count',
+        },
+        revealVisualOnFeedback: false,
         correctAnswer: ans,
         distractors: uniqueDistractors(
           ans,
-          [formatMoney(total + 10), formatMoney(total - 10), formatMoney(total + 25), formatMoney(total + 5)],
+          [formatMoney(total + 10), formatMoney(Math.max(5, total - 10)), formatMoney(total + 25), formatMoney(total + 5)],
           (k) => formatMoney(total + k * 15),
         ),
-        explanation: `${q}×25¢ (${q * 25}¢) + ${d}×10¢ (${d * 10}¢) + ${n}×5¢ (${n * 5}¢) = ${ans}!`,
+        explanation: `${expParts.join(' + ')} = ${ans}!`,
       };
     }
 
@@ -938,18 +970,18 @@ export function generateDynamicMathItem(
           : randInt(rng, 3, Math.floor(bill / 100) - 2) * 100 + pick(rng, [25, 50, 75]);
       const change = bill - cost;
       const ans = formatMoney(change);
+      const paidBills: (1 | 5 | 10)[] = bill === 500 ? [5] : bill === 1000 ? [10] : [10, 10];
       return {
         ...base,
         sprintPrompt: `You buy a toy for ${formatMoney(cost)} and pay with ${formatMoney(bill)}. How much change do you get?`,
         sprintVisual: {
-          kind: 'bar-model',
-          totalLabel: formatMoney(bill),
-          parts: [
-            { label: formatMoney(cost), color: '#EA580C', weight: cost },
-            { label: '? change', color: '#059669', weight: change },
-          ],
+          kind: 'us-money',
+          bills: paidBills,
+          coins: [],
+          priceLabel: formatMoney(cost),
+          mode: 'change',
         },
-        revealVisualOnFeedback: true,
+        revealVisualOnFeedback: false,
         correctAnswer: ans,
         distractors: uniqueDistractors(
           ans,
@@ -969,9 +1001,18 @@ export function generateDynamicMathItem(
       const left = roundedBill - spent;
       if (left <= 0) return base;
       const ans = formatMoney(left);
+      const paidBills: (1 | 5 | 10)[] = roundedBill === 1000 ? [10] : [10, 10];
       return {
         ...base,
         sprintPrompt: `${name} buys ${count} stickers at ${formatMoney(each)} each and pays with ${formatMoney(roundedBill)}. How much change?`,
+        sprintVisual: {
+          kind: 'us-money',
+          bills: paidBills,
+          coins: [],
+          priceLabel: `${count} × ${formatMoney(each)}`,
+          mode: 'change',
+        },
+        revealVisualOnFeedback: false,
         correctAnswer: ans,
         distractors: uniqueDistractors(
           ans,

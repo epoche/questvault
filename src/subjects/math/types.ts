@@ -78,7 +78,17 @@ export type MathVisualSpec =
       secondPoint?: [number, number];
       showCoords?: boolean;
       label?: string;
+    }
+  | {
+      kind: 'us-money';
+      bills?: UsBillDenomination[];
+      coins: UsCoinKind[];
+      priceLabel?: string;
+      mode: 'count' | 'change';
     };
+
+export type UsBillDenomination = 1 | 5 | 10;
+export type UsCoinKind = 'quarter' | 'dime' | 'nickel' | 'penny';
 
 export interface MathSkillItem {
   id: string;

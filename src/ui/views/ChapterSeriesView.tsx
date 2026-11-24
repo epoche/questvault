@@ -11,6 +11,7 @@ import {
   Play,
   ShoppingBag,
   Sparkles,
+  Square,
   Trophy,
   Volume2,
   X,
@@ -34,6 +35,7 @@ import {
 import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 import { RubySentence } from '../components/RubySentence';
 import { RubyWord } from '../components/RubyWord';
+import { useChineseReadAlong } from '../hooks/useChineseReadAlong';
 import { BLOOKET_CHOICE_PALETTE as CHOICE_STYLES } from '../theme/choicePalette';
 
 export interface ChapterEpisodeCompletionPayload {
@@ -102,19 +104,28 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
     }
   }, []);
 
+  const {
+    activeSentenceIdx,
+    isAutoReading,
+    speakSentence,
+    toggleAutoReadAlong,
+    stopReadAlong,
+  } = useChineseReadAlong(
+    activeEpisode?.sentences ?? [],
+    `${activeEpisode?.id ?? 'hub'}-${step}`,
+    Boolean(activeEpisode) && step === 'read',
+  );
+
   useEffect(() => {
     return () => {
       clearPendingTimer();
-      try {
-        window.speechSynthesis?.cancel();
-      } catch {
-        // Ignore sandbox speech errors
-      }
+      audioService.stopSpeech();
     };
   }, [clearPendingTimer]);
 
   const openEpisode = (ep: ChapterEpisode) => {
     clearPendingTimer();
+    stopReadAlong();
     answeringRef.current = false;
     advancingRef.current = false;
     completedEpRef.current = false;
@@ -132,11 +143,7 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
 
   const handleBackToHub = () => {
     clearPendingTimer();
-    try {
-      window.speechSynthesis?.cancel();
-    } catch {
-      // Ignore sandbox speech errors
-    }
+    stopReadAlong();
     setActiveEpisode(null);
     setActiveEpisodePolicy(undefined);
     setStep('read');
@@ -508,36 +515,78 @@ export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
                 zhuyinClassName="text-[#BE185D]"
               />
             </h1>
-            <button
-              type="button"
-              onClick={() =>
-                audioService.speak(
-                  `${activeEpisode.title}。${activeEpisode.sentences.join('')}`,
-                  'zh-TW',
-                )
-              }
-              className="qv-btn inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl border-2 border-[#1C1917] bg-[#EFF6FF] px-3.5 py-1.5 text-xs font-extrabold text-[#1D4ED8]"
-            >
-              <Volume2 className="h-4 w-4" />
-              <span>朗讀本集</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                data-testid="zh-chapter-readalong-toggle"
+                onClick={toggleAutoReadAlong}
+                className={`qv-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border-2 border-[#1C1917] px-3.5 py-1.5 text-xs font-extrabold transition-colors ${
+                  isAutoReading
+                    ? 'bg-[#F59E0B] text-[#1C1917]'
+                    : 'bg-[#EFF6FF] text-[#1D4ED8]'
+                }`}
+              >
+                {isAutoReading ? (
+                  <>
+                    <Square className="h-3.5 w-3.5 fill-current" />
+                    <span>停止跟讀</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="h-4 w-4" />
+                    <span>逐句自動跟讀</span>
+                  </>
+                )}
+              </button>
+              {activeSentenceIdx !== null && !isAutoReading && (
+                <button
+                  type="button"
+                  onClick={stopReadAlong}
+                  className="qv-btn inline-flex min-h-[40px] items-center gap-1 rounded-xl border border-[#E5DFD3] bg-white px-2.5 py-1 text-xs font-extrabold text-[#57534E]"
+                >
+                  <Square className="h-3 w-3 fill-current" />
+                  <span>清除高亮</span>
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Story Sentences with 1:1 Taiwan MOE RubySentence */}
-          <div className="rounded-3xl border-2 border-[#E7E2D8] bg-[#FAF7F2] p-5 space-y-4">
-            {activeEpisode.sentences.map((sent, sIdx) => (
-              <p
-                key={sIdx}
-                className="text-lg sm:text-xl font-bold text-[#1C1917] leading-loose"
-              >
-                <RubySentence
-                  text={sent}
-                  zhuyin={activeEpisode.sentencesZhuyin[sIdx]}
-                  showZhuyin={showZhuyin}
-                  zhuyinClassName="text-[#92400E]"
-                />
-              </p>
-            ))}
+          {/* Story Sentences with 1:1 Taiwan MOE RubySentence + Tap-to-Read Highlight */}
+          <div className="rounded-3xl border-2 border-[#E7E2D8] bg-[#FAF7F2] p-4 sm:p-5 space-y-2.5">
+            <div className="text-[11px] font-extrabold text-[#78716C]">
+              👆 點任一句就會唸出來＋暖黃高亮，或點「逐句自動跟讀」逐句跟著聽！
+            </div>
+            {activeEpisode.sentences.map((sent, sIdx) => {
+              const isActive = activeSentenceIdx === sIdx;
+              return (
+                <button
+                  key={sIdx}
+                  type="button"
+                  data-testid={`zh-chapter-sentence-btn-${sIdx}`}
+                  aria-pressed={isActive}
+                  onClick={() => speakSentence(sIdx)}
+                  className={`w-full text-left flex items-start gap-2.5 rounded-2xl border-2 px-3 py-2 transition-colors cursor-pointer ${
+                    isActive
+                      ? 'border-[#F59E0B] bg-[#FEF08A] ring-2 ring-[#FDE047]'
+                      : 'border-transparent bg-transparent hover:border-[#FDE68A] hover:bg-[#FFFBEB]'
+                  }`}
+                >
+                  <Volume2
+                    className={`mt-2 h-4 w-4 shrink-0 ${
+                      isActive ? 'text-[#B45309]' : 'text-[#A8A29E]'
+                    }`}
+                  />
+                  <span className="text-lg sm:text-xl font-bold text-[#1C1917] leading-loose">
+                    <RubySentence
+                      text={sent}
+                      zhuyin={activeEpisode.sentencesZhuyin[sIdx]}
+                      showZhuyin={showZhuyin}
+                      zhuyinClassName="text-[#92400E]"
+                    />
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Spotlight Vocabulary Chips */}

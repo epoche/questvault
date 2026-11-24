@@ -5,9 +5,12 @@ import { exportPlayerStateJson } from '../../src/core/repository';
 import { createInitialPlayerState, getQuestRewardPolicy } from '../../src/core/economy';
 import { COLLECTIBLES, MYSTERY_PACKS } from '../../src/core/packs';
 import { BUILTIN_LOOK_ALIKE_SETS } from '../../src/subjects/chinese/lookAlikeSets';
+import { CHINESE_READING_QUESTS } from '../../src/subjects/chinese/readingQuests';
 import { BUILTIN_FIGURATIVE_SETS } from '../../src/subjects/english/figurativeSets';
 import { BUILTIN_MATH_SETS } from '../../src/subjects/math/questSets';
 import { CLOCK_MEASURE_UNITS } from '../../src/subjects/math/clockMeasureEngine';
+import { audioService } from '../../src/core/audio';
+import { MathVisual } from '../../src/ui/artwork/MathVisual';
 import { ClockMeasureQuestView } from '../../src/ui/views/ClockMeasureQuestView';
 import { FigurativeLabView } from '../../src/ui/views/FigurativeLabView';
 import { HomeView } from '../../src/ui/views/HomeView';
@@ -16,6 +19,7 @@ import { MarketView } from '../../src/ui/views/MarketView';
 import { MathRunView } from '../../src/ui/views/MathRunView';
 import { MixedWarmupView } from '../../src/ui/views/MixedWarmupView';
 import { PlacementView } from '../../src/ui/views/PlacementView';
+import { ReadingRunView } from '../../src/ui/views/ReadingRunView';
 import { VaultView } from '../../src/ui/views/VaultView';
 import { WritingLogView } from '../../src/ui/views/WritingLogView';
 import { getWeekDateKeys, recordAdventureStamp } from '../../src/core/adventureMap';
@@ -689,7 +693,94 @@ describe('UI Component Regressions (happy-dom + React Testing Library)', () => {
     expect(container.querySelectorAll('form, [type="submit"]').length).toBe(0);
     expect(screen.getByTestId('clinic-clock-measure-visual')).toBeTruthy();
   });
+
+  it('renders us-money SVG with unique useId defs and supports Chinese tap-to-read highlight & stopSpeech cleanup', () => {
+    // 1. Concurrent us-money SVGs must have isolated useId gradient IDs and zero spoiler total
+    const moneySpec = {
+      kind: 'us-money' as const,
+      bills: [1, 5] as (1 | 5 | 10)[],
+      coins: ['quarter', 'nickel', 'penny', 'dime'] as ('quarter' | 'dime' | 'nickel' | 'penny')[],
+      mode: 'count' as const,
+    };
+    const { container: moneyContainer, unmount: unmountMoney } = render(
+      <>
+        <MathVisual spec={moneySpec} />
+        <MathVisual spec={moneySpec} />
+      </>,
+    );
+    const defsIds = Array.from(
+      moneyContainer.querySelectorAll('radialGradient, linearGradient'),
+    ).map((el) => el.id);
+    expect(defsIds.length).toBe(6);
+    expect(new Set(defsIds).size).toBe(6);
+    expect(moneyContainer.textContent).toContain('$5');
+    expect(moneyContainer.textContent).toContain('25¢');
+    expect(moneyContainer.textContent).not.toContain('$6.41'); // zero spoiler!
+    unmountMoney();
+
+    // 2. Chinese ReadingRunView tap-any-sentence warm-yellow highlight + auto read-along + unmount cleanup
+    vi.useFakeTimers();
+    const speakSpy = vi
+      .spyOn(audioService, 'speak')
+      .mockImplementation((_text, _lang, _rate, callbacks) => {
+        callbacks?.onEnd?.();
+      });
+    const stopSpy = vi.spyOn(audioService, 'stopSpeech').mockImplementation(() => {});
+
+    try {
+      const zhSet = CHINESE_READING_QUESTS[0];
+      const { container, unmount } = render(
+        <ReadingRunView
+          questSet={zhSet}
+          equippedCollectibleId="critter-sprout-bunny"
+          showZhuyin={false}
+          rewardPolicy={FULL_POLICY}
+          onToggleZhuyin={vi.fn()}
+          onExit={vi.fn()}
+          onCompleteReading={vi.fn()}
+          onGoToMarket={vi.fn()}
+        />,
+      );
+
+      expect(container.querySelectorAll('form, [type="submit"]').length).toBe(0);
+      expect(container.querySelectorAll('h1').length).toBe(1);
+
+      // Tap sentence 0 when speech does NOT immediately end -> warm yellow highlight stays active
+      speakSpy.mockImplementationOnce(() => {});
+      const s0 = screen.getByTestId('zh-sentence-btn-0');
+      fireEvent.click(s0);
+      expect(s0.getAttribute('aria-pressed')).toBe('true');
+      expect(s0.className).toContain('bg-[#FEF08A]');
+      expect(speakSpy).toHaveBeenCalledWith(
+        zhSet.passages[0].sentences[0],
+        'zh-TW',
+        0.94,
+        expect.any(Object),
+      );
+
+      // Start sequential auto read-along -> advances from sentence 0 to sentence 1 after 260ms pause
+      const toggleBtn = screen.getByTestId('zh-readalong-toggle');
+      fireEvent.click(toggleBtn);
+      expect(toggleBtn.textContent).toContain('停止跟讀');
+      vi.advanceTimersByTime(300);
+      expect(speakSpy.mock.calls.some((c) => c[0] === zhSet.passages[0].sentences[1])).toBe(true);
+
+      // Clicking Read Question during active auto read-along must stop read-along cleanly (never stuck!)
+      fireEvent.click(screen.getByRole('button', { name: '朗讀題目' }));
+      expect(toggleBtn.textContent).toContain('逐句自動跟讀');
+      expect(s0.getAttribute('aria-pressed')).toBe('false');
+
+      // Unmount triggers audioService.stopSpeech() cleanly
+      stopSpy.mockClear();
+      unmount();
+      expect(stopSpy).toHaveBeenCalled();
+    } finally {
+      speakSpy.mockRestore();
+      stopSpy.mockRestore();
+    }
+  });
 });
+
 
 
 

@@ -9,6 +9,7 @@ import {
   Languages,
   ShoppingBag,
   Sparkles,
+  Square,
   Volume2,
   XCircle,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ import { CollectibleArt } from '../artwork/CollectibleArt';
 import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 import { RubySentence } from '../components/RubySentence';
 import { RubyWord } from '../components/RubyWord';
+import { useChineseReadAlong } from '../hooks/useChineseReadAlong';
 
 export interface ReadingCompletionPayload {
   summary: RunSummary;
@@ -86,18 +88,24 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
   const totalQuestions = questSet.passages.reduce((sum, p) => sum + p.questions.length, 0);
   const currentOverallIndex = passageIdx * 3 + questionIdx + 1;
 
+  const {
+    activeSentenceIdx,
+    isAutoReading,
+    speakSentence,
+    toggleAutoReadAlong,
+    stopReadAlong,
+  } = useChineseReadAlong(
+    passage.sentences,
+    `${passage.id}-${completed ? 'done' : 'active'}`,
+    isZh && !completed,
+  );
+
   useEffect(() => {
     return () => {
       if (autoTimerRef.current !== null) {
         window.clearTimeout(autoTimerRef.current);
       }
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        try {
-          window.speechSynthesis.cancel();
-        } catch {
-          // Ignore blocked speech synthesis in restricted sandboxes
-        }
-      }
+      audioService.stopSpeech();
     };
   }, []);
 
@@ -342,14 +350,50 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={speakPassage}
-              className="qv-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-2xl border-2 border-[#2563EB] bg-[#EFF6FF] px-3.5 py-1.5 text-xs sm:text-sm font-extrabold text-[#1D4ED8]"
-            >
-              <Volume2 className="h-4 w-4" />
-              <span>{isZh ? '朗讀短文' : 'Read Aloud'}</span>
-            </button>
+            {isZh ? (
+              <button
+                type="button"
+                data-testid="zh-readalong-toggle"
+                onClick={toggleAutoReadAlong}
+                className={`qv-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-2xl border-2 px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition-colors ${
+                  isAutoReading
+                    ? 'border-[#1C1917] bg-[#F59E0B] text-[#1C1917]'
+                    : 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
+                }`}
+              >
+                {isAutoReading ? (
+                  <>
+                    <Square className="h-3.5 w-3.5 fill-current" />
+                    <span>停止跟讀</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="h-4 w-4" />
+                    <span>逐句自動跟讀</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={speakPassage}
+                className="qv-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-2xl border-2 border-[#2563EB] bg-[#EFF6FF] px-3.5 py-1.5 text-xs sm:text-sm font-extrabold text-[#1D4ED8]"
+              >
+                <Volume2 className="h-4 w-4" />
+                <span>Read Aloud</span>
+              </button>
+            )}
+
+            {isZh && activeSentenceIdx !== null && !isAutoReading && (
+              <button
+                type="button"
+                onClick={stopReadAlong}
+                className="qv-btn inline-flex min-h-[40px] items-center gap-1 rounded-2xl border border-[#E5DFD3] bg-white px-2.5 py-1 text-xs font-extrabold text-[#57534E]"
+              >
+                <Square className="h-3 w-3 fill-current" />
+                <span>清除高亮</span>
+              </button>
+            )}
 
             {isZh && passage.englishGist && (
               <button
@@ -370,28 +414,55 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
 
         {/* Passage Sentences */}
         <div className="rounded-2xl border-2 border-[#E7E2D8] bg-[#FAF7F2] p-4 sm:p-5 space-y-2.5">
-          {passage.sentences.map((sent, sIdx) => (
-            <p
-              key={`${passage.id}-s-${sIdx}`}
-              className={`font-display font-bold text-[#1C1917] ${
-                isZh
-                  ? showZhuyin
-                    ? 'text-lg sm:text-xl leading-loose'
-                    : 'text-lg sm:text-xl leading-relaxed'
-                  : 'text-base sm:text-lg leading-relaxed'
-              }`}
-            >
-              {isZh ? (
-                <RubySentence
-                  text={sent}
-                  zhuyin={passage.sentencesZhuyin?.[sIdx]}
-                  showZhuyin={showZhuyin}
+          {isZh && (
+            <div className="text-[11px] font-extrabold text-[#78716C]">
+              👆 點哪句就會唸哪句＋暖黃高亮，也可以點右上角「逐句自動跟讀」！
+            </div>
+          )}
+          {passage.sentences.map((sent, sIdx) => {
+            if (!isZh) {
+              return (
+                <p
+                  key={`${passage.id}-s-${sIdx}`}
+                  className="font-display font-bold text-[#1C1917] text-base sm:text-lg leading-relaxed"
+                >
+                  {sent}
+                </p>
+              );
+            }
+            const isActive = activeSentenceIdx === sIdx;
+            return (
+              <button
+                key={`${passage.id}-s-${sIdx}`}
+                type="button"
+                data-testid={`zh-sentence-btn-${sIdx}`}
+                aria-pressed={isActive}
+                onClick={() => speakSentence(sIdx)}
+                className={`w-full text-left flex items-start gap-2.5 rounded-2xl border-2 px-3 py-2 transition-colors cursor-pointer ${
+                  isActive
+                    ? 'border-[#F59E0B] bg-[#FEF08A] ring-2 ring-[#FDE047]'
+                    : 'border-transparent bg-transparent hover:border-[#FDE68A] hover:bg-[#FFFBEB]'
+                }`}
+              >
+                <Volume2
+                  className={`mt-1.5 h-4 w-4 shrink-0 ${
+                    isActive ? 'text-[#B45309]' : 'text-[#A8A29E]'
+                  }`}
                 />
-              ) : (
-                sent
-              )}
-            </p>
-          ))}
+                <span
+                  className={`font-display font-bold text-[#1C1917] ${
+                    showZhuyin ? 'text-lg sm:text-xl leading-loose' : 'text-lg sm:text-xl leading-relaxed'
+                  }`}
+                >
+                  <RubySentence
+                    text={sent}
+                    zhuyin={passage.sentencesZhuyin?.[sIdx]}
+                    showZhuyin={showZhuyin}
+                  />
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Optional English Gist Hint (Chinese Story Quests) */}
@@ -459,7 +530,10 @@ export const ReadingRunView: React.FC<ReadingRunViewProps> = ({
 
           <button
             type="button"
-            onClick={() => audioService.speak(question.prompt, speechLang)}
+            onClick={() => {
+              if (isZh) stopReadAlong();
+              audioService.speak(question.prompt, speechLang);
+            }}
             aria-label={isZh ? '朗讀題目' : 'Read question aloud'}
             className="qv-btn inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E5DFD3] bg-[#FAF7F2] text-[#2563EB]"
           >

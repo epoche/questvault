@@ -124,11 +124,17 @@ export function computeEffectiveSpeechRate(baseRate: number, mode: SpeechRateMod
   return Math.max(0.55, Math.min(1.3, Math.round(raw * 100) / 100));
 }
 
+export interface SpeakCallbacks {
+  onEnd?: () => void;
+  onError?: () => void;
+  onCancel?: () => void;
+}
+
 export interface AudioService {
   setMuted(muted: boolean): void;
   setSpeechRateMode(mode: SpeechRateMode): void;
   getSpeechRateMode(): SpeechRateMode;
-  speak(text: string, lang?: string, rate?: number): void;
+  speak(text: string, lang?: string, rate?: number, callbacks?: SpeakCallbacks): void;
   stopSpeech(): void;
   playCorrect(combo: number): void;
   playNudge(): void;
@@ -144,9 +150,22 @@ class BrowserAudioService implements AudioService {
   private speechRateMode: SpeechRateMode = 'normal';
   private cachedVoices: SpeechSynthesisVoice[] = [];
   private voicesListenerAttached = false;
+  private speechToken = 0;
+  private activeCancelHandler: (() => void) | null = null;
 
   constructor() {
     this.ensureVoicesLoaded();
+  }
+
+  private flushActiveCancel(): void {
+    const cancel = this.activeCancelHandler;
+    this.activeCancelHandler = null;
+    if (!cancel) return;
+    try {
+      cancel();
+    } catch {
+      // Ignore callback error
+    }
   }
 
   private ensureVoicesLoaded(): void {
@@ -196,12 +215,15 @@ class BrowserAudioService implements AudioService {
   }
 
   stopSpeech(): void {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-    } catch {
-      // Ignore blocked speech synthesis in restricted sandboxes
+    this.speechToken += 1;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // Ignore blocked speech synthesis in restricted sandboxes
+      }
     }
+    this.flushActiveCancel();
   }
 
   private getContext(): AudioContext | null {
@@ -268,8 +290,23 @@ class BrowserAudioService implements AudioService {
     }
   }
 
-  speak(text: string, lang = 'en-US', rate = 0.94): void {
-    if (this.muted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  speak(text: string, lang = 'en-US', rate = 0.94, callbacks?: SpeakCallbacks): void {
+    this.speechToken += 1;
+    const myToken = this.speechToken;
+    this.flushActiveCancel();
+    if (
+      this.muted ||
+      typeof window === 'undefined' ||
+      !('speechSynthesis' in window) ||
+      typeof SpeechSynthesisUtterance === 'undefined'
+    ) {
+      try {
+        callbacks?.onError?.();
+      } catch {
+        // Ignore callback error
+      }
+      return;
+    }
     try {
       this.ensureVoicesLoaded();
       const synth = window.speechSynthesis;
@@ -285,9 +322,36 @@ class BrowserAudioService implements AudioService {
       }
       utterance.rate = computeEffectiveSpeechRate(rate, this.speechRateMode);
       utterance.pitch = 1.02;
+      let settled = false;
+      utterance.onend = () => {
+        if (settled || this.speechToken !== myToken) return;
+        settled = true;
+        this.activeCancelHandler = null;
+        try {
+          callbacks?.onEnd?.();
+        } catch {
+          // Ignore callback error
+        }
+      };
+      utterance.onerror = () => {
+        if (settled || this.speechToken !== myToken) return;
+        settled = true;
+        this.activeCancelHandler = null;
+        try {
+          callbacks?.onError?.();
+        } catch {
+          // Ignore callback error
+        }
+      };
+      this.activeCancelHandler = callbacks?.onCancel ?? null;
       synth.speak(utterance);
     } catch {
-      // Fail silently if speech synthesis is blocked
+      this.activeCancelHandler = null;
+      try {
+        callbacks?.onError?.();
+      } catch {
+        // Ignore callback error
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import type { MathVisualSpec } from '../../subjects/math/types';
 
 interface MathVisualProps {
@@ -7,6 +7,7 @@ interface MathVisualProps {
 }
 
 export const MathVisual: React.FC<MathVisualProps> = ({ spec, className = '' }) => {
+  const uid = useId().replace(/:/g, '');
   switch (spec.kind) {
     case 'array': {
       const gap = 22;
@@ -1252,6 +1253,221 @@ export const MathVisual: React.FC<MathVisualProps> = ({ spec, className = '' }) 
               {spec.label}
             </text>
           )}
+        </svg>
+      );
+    }
+
+    case 'us-money': {
+      const bills = spec.bills ?? [];
+      const coins = spec.coins ?? [];
+      const width = 360;
+      const headerH = 30;
+      const billW = 84;
+      const billH = 40;
+      const billGap = 12;
+      const billCols = 3;
+      const billRows = bills.length > 0 ? Math.ceil(bills.length / billCols) : 0;
+      const billsSectionH = billRows > 0 ? billRows * (billH + 10) + 6 : 0;
+
+      const coinPitchX = 54;
+      const coinPitchY = 52;
+      const coinCols = 6;
+      const coinRows = coins.length > 0 ? Math.ceil(coins.length / coinCols) : 0;
+      const coinsSectionH = coinRows > 0 ? coinRows * coinPitchY + 8 : 0;
+
+      const height = Math.max(92, headerH + billsSectionH + coinsSectionH + 14);
+      const billsTopY = headerH + 8;
+      const coinsTopY = billsTopY + billsSectionH + (billRows > 0 && coinRows > 0 ? 4 : 0);
+
+      const coinStyle = (c: 'quarter' | 'dime' | 'nickel' | 'penny') => {
+        switch (c) {
+          case 'quarter':
+            return { r: 22, label: '25¢', sub: 'Q', fill: `url(#${uid}-silver)`, rim: '#64748B', text: '#1E293B', fs: 11.5 };
+          case 'nickel':
+            return { r: 19, label: '5¢', sub: 'N', fill: `url(#${uid}-silver)`, rim: '#64748B', text: '#1E293B', fs: 11 };
+          case 'penny':
+            return { r: 17.5, label: '1¢', sub: 'P', fill: `url(#${uid}-copper)`, rim: '#92400E', text: '#451A03', fs: 10.5 };
+          case 'dime':
+            return { r: 15.5, label: '10¢', sub: 'D', fill: `url(#${uid}-silver)`, rim: '#64748B', text: '#1E293B', fs: 9.5 };
+        }
+      };
+
+      const ariaDesc =
+        spec.mode === 'change'
+          ? `U.S. money payment visual with ${bills.length} bill${bills.length === 1 ? '' : 's'}${spec.priceLabel ? ` for price ${spec.priceLabel}` : ''}`
+          : `U.S. money counting visual with ${bills.length} bill${bills.length === 1 ? '' : 's'} and ${coins.length} coin${coins.length === 1 ? '' : 's'}`;
+
+      return (
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className={`mx-auto max-w-md w-full h-auto select-none ${className}`}
+          role="img"
+          aria-label={ariaDesc}
+        >
+          <defs>
+            <radialGradient id={`${uid}-silver`} cx="35%" cy="30%" r="70%">
+              <stop offset="0%" stopColor="#F8FAFC" />
+              <stop offset="60%" stopColor="#CBD5E1" />
+              <stop offset="100%" stopColor="#94A3B8" />
+            </radialGradient>
+            <radialGradient id={`${uid}-copper`} cx="35%" cy="30%" r="70%">
+              <stop offset="0%" stopColor="#FDE68A" />
+              <stop offset="55%" stopColor="#D97706" />
+              <stop offset="100%" stopColor="#B45309" />
+            </radialGradient>
+            <linearGradient id={`${uid}-bill`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#DCFCE7" />
+              <stop offset="50%" stopColor="#BBF7D0" />
+              <stop offset="100%" stopColor="#86EFAC" />
+            </linearGradient>
+          </defs>
+
+          {/* Outer Tray */}
+          <rect
+            x="2"
+            y="2"
+            width={width - 4}
+            height={height - 4}
+            rx="16"
+            fill="#FFFFFF"
+            stroke="#E5DFD3"
+            strokeWidth="1.8"
+          />
+
+          {/* Top Banner (Zero Spoiler) */}
+          <rect x="10" y="8" width={width - 20} height="22" rx="11" fill="#FEF3C7" />
+          <text
+            x={width / 2}
+            y="22.5"
+            textAnchor="middle"
+            fontSize="11"
+            fontWeight="800"
+            fill="#92400E"
+          >
+            {spec.mode === 'change' && spec.priceLabel
+              ? `Item Price: ${spec.priceLabel}   ·   Paid With:`
+              : 'Count the U.S. Bills & Coins'}
+          </text>
+
+          {/* U.S. Bills */}
+          {bills.map((denom, idx) => {
+            const row = Math.floor(idx / billCols);
+            const col = idx % billCols;
+            const rowItems = Math.min(billCols, bills.length - row * billCols);
+            const rowTotalW = rowItems * billW + (rowItems - 1) * billGap;
+            const x = (width - rowTotalW) / 2 + col * (billW + billGap);
+            const y = billsTopY + row * (billH + 10);
+            return (
+              <g key={`bill-${idx}`}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={billW}
+                  height={billH}
+                  rx="6"
+                  fill={`url(#${uid}-bill)`}
+                  stroke="#166534"
+                  strokeWidth="1.8"
+                />
+                <rect
+                  x={x + 4}
+                  y={y + 4}
+                  width={billW - 8}
+                  height={billH - 8}
+                  rx="3"
+                  fill="none"
+                  stroke="#15803D"
+                  strokeWidth="1"
+                  strokeDasharray="2 1.5"
+                />
+                <ellipse
+                  cx={x + billW / 2}
+                  cy={y + billH / 2}
+                  rx="16"
+                  ry="12"
+                  fill="#F0FDF4"
+                  stroke="#15803D"
+                  strokeWidth="1.2"
+                />
+                <text
+                  x={x + billW / 2}
+                  y={y + billH / 2 + 4.5}
+                  textAnchor="middle"
+                  fontSize="13"
+                  fontWeight="900"
+                  fill="#14532D"
+                >
+                  ${denom}
+                </text>
+                <text x={x + 8} y={y + 13} fontSize="8" fontWeight="800" fill="#166534">
+                  ${denom}
+                </text>
+                <text
+                  x={x + billW - 8}
+                  y={y + billH - 7}
+                  textAnchor="end"
+                  fontSize="8"
+                  fontWeight="800"
+                  fill="#166534"
+                >
+                  ${denom}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* U.S. Coins */}
+          {coins.map((c, idx) => {
+            const st = coinStyle(c);
+            const row = Math.floor(idx / coinCols);
+            const col = idx % coinCols;
+            const rowItems = Math.min(coinCols, coins.length - row * coinCols);
+            const rowW = (rowItems - 1) * coinPitchX;
+            const cx = width / 2 - rowW / 2 + col * coinPitchX;
+            const cy = coinsTopY + 24 + row * coinPitchY;
+            return (
+              <g key={`coin-${idx}`}>
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={st.r}
+                  fill={st.fill}
+                  stroke={st.rim}
+                  strokeWidth="1.8"
+                />
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={st.r - 3}
+                  fill="none"
+                  stroke={st.rim}
+                  strokeWidth="0.8"
+                  opacity="0.55"
+                />
+                <text
+                  x={cx}
+                  y={cy + 1.5}
+                  textAnchor="middle"
+                  fontSize={st.fs}
+                  fontWeight="900"
+                  fill={st.text}
+                >
+                  {st.label}
+                </text>
+                <text
+                  x={cx}
+                  y={cy + 10.5}
+                  textAnchor="middle"
+                  fontSize="7"
+                  fontWeight="800"
+                  fill={st.text}
+                  opacity="0.75"
+                >
+                  {st.sub}
+                </text>
+              </g>
+            );
+          })}
         </svg>
       );
     }
