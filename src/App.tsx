@@ -9,6 +9,7 @@ import {
   awardBossSessionRewards,
   awardCafeSessionRewards,
   awardFishingSessionRewards,
+  awardLogicModuleRewards,
   awardMathFluencyRewards,
   awardTowerSessionRewards,
   claimChapterSeriesChest,
@@ -113,7 +114,9 @@ import {
   GrammarRepairView,
 } from './ui/views/GrammarRepairView';
 import { HomeView } from './ui/views/HomeView';
+import { LogicLabView } from './ui/views/LogicLabView';
 import { MarketView } from './ui/views/MarketView';
+import type { SpatialModuleId } from './subjects/logic/logicTypes';
 import { MathPlacementView } from './ui/views/MathPlacementView';
 import { type MathCompletionPayload, MathRunView } from './ui/views/MathRunView';
 import {
@@ -174,6 +177,7 @@ export const App: React.FC = () => {
   const [activeFishingSubject, setActiveFishingSubject] = useState<SubjectId | null>(null);
   const [activeBossSubject, setActiveBossSubject] = useState<SubjectId | null>(null);
   const [activeTowerSubject, setActiveTowerSubject] = useState<SubjectId | null>(null);
+  const [logicLabOpen, setLogicLabOpen] = useState(false);
   const [parentOpen, setParentOpen] = useState(false);
 
   const [activePull, setActivePull] = useState<PackPullViewData | null>(null);
@@ -210,6 +214,7 @@ export const App: React.FC = () => {
       activeFishingSubject ||
       activeBossSubject ||
       activeTowerSubject ||
+      logicLabOpen ||
       parentOpen,
   );
 
@@ -247,6 +252,7 @@ export const App: React.FC = () => {
     activeFishingSubject,
     activeBossSubject,
     activeTowerSubject,
+    logicLabOpen,
     parentOpen,
   ]);
 
@@ -272,6 +278,7 @@ export const App: React.FC = () => {
     setActiveFishingSubject(null);
     setActiveBossSubject(null);
     setActiveTowerSubject(null);
+    setLogicLabOpen(false);
     setParentOpen(false);
   };
 
@@ -497,6 +504,26 @@ export const App: React.FC = () => {
     const next = toggleCritterRoomDecor(playerRef.current, decorId);
     playerRef.current = next;
     setPlayer(next);
+  };
+
+  const handleCompleteLogicModule = (
+    moduleId: SpatialModuleId,
+    correctCount: number,
+    totalQuestions: number,
+  ) => {
+    const res = awardLogicModuleRewards(
+      playerRef.current,
+      moduleId,
+      correctCount,
+      totalQuestions,
+      getLocalDateKey(),
+    );
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    return {
+      tokensAwarded: res.tokensAwarded,
+      remainingDailyCap: res.remainingDailyCap,
+    };
   };
 
   const handleCompleteEnglishRun = (payload: RunCompletionPayload) => {
@@ -1434,6 +1461,16 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : logicLabOpen ? (
+            <LogicLabView
+              player={player}
+              onCompleteModule={handleCompleteLogicModule}
+              onExit={() => setLogicLabOpen(false)}
+              onGoToMarket={() => {
+                setLogicLabOpen(false);
+                setActiveTab('market');
+              }}
+            />
           ) : activeTowerSubject ? (
             <TowerDefenseView
               key={activeTowerSubject}
@@ -1841,6 +1878,7 @@ export const App: React.FC = () => {
               onStartFishing={(subj) => setActiveFishingSubject(subj)}
               onStartBossBattle={(subj) => setActiveBossSubject(subj)}
               onStartTowerDefense={(subj) => setActiveTowerSubject(subj)}
+              onOpenLogicLab={() => setLogicLabOpen(true)}
               onClaimDailyQuest={handleClaimDailyQuest}
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
               onStartEnglishRootFamily={(fam) => setActiveEnglishRootFamily(fam)}

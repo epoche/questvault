@@ -9,6 +9,7 @@ import {
 } from './packs';
 import { getMasteryKey, isItemDueForReview } from './mastery';
 import { FACT_FLUENCY_DAILY_TOKEN_CAP } from '../subjects/math/factFluencyEngine';
+import { LOGIC_DAILY_TOKEN_CAP } from '../subjects/logic/logicTypes';
 import {
   CRITTER_ROOM_MAX_DECOR,
   VALID_CRITTER_ROOM_THEME_IDS,
@@ -23,7 +24,7 @@ import type {
   SubjectId,
 } from './types';
 
-export { CRITTER_ROOM_MAX_DECOR };
+export { CRITTER_ROOM_MAX_DECOR, LOGIC_DAILY_TOKEN_CAP };
 export const STARTER_TOKENS = 25;
 export const SHINY_CRAFT_COPIES_REQUIRED = 3;
 export const FUSE_COPIES_REQUIRED = 5;
@@ -555,6 +556,63 @@ export function awardMathFluencyRewards(
       tokens: state.tokens + tokensAwarded,
       mathFactMastery: updatedMastery,
       mathFluencyDailyTokens: {
+        dateKey: todayKey,
+        earned: prevEarned + tokensAwarded,
+      },
+    },
+  };
+}
+
+export function getTodayLogicTokensEarned(state: PlayerState, todayKey: string): number {
+  return state.logicDailyTokens?.dateKey === todayKey ? state.logicDailyTokens.earned : 0;
+}
+
+export function awardLogicModuleRewards(
+  state: PlayerState,
+  moduleId: string,
+  correctCount: number,
+  totalQuestions: number,
+  todayKey: string,
+): { state: PlayerState; tokensAwarded: number; remainingDailyCap: number } {
+  const safeTotal = Number.isFinite(totalQuestions) ? Math.max(1, Math.floor(totalQuestions)) : 5;
+  const safeCorrect = Number.isFinite(correctCount)
+    ? Math.max(0, Math.min(safeTotal, Math.floor(correctCount)))
+    : 0;
+
+  // Anti-farming: require >= 60% accuracy (e.g. >= 3/5) to earn tokens & mark module completed
+  const passed = safeCorrect / safeTotal >= 0.6;
+  const rawTokens = passed ? 10 + safeCorrect * 3 + (safeCorrect === safeTotal ? 5 : 0) : 0;
+
+  const prevEarned = getTodayLogicTokensEarned(state, todayKey);
+  const remainingBefore = Math.max(0, LOGIC_DAILY_TOKEN_CAP - prevEarned);
+  const tokensAwarded = Math.min(remainingBefore, rawTokens);
+
+  const prevCompleted = state.completedLogicModuleIds ?? [];
+  const nextCompleted =
+    passed && !prevCompleted.includes(moduleId)
+      ? [...prevCompleted, moduleId]
+      : prevCompleted;
+
+  const prevStats = state.logicStats ?? {};
+  const existing = prevStats[moduleId] ?? { runs: 0, totalCorrect: 0, totalQuestions: 0 };
+  const nextStats = {
+    ...prevStats,
+    [moduleId]: {
+      runs: existing.runs + 1,
+      totalCorrect: existing.totalCorrect + safeCorrect,
+      totalQuestions: existing.totalQuestions + safeTotal,
+    },
+  };
+
+  return {
+    tokensAwarded,
+    remainingDailyCap: Math.max(0, remainingBefore - tokensAwarded),
+    state: {
+      ...state,
+      tokens: state.tokens + tokensAwarded,
+      completedLogicModuleIds: nextCompleted,
+      logicStats: nextStats,
+      logicDailyTokens: {
         dateKey: todayKey,
         earned: prevEarned + tokensAwarded,
       },

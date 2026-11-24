@@ -116,6 +116,7 @@ interface HomeViewProps {
   onStartFishing: (subjectId: SubjectId) => void;
   onStartBossBattle: (subjectId: SubjectId) => void;
   onStartTowerDefense?: (subjectId: SubjectId) => void;
+  onOpenLogicLab?: () => void;
   onClaimDailyQuest: () => void;
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartEnglishRootFamily: (family: EnglishRootFamily) => void;
@@ -163,6 +164,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartFishing,
   onStartBossBattle,
   onStartTowerDefense,
+  onOpenLogicLab,
   onClaimDailyQuest,
   onStartEnglishRun,
   onStartEnglishRootFamily,
@@ -474,6 +476,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 >
                   <Castle className="h-4 w-4" />
                   <span>{activeSubjectId === 'chinese' ? '夥伴塔防' : 'Tower Defense'}</span>
+                </button>
+              )}
+
+              {onOpenLogicLab && (
+                <button
+                  type="button"
+                  onClick={onOpenLogicLab}
+                  className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#7C3AED] px-4 py-3 font-display text-sm font-extrabold text-white"
+                  style={{ borderBottomColor: '#4C1D95' }}
+                >
+                  <Brain className="h-4 w-4" />
+                  <span>{activeSubjectId === 'chinese' ? '邏輯空間館' : 'Logic & Spatial'}</span>
                 </button>
               )}
 

@@ -369,6 +369,64 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
         )
       : [],
     ...(() => {
+      const validLogicIds = new Set([
+        'rotation-mirror',
+        'iso-cubes',
+        'cube-nets',
+        'paper-folding',
+        'balance-scale',
+        'pattern-matrix',
+        'logic-grid',
+        'robot-coding',
+      ]);
+      const completedLogicModuleIds = Array.isArray(obj.completedLogicModuleIds)
+        ? Array.from(
+            new Set(
+              obj.completedLogicModuleIds.filter(
+                (id): id is string => typeof id === 'string' && validLogicIds.has(id),
+              ),
+            ),
+          )
+        : [];
+      const cleanedStats: NonNullable<PlayerState['logicStats']> = {};
+      if (isRecord(obj.logicStats)) {
+        for (const [k, v] of Object.entries(obj.logicStats)) {
+          if (!validLogicIds.has(k) || !isRecord(v)) continue;
+          if (
+            typeof v.runs === 'number' &&
+            typeof v.totalCorrect === 'number' &&
+            typeof v.totalQuestions === 'number' &&
+            Number.isFinite(v.runs) &&
+            Number.isFinite(v.totalCorrect) &&
+            Number.isFinite(v.totalQuestions) &&
+            v.runs >= 0 &&
+            v.totalQuestions >= 0
+          ) {
+            const totalQuestions = Math.floor(v.totalQuestions);
+            cleanedStats[k] = {
+              runs: Math.floor(v.runs),
+              totalCorrect: Math.max(0, Math.min(totalQuestions, Math.floor(v.totalCorrect))),
+              totalQuestions,
+            };
+          }
+        }
+      }
+      const ldt = obj.logicDailyTokens;
+      const sanitizedLogicDaily =
+        isRecord(ldt) &&
+        typeof ldt.dateKey === 'string' &&
+        typeof ldt.earned === 'number' &&
+        Number.isFinite(ldt.earned) &&
+        ldt.earned >= 0
+          ? { dateKey: ldt.dateKey, earned: Math.floor(ldt.earned) }
+          : undefined;
+      return {
+        ...(completedLogicModuleIds.length > 0 ? { completedLogicModuleIds } : {}),
+        ...(Object.keys(cleanedStats).length > 0 ? { logicStats: cleanedStats } : {}),
+        ...(sanitizedLogicDaily ? { logicDailyTokens: sanitizedLogicDaily } : {}),
+      };
+    })(),
+    ...(() => {
       if (!isRecord(obj.mathFactMastery)) return {};
       const cleaned: NonNullable<PlayerState['mathFactMastery']> = {};
       for (const [k, v] of Object.entries(obj.mathFactMastery)) {
