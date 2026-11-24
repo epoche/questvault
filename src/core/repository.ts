@@ -420,10 +420,26 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
         ldt.earned >= 0
           ? { dateKey: ldt.dateKey, earned: Math.floor(ldt.earned) }
           : undefined;
+      const dailyMixedWarmupDate =
+        typeof obj.dailyMixedWarmupDate === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(obj.dailyMixedWarmupDate)
+          ? obj.dailyMixedWarmupDate
+          : undefined;
+      const cdt = obj.clinicDailyTokens;
+      const sanitizedClinicDaily =
+        isRecord(cdt) &&
+        typeof cdt.dateKey === 'string' &&
+        typeof cdt.earned === 'number' &&
+        Number.isFinite(cdt.earned) &&
+        cdt.earned >= 0
+          ? { dateKey: cdt.dateKey, earned: Math.floor(cdt.earned) }
+          : undefined;
       return {
         ...(completedLogicModuleIds.length > 0 ? { completedLogicModuleIds } : {}),
         ...(Object.keys(cleanedStats).length > 0 ? { logicStats: cleanedStats } : {}),
         ...(sanitizedLogicDaily ? { logicDailyTokens: sanitizedLogicDaily } : {}),
+        ...(dailyMixedWarmupDate ? { dailyMixedWarmupDate } : {}),
+        ...(sanitizedClinicDaily ? { clinicDailyTokens: sanitizedClinicDaily } : {}),
       };
     })(),
     ...(() => {

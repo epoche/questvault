@@ -15,6 +15,7 @@ import {
   Flame,
   Gift,
   Headphones,
+  HeartPulse,
   Languages,
   Play,
   Plus,
@@ -30,11 +31,13 @@ import {
 } from 'lucide-react';
 import { computeWeeklyGoalProgress } from '../../core/analytics';
 import {
+  DAILY_MIXED_WARMUP_BONUS,
   DAILY_TRI_SUBJECT_BONUS,
   getQuestRewardPolicy,
   type QuestRewardPolicy,
 } from '../../core/economy';
 import { getDueReviewItems, getTrickyWords } from '../../core/mastery';
+import { countClinicPatients, type MixedWarmupMode } from '../../core/mixedWarmupEngine';
 import { MIN_PACK_COST } from '../../core/packs';
 import type { ReadingQuestSet } from '../../core/readingTypes';
 import type { DifficultyTier, PlayerState, SubjectId } from '../../core/types';
@@ -117,6 +120,7 @@ interface HomeViewProps {
   onStartBossBattle: (subjectId: SubjectId) => void;
   onStartTowerDefense?: (subjectId: SubjectId) => void;
   onOpenLogicLab?: () => void;
+  onOpenMixedWarmup?: (mode: MixedWarmupMode) => void;
   onClaimDailyQuest: () => void;
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartEnglishRootFamily: (family: EnglishRootFamily) => void;
@@ -165,6 +169,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartBossBattle,
   onStartTowerDefense,
   onOpenLogicLab,
+  onOpenMixedWarmup,
   onClaimDailyQuest,
   onStartEnglishRun,
   onStartEnglishRootFamily,
@@ -489,6 +494,49 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <Brain className="h-4 w-4" />
                   <span>{activeSubjectId === 'chinese' ? '邏輯空間館' : 'Logic & Spatial'}</span>
                 </button>
+              )}
+
+              {onOpenMixedWarmup && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onOpenMixedWarmup('daily-warmup')}
+                    className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#F59E0B] px-4 py-3 font-display text-sm font-extrabold text-[#1C1917]"
+                    style={{ borderBottomColor: '#B45309' }}
+                  >
+                    <Zap className="h-4 w-4 fill-current" />
+                    <span>
+                      {activeSubjectId === 'chinese' ? '5分鐘混合暖身' : '5-Min Warm-Up'}
+                    </span>
+                    <span className="rounded-full bg-white/85 px-2 py-0.5 text-[11px] font-extrabold text-[#92400E] tabular-nums">
+                      {player.dailyMixedWarmupDate === todayKey
+                        ? '✓'
+                        : `+${DAILY_MIXED_WARMUP_BONUS}`}
+                    </span>
+                  </button>
+
+                  {(() => {
+                    const clinicCount = countClinicPatients(player);
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onOpenMixedWarmup('mistake-clinic')}
+                        className="qv-arcade-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#0D9488] px-4 py-3 font-display text-sm font-extrabold text-white"
+                        style={{ borderBottomColor: '#115E59' }}
+                      >
+                        <HeartPulse className="h-4 w-4" />
+                        <span>
+                          {activeSubjectId === 'chinese' ? '錯題急救診所' : 'Mistake Clinic'}
+                        </span>
+                        {clinicCount > 0 && (
+                          <span className="rounded-full bg-[#F43F5E] px-2 py-0.5 text-[11px] font-extrabold text-white tabular-nums">
+                            {clinicCount}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })()}
+                </>
               )}
 
               {activeSubjectId === 'math' && onStartFactFluency && (

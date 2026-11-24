@@ -11,7 +11,9 @@ import {
   awardFishingSessionRewards,
   awardLogicModuleRewards,
   awardMathFluencyRewards,
+  awardMixedWarmupCompletion,
   awardTowerSessionRewards,
+  type MixedWarmupOutcomeInput,
   claimChapterSeriesChest,
   claimDailyTriSubjectReward,
   claimEnglishChapterSeriesChest,
@@ -116,6 +118,8 @@ import {
 import { HomeView } from './ui/views/HomeView';
 import { LogicLabView } from './ui/views/LogicLabView';
 import { MarketView } from './ui/views/MarketView';
+import { MixedWarmupView } from './ui/views/MixedWarmupView';
+import type { MixedWarmupMode } from './core/mixedWarmupEngine';
 import type { LogicModuleId } from './subjects/logic/logicTypes';
 import { MathPlacementView } from './ui/views/MathPlacementView';
 import { type MathCompletionPayload, MathRunView } from './ui/views/MathRunView';
@@ -178,6 +182,7 @@ export const App: React.FC = () => {
   const [activeBossSubject, setActiveBossSubject] = useState<SubjectId | null>(null);
   const [activeTowerSubject, setActiveTowerSubject] = useState<SubjectId | null>(null);
   const [logicLabOpen, setLogicLabOpen] = useState(false);
+  const [mixedWarmupMode, setMixedWarmupMode] = useState<MixedWarmupMode | null>(null);
   const [parentOpen, setParentOpen] = useState(false);
 
   const [activePull, setActivePull] = useState<PackPullViewData | null>(null);
@@ -215,6 +220,7 @@ export const App: React.FC = () => {
       activeBossSubject ||
       activeTowerSubject ||
       logicLabOpen ||
+      mixedWarmupMode ||
       parentOpen,
   );
 
@@ -253,6 +259,7 @@ export const App: React.FC = () => {
     activeBossSubject,
     activeTowerSubject,
     logicLabOpen,
+    mixedWarmupMode,
     parentOpen,
   ]);
 
@@ -279,6 +286,7 @@ export const App: React.FC = () => {
     setActiveBossSubject(null);
     setActiveTowerSubject(null);
     setLogicLabOpen(false);
+    setMixedWarmupMode(null);
     setParentOpen(false);
   };
 
@@ -523,6 +531,26 @@ export const App: React.FC = () => {
     return {
       tokensAwarded: res.tokensAwarded,
       remainingDailyCap: res.remainingDailyCap,
+    };
+  };
+
+  const handleCompleteMixedWarmup = (
+    mode: MixedWarmupMode,
+    outcomes: MixedWarmupOutcomeInput[],
+  ) => {
+    const res = awardMixedWarmupCompletion(
+      playerRef.current,
+      mode,
+      outcomes,
+      getLocalDateKey(),
+    );
+    playerRef.current = res.state;
+    setPlayer(res.state);
+    return {
+      tokensAwarded: res.tokensAwarded,
+      healedCount: res.healedCount,
+      alreadyClaimedToday: res.alreadyClaimedToday,
+      passed: res.passed,
     };
   };
 
@@ -1471,6 +1499,21 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : mixedWarmupMode ? (
+            <MixedWarmupView
+              key={mixedWarmupMode}
+              mode={mixedWarmupMode}
+              player={player}
+              showZhuyin={showZhuyin}
+              onToggleZhuyin={handleToggleZhuyin}
+              onComplete={handleCompleteMixedWarmup}
+              onSwitchMode={(nextMode) => setMixedWarmupMode(nextMode)}
+              onExit={() => setMixedWarmupMode(null)}
+              onGoToMarket={() => {
+                setMixedWarmupMode(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeTowerSubject ? (
             <TowerDefenseView
               key={activeTowerSubject}
@@ -1879,6 +1922,7 @@ export const App: React.FC = () => {
               onStartBossBattle={(subj) => setActiveBossSubject(subj)}
               onStartTowerDefense={(subj) => setActiveTowerSubject(subj)}
               onOpenLogicLab={() => setLogicLabOpen(true)}
+              onOpenMixedWarmup={(mode) => setMixedWarmupMode(mode)}
               onClaimDailyQuest={handleClaimDailyQuest}
               onStartEnglishRun={(set) => setActiveEnglishSet(set)}
               onStartEnglishRootFamily={(fam) => setActiveEnglishRootFamily(fam)}

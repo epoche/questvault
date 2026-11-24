@@ -7,8 +7,12 @@ import {
   RARITY_ORDER,
   STARTER_COLLECTIBLE_ID,
 } from './packs';
-import { getMasteryKey, isItemDueForReview } from './mastery';
-import { FACT_FLUENCY_DAILY_TOKEN_CAP } from '../subjects/math/factFluencyEngine';
+import { getMasteryKey, isItemDueForReview, recordWordOutcome } from './mastery';
+import {
+  FACT_FLUENCY_DAILY_TOKEN_CAP,
+  getFactHeatmapKey,
+  recordFactAttempt,
+} from '../subjects/math/factFluencyEngine';
 import { LOGIC_DAILY_TOKEN_CAP } from '../subjects/logic/logicTypes';
 import {
   CRITTER_ROOM_MAX_DECOR,
@@ -18,6 +22,7 @@ import {
 import type {
   Collectible,
   CritterRoomThemeId,
+  DifficultyTier,
   PackId,
   PlayerState,
   Rarity,
@@ -31,6 +36,8 @@ export const FUSE_COPIES_REQUIRED = 5;
 export const MAX_FAVORITE_COLLECTIBLES = 6;
 export const CRITTER_ROOM_SLOT_COUNT = 8;
 export const DAILY_TRI_SUBJECT_BONUS = 30;
+export const DAILY_MIXED_WARMUP_BONUS = 25;
+export const CLINIC_DAILY_TOKEN_CAP = 30;
 export const BLITZ_DAILY_TOKEN_CAP = 120;
 export const ARCADE_DAILY_TOKEN_CAP = 150;
 export const STATIC_REVIEW_MULTIPLIER = 0.5;
@@ -615,6 +622,116 @@ export function awardLogicModuleRewards(
       logicDailyTokens: {
         dateKey: todayKey,
         earned: prevEarned + tokensAwarded,
+      },
+    },
+  };
+}
+
+export interface MixedWarmupOutcomeInput {
+  correct: boolean;
+  masteryRef?:
+    | { kind: 'word'; word: string; subjectId: SubjectId; tier: DifficultyTier }
+    | { kind: 'math-fact'; a: number; b: number };
+}
+
+export function getTodayClinicTokensEarned(state: PlayerState, todayKey: string): number {
+  return state.clinicDailyTokens?.dateKey === todayKey ? state.clinicDailyTokens.earned : 0;
+}
+
+export function awardMixedWarmupCompletion(
+  state: PlayerState,
+  mode: 'daily-warmup' | 'mistake-clinic',
+  outcomes: readonly MixedWarmupOutcomeInput[],
+  todayKey: string,
+  nowIso: string = new Date().toISOString(),
+): {
+  state: PlayerState;
+  tokensAwarded: number;
+  healedCount: number;
+  alreadyClaimedToday: boolean;
+  passed: boolean;
+} {
+  const safeTotal = Math.max(1, outcomes.length);
+  const correctCount = outcomes.filter((o) => o.correct).length;
+
+  // Apply mastery healing / SRS updates for every linked word or math fact
+  let nextWordMastery = state.wordMastery;
+  let nextMathFacts = state.mathFactMastery;
+  let healedCount = 0;
+
+  for (const out of outcomes) {
+    if (!out.masteryRef) continue;
+    if (out.masteryRef.kind === 'word') {
+      nextWordMastery = recordWordOutcome(nextWordMastery, {
+        word: out.masteryRef.word,
+        subjectId: out.masteryRef.subjectId,
+        tier: out.masteryRef.tier,
+        outcome: out.correct ? 'clean' : 'missed',
+        nowIso,
+      });
+      if (out.correct) healedCount += 1;
+    } else if (out.masteryRef.kind === 'math-fact') {
+      const key = getFactHeatmapKey(out.masteryRef.a, out.masteryRef.b);
+      nextMathFacts = recordFactAttempt(nextMathFacts, key, out.correct, out.correct ? 2600 : 5000);
+      if (out.correct) healedCount += 1;
+    }
+  }
+
+  const passed =
+    mode === 'mistake-clinic'
+      ? healedCount > 0
+      : outcomes.length > 0 && correctCount / safeTotal >= 0.6;
+
+  // Update streak cleanly when completing a daily warmup pass or healing at least 1 mistake
+  let nextStreak = state.streakDays ?? 0;
+  let nextLastActive = state.lastActiveDate;
+  if (passed && state.lastActiveDate !== todayKey) {
+    const yesterday = getPreviousDateKey(todayKey);
+    nextStreak = state.lastActiveDate === yesterday ? nextStreak + 1 : 1;
+    nextLastActive = todayKey;
+  }
+
+  if (mode === 'daily-warmup') {
+    const alreadyClaimedToday = state.dailyMixedWarmupDate === todayKey;
+    const tokensAwarded = passed && !alreadyClaimedToday ? DAILY_MIXED_WARMUP_BONUS : 0;
+    return {
+      tokensAwarded,
+      healedCount,
+      alreadyClaimedToday,
+      passed,
+      state: {
+        ...state,
+        tokens: state.tokens + tokensAwarded,
+        wordMastery: nextWordMastery,
+        mathFactMastery: nextMathFacts,
+        streakDays: nextStreak,
+        lastActiveDate: nextLastActive,
+        ...(passed ? { dailyMixedWarmupDate: todayKey } : {}),
+      },
+    };
+  }
+
+  // Mistake Clinic: +3 Tokens per healed mistake, capped at CLINIC_DAILY_TOKEN_CAP/day
+  const prevClinicEarned = getTodayClinicTokensEarned(state, todayKey);
+  const remainingClinicCap = Math.max(0, CLINIC_DAILY_TOKEN_CAP - prevClinicEarned);
+  const rawClinicTokens = healedCount * 3;
+  const tokensAwarded = Math.min(remainingClinicCap, rawClinicTokens);
+
+  return {
+    tokensAwarded,
+    healedCount,
+    alreadyClaimedToday: remainingClinicCap === 0 && rawClinicTokens > 0,
+    passed,
+    state: {
+      ...state,
+      tokens: state.tokens + tokensAwarded,
+      wordMastery: nextWordMastery,
+      mathFactMastery: nextMathFacts,
+      streakDays: nextStreak,
+      lastActiveDate: nextLastActive,
+      clinicDailyTokens: {
+        dateKey: todayKey,
+        earned: prevClinicEarned + tokensAwarded,
       },
     },
   };

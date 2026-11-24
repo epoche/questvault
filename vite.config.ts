@@ -78,7 +78,10 @@ export default defineConfig({
                   return 'artwork-logic';
                 }
                 if (id.includes('/src/ui/artwork/')) return 'artwork-svg';
-                if (id.includes('/src/ui/views/LogicLabView')) {
+                if (
+                  id.includes('/src/ui/views/LogicLabView') ||
+                  id.includes('/src/ui/views/MixedWarmupView')
+                ) {
                   return 'views-logic';
                 }
                 if (

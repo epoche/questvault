@@ -225,6 +225,8 @@ export interface PlayerState {
   completedLogicModuleIds?: string[];
   logicDailyTokens?: BlitzDailyTokens;
   logicStats?: Record<string, { runs: number; totalCorrect: number; totalQuestions: number }>;
+  dailyMixedWarmupDate?: string;
+  clinicDailyTokens?: BlitzDailyTokens;
   completedChapterEpisodeIds?: string[];
   claimedChapterSeriesIds?: string[];
   claimedAchievementIds?: string[];
