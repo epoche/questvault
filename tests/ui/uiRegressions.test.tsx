@@ -18,6 +18,7 @@ import { WritingLogView } from '../../src/ui/views/WritingLogView';
 import { getWeekDateKeys, recordAdventureStamp } from '../../src/core/adventureMap';
 import { feedCritterTreat, petCritter, recordCritterPopQuizResult } from '../../src/core/critterCare';
 import { CritterRoomPanel } from '../../src/ui/components/CritterRoomPanel';
+import { DeviceVoiceSyncPanel } from '../../src/ui/components/DeviceVoiceSyncPanel';
 import { TopBar } from '../../src/ui/components/TopBar';
 import { WeeklyAdventureBar } from '../../src/ui/components/WeeklyAdventureBar';
 
@@ -470,5 +471,58 @@ describe('UI Component Regressions (happy-dom + React Testing Library)', () => {
     expect(onPopQuiz).toHaveBeenCalledTimes(1);
     expect(onFeed).toHaveBeenCalledTimes(0);
   });
+
+  it('supports DeviceVoiceSyncPanel speech rate toggle, QV1 sync code generate/restore, and invalid code rejection with zero <form>', async () => {
+    const player = createInitialPlayerState('Mia');
+    player.tokens = 320;
+    const onImportState = vi.fn();
+    const onRecordBackup = vi.fn();
+    const onChangeRate = vi.fn();
+
+    const { container } = render(
+      <DeviceVoiceSyncPanel
+        player={player}
+        onImportState={onImportState}
+        onRecordBackup={onRecordBackup}
+        onChangeSpeechRateMode={onChangeRate}
+      />,
+    );
+
+    expect(container.querySelectorAll('form, [type="submit"]').length).toBe(0);
+
+    // Toggle slow speech rate
+    fireEvent.click(screen.getByRole('button', { name: /慢速練習 0\.82×/ }));
+    expect(onChangeRate).toHaveBeenCalledWith('slow');
+
+    // Generate portable sync code
+    fireEvent.click(screen.getByRole('button', { name: /產生／複製同步短碼/ }));
+    const codeBox = (await vi.waitFor(() =>
+      screen.getByLabelText('Generated QuestVault sync code'),
+    )) as HTMLTextAreaElement;
+    expect(codeBox.value).toMatch(/^QV1[ZR]:[0-9a-f]{8}:/);
+    expect(onRecordBackup).toHaveBeenCalledTimes(1);
+    const validCode = codeBox.value;
+
+    // Open restore box & reject invalid code safely
+    fireEvent.click(screen.getByRole('button', { name: /貼上同步短碼還原/ }));
+    const pasteBox = screen.getByLabelText('Paste QuestVault sync code') as HTMLTextAreaElement;
+    fireEvent.change(pasteBox, { target: { value: 'QV1R:00000000:corrupted' } });
+    fireEvent.click(screen.getByRole('button', { name: /立即驗證並還原進度/ }));
+    await vi.waitFor(() => {
+      expect(screen.getByText(/校驗失敗|格式不正確|損毀/)).toBeTruthy();
+    });
+    expect(onImportState).not.toHaveBeenCalled();
+
+    // Paste valid generated code -> restores player cleanly & clears stale generated code box
+    fireEvent.change(pasteBox, { target: { value: validCode } });
+    fireEvent.click(screen.getByRole('button', { name: /立即驗證並還原進度/ }));
+    await vi.waitFor(() => {
+      expect(onImportState).toHaveBeenCalledTimes(1);
+    });
+    expect(onImportState.mock.calls[0][0].displayName).toBe('Mia');
+    expect(onImportState.mock.calls[0][0].tokens).toBe(320);
+    expect(screen.queryByLabelText('Generated QuestVault sync code')).toBeNull();
+  });
 });
+
 

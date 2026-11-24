@@ -23,7 +23,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { computeWeeklyGoalProgress } from '../../core/analytics';
+import { computeWeeklyGoalProgress, isBackupOverdue } from '../../core/analytics';
 import {
   DAILY_TRI_SUBJECT_BONUS,
   getQuestRewardPolicy,
@@ -151,6 +151,7 @@ interface HomeViewProps {
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
   onDeleteCustomSet: (id: string) => void;
   onGoToMarket: () => void;
+  onGoToProgress?: () => void;
   onClearWishlistPack?: () => void;
   onClaimAdventureMilestone?: (
     days: AdventureMilestoneDays,
@@ -222,12 +223,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenCustomImporter,
   onDeleteCustomSet,
   onGoToMarket,
+  onGoToProgress,
   onClearWishlistPack,
   onClaimAdventureMilestone,
   onApplyAdventureMakeup,
 }) => {
   const [questMode, setQuestMode] = useState<QuestMode>('words');
   const [showArcadeDrawer, setShowArcadeDrawer] = useState(false);
+  const [backupBannerDismissed, setBackupBannerDismissed] = useState<boolean>(() => {
+    try {
+      const dismissedDate = window.sessionStorage.getItem('questvault.backupBannerDismissedDate');
+      return dismissedDate === getLocalDateKey();
+    } catch {
+      return false;
+    }
+  });
   const [voucherOpen, setVoucherOpen] = useState(false);
 
   const isZh = activeSubjectId === 'chinese';
@@ -468,6 +478,55 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onClaimMilestone={(days) => onClaimAdventureMilestone?.(days)}
         onApplyMakeup={(dateKey) => onApplyAdventureMakeup?.(dateKey)}
       />
+
+      {/* 💾 Gentle 7-Day Overdue Backup Reminder Banner (Dismissible for today) */}
+      {!backupBannerDismissed &&
+        (() => {
+          const backupReminder = isBackupOverdue(player);
+          if (!backupReminder.overdue) return null;
+          return (
+            <section
+              aria-label="Backup reminder"
+              className="rounded-2xl border-2 border-[#F59E0B] bg-[#FFFBEB] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5"
+            >
+              <div className="text-xs sm:text-sm font-extrabold text-[#92400E] min-w-0">
+                {isZh
+                  ? backupReminder.daysSinceBackup === null
+                    ? `💾 貼心小提醒：已經完成 ${player.runHistory.length} 關還沒備份囉！複製同步短碼或匯出備份，換台 iPad 也不怕掉進度。`
+                    : `💾 貼心小提醒：距離上次備份已過 ${backupReminder.daysSinceBackup} 天囉！複製同步短碼或匯出備份，換台 iPad 也不怕掉進度。`
+                  : backupReminder.daysSinceBackup === null
+                    ? `💾 Friendly Reminder: You’ve finished ${player.runHistory.length} quests without a backup yet! Save a quick Sync Code to protect your critters.`
+                    : `💾 Friendly Reminder: It’s been ${backupReminder.daysSinceBackup} days since your last backup! Save a quick Sync Code to protect your critters.`}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {onGoToProgress && (
+                  <button
+                    type="button"
+                    onClick={onGoToProgress}
+                    className="qv-btn min-h-[34px] rounded-xl border-2 border-[#1C1917] bg-[#F59E0B] px-3 py-1 text-xs font-extrabold text-white"
+                  >
+                    {isZh ? '去備份 / 同步短碼 →' : 'Backup / Sync →'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  aria-label="Dismiss backup reminder for today"
+                  onClick={() => {
+                    setBackupBannerDismissed(true);
+                    try {
+                      window.sessionStorage.setItem('questvault.backupBannerDismissedDate', todayKey);
+                    } catch {
+                      // Ignore blocked sessionStorage in strict sandboxes
+                    }
+                  }}
+                  className="qv-btn inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#FDE68A] bg-white text-[#92400E]"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </section>
+          );
+        })()}
 
       {/* ⭐ Pinned Wishlist Pack Progress Strip (Bilingual) */}
       {pinnedPack &&

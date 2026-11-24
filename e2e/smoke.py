@@ -52,7 +52,7 @@ def main() -> int:
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
-                args=["--disable-dev-shm-usage", "--disable-gpu"],
+                args=["--disable-dev-shm-usage", "--disable-gpu", "--no-sandbox"],
             )
 
             viewports = [
@@ -121,6 +121,16 @@ def main() -> int:
 
                     page.get_by_role("button", name="Progress").first.click()
                     page.wait_for_selector("text=Vault Backup", timeout=10000)
+
+                    # Phase 9C Voice speed & Portable Sync Code check
+                    page.get_by_role("button", name="慢速練習 0.82×").click()
+                    page.get_by_role("button", name="試聽英文").click()
+                    page.get_by_role("button", name="試聽台灣國語").click()
+                    page.get_by_role("button", name="產生／複製同步短碼").click()
+                    page.wait_for_selector("textarea[aria-label='Generated QuestVault sync code']", timeout=10000)
+                    sync_val = page.locator("textarea[aria-label='Generated QuestVault sync code']").input_value()
+                    if not sync_val.startswith(("QV1Z:", "QV1R:")):
+                        errors.append(f"[ipad] Unexpected sync code prefix: {sync_val[:12]}")
 
                     page.get_by_role("button", name="Parent Corner").first.click()
                     page.wait_for_selector("text=Parent", timeout=10000)

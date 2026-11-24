@@ -357,6 +357,10 @@ export const App: React.FC = () => {
   }, [player.muted]);
 
   useEffect(() => {
+    audioService.setSpeechRateMode(player.speechRateMode === 'slow' ? 'slow' : 'normal');
+  }, [player.speechRateMode]);
+
+  useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeTab, activeSubjectId, session]);
 
@@ -1179,6 +1183,13 @@ export const App: React.FC = () => {
             onRecordBackup={() =>
               commitPlayer((prev) => ({ ...prev, lastBackupAt: new Date().toISOString() }))
             }
+            onImportState={(nextState) => commitPlayer(() => nextState)}
+            onChangeSpeechRateMode={(mode) =>
+              commitPlayer((prev) => ({
+                ...prev,
+                speechRateMode: mode === 'slow' ? 'slow' : 'normal',
+              }))
+            }
           />
         );
       case 'reading':
@@ -1759,6 +1770,7 @@ export const App: React.FC = () => {
                 }}
                 onClaimAdventureMilestone={handleClaimAdventureMilestone}
                 onApplyAdventureMakeup={handleApplyAdventureMakeup}
+                onGoToProgress={() => setActiveTab('writing')}
               />
             ) : activeTab === 'market' ? (
               <MarketView
@@ -1797,6 +1809,12 @@ export const App: React.FC = () => {
                 onImportState={(nextState) => commitPlayer(() => nextState)}
                 onRecordBackup={() =>
                   commitPlayer((prev) => ({ ...prev, lastBackupAt: new Date().toISOString() }))
+                }
+                onChangeSpeechRateMode={(mode) =>
+                  commitPlayer((prev) => ({
+                    ...prev,
+                    speechRateMode: mode === 'slow' ? 'slow' : 'normal',
+                  }))
                 }
                 onStartEnglishRun={(set) => setSession({ kind: 'english-run', set })}
                 onStartMathRun={(set) => setSession({ kind: 'math-run', set })}

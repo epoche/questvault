@@ -1,7 +1,133 @@
-import type { Rarity } from './types';
+import type { Rarity, SpeechRateMode } from './types';
+
+export const SPEECH_RATE_MULTIPLIER: Record<SpeechRateMode, number> = {
+  normal: 1.0,
+  slow: 0.82,
+};
+
+export interface VoiceLike {
+  name: string;
+  lang: string;
+  default?: boolean;
+  localService?: boolean;
+}
+
+const ZH_TW_PREFERRED_NAMES = [
+  'meijia',
+  'mei-jia',
+  'yating',
+  'google 國語（臺灣）',
+  'google 國語(臺灣)',
+  'google 國語',
+  'hsiaochen',
+  'hsiaoyu',
+  'han-han',
+  'hanhan',
+  'zhiwei',
+];
+
+const EN_US_PREFERRED_NAMES = [
+  'samantha',
+  'ava',
+  'allison',
+  'nicky',
+  'zoe',
+  'google us english',
+  'aria',
+  'jenny',
+];
+
+function normalizeLangTag(lang: string): string {
+  return lang.trim().toLowerCase().replace(/_/g, '-');
+}
+
+function isTaiwanMandarinVoice(v: VoiceLike): boolean {
+  const lang = normalizeLangTag(v.lang);
+  const name = v.name.toLowerCase();
+  if (lang === 'zh-tw' || lang.startsWith('zh-tw-') || lang.startsWith('zh-hant-tw')) {
+    return true;
+  }
+  if (
+    lang.startsWith('zh-hant') &&
+    !lang.includes('hk') &&
+    !lang.includes('mo') &&
+    !name.includes('cantonese') &&
+    !name.includes('sinji') &&
+    !name.includes('sin-ji')
+  ) {
+    return true;
+  }
+  return (
+    lang.startsWith('zh') &&
+    (name.includes('taiwan') || name.includes('臺灣') || name.includes('台灣') || name.includes('meijia') || name.includes('mei-jia'))
+  );
+}
+
+/**
+ * Deterministically ranks available Web Speech API voices for iPad / Safari / Chrome.
+ * - `zh-TW`: prioritizes Meijia / Mei-Jia / Yating / Google 國語（臺灣） and avoids zh-CN when any zh-TW voice exists.
+ * - `en-US`: prioritizes Samantha / Ava / Allison / Nicky / Google US English.
+ */
+export function selectPreferredVoice<T extends VoiceLike>(
+  voices: readonly T[],
+  targetLang: string,
+): T | null {
+  if (!voices || voices.length === 0) return null;
+  const normTarget = normalizeLangTag(targetLang);
+
+  if (normTarget.startsWith('zh')) {
+    const twVoices = voices.filter(isTaiwanMandarinVoice);
+    if (twVoices.length > 0) {
+      for (const kw of ZH_TW_PREFERRED_NAMES) {
+        const hit = twVoices.find((v) => v.name.toLowerCase().includes(kw));
+        if (hit) return hit;
+      }
+      return twVoices.find((v) => v.localService) ?? twVoices[0];
+    }
+    const anyZh = voices.filter((v) => normalizeLangTag(v.lang).startsWith('zh'));
+    if (anyZh.length > 0) {
+      return anyZh.find((v) => v.localService) ?? anyZh[0];
+    }
+    return null;
+  }
+
+  if (normTarget.startsWith('en')) {
+    const usVoices = voices.filter((v) => {
+      const l = normalizeLangTag(v.lang);
+      return l === 'en-us' || l.startsWith('en-us-');
+    });
+    if (usVoices.length > 0) {
+      for (const kw of EN_US_PREFERRED_NAMES) {
+        const hit = usVoices.find((v) => v.name.toLowerCase().includes(kw));
+        if (hit) return hit;
+      }
+      return usVoices.find((v) => v.localService) ?? usVoices[0];
+    }
+    const anyEn = voices.filter((v) => normalizeLangTag(v.lang).startsWith('en'));
+    if (anyEn.length > 0) {
+      return anyEn.find((v) => v.localService) ?? anyEn[0];
+    }
+    return null;
+  }
+
+  const exact = voices.find((v) => normalizeLangTag(v.lang) === normTarget);
+  return exact ?? null;
+}
+
+/**
+ * Computes final Web Speech utterance rate with safe clamping [0.55, 1.3].
+ */
+export function computeEffectiveSpeechRate(baseRate: number, mode: SpeechRateMode): number {
+  const safeBase = Number.isFinite(baseRate) && baseRate > 0 ? baseRate : 0.94;
+  const mult = SPEECH_RATE_MULTIPLIER[mode] ?? 1.0;
+  const raw = safeBase * mult;
+  return Math.max(0.55, Math.min(1.3, Math.round(raw * 100) / 100));
+}
 
 export interface AudioService {
   setMuted(muted: boolean): void;
+  setSpeechRateMode(mode: SpeechRateMode): void;
+  getSpeechRateMode(): SpeechRateMode;
   speak(text: string, lang?: string, rate?: number): void;
   stopSpeech(): void;
   playCorrect(combo: number): void;
@@ -15,12 +141,58 @@ export interface AudioService {
 class BrowserAudioService implements AudioService {
   private ctx: AudioContext | null = null;
   private muted = false;
+  private speechRateMode: SpeechRateMode = 'normal';
+  private cachedVoices: SpeechSynthesisVoice[] = [];
+  private voicesListenerAttached = false;
+
+  constructor() {
+    this.ensureVoicesLoaded();
+  }
+
+  private ensureVoicesLoaded(): void {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      const synth = window.speechSynthesis;
+      const list = synth.getVoices();
+      if (Array.isArray(list) && list.length > 0) {
+        this.cachedVoices = list;
+      }
+      if (!this.voicesListenerAttached) {
+        this.voicesListenerAttached = true;
+        const onVoicesChanged = () => {
+          try {
+            const next = window.speechSynthesis.getVoices();
+            if (Array.isArray(next) && next.length > 0) {
+              this.cachedVoices = next;
+            }
+          } catch {
+            // Ignore restricted speechSynthesis reads
+          }
+        };
+        if (typeof synth.addEventListener === 'function') {
+          synth.addEventListener('voiceschanged', onVoicesChanged);
+        } else if ('onvoiceschanged' in synth) {
+          synth.onvoiceschanged = onVoicesChanged;
+        }
+      }
+    } catch {
+      // Ignore blocked speechSynthesis in strict sandboxes
+    }
+  }
 
   setMuted(muted: boolean): void {
     this.muted = muted;
     if (muted) {
       this.stopSpeech();
     }
+  }
+
+  setSpeechRateMode(mode: SpeechRateMode): void {
+    this.speechRateMode = mode === 'slow' ? 'slow' : 'normal';
+  }
+
+  getSpeechRateMode(): SpeechRateMode {
+    return this.speechRateMode;
   }
 
   stopSpeech(): void {
@@ -99,12 +271,21 @@ class BrowserAudioService implements AudioService {
   speak(text: string, lang = 'en-US', rate = 0.94): void {
     if (this.muted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     try {
-      window.speechSynthesis.cancel();
+      this.ensureVoicesLoaded();
+      const synth = window.speechSynthesis;
+      const liveVoices = synth.getVoices();
+      const pool = Array.isArray(liveVoices) && liveVoices.length > 0 ? liveVoices : this.cachedVoices;
+      const preferred = selectPreferredVoice(pool, lang);
+
+      synth.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      utterance.rate = rate;
+      utterance.lang = preferred?.lang || lang;
+      if (preferred) {
+        utterance.voice = preferred;
+      }
+      utterance.rate = computeEffectiveSpeechRate(rate, this.speechRateMode);
       utterance.pitch = 1.02;
-      window.speechSynthesis.speak(utterance);
+      synth.speak(utterance);
     } catch {
       // Fail silently if speech synthesis is blocked
     }

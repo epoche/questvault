@@ -21,7 +21,7 @@ import {
   getTrickyWords,
 } from '../../core/mastery';
 import { exportPlayerStateJson, importPlayerStateJson } from '../../core/repository';
-import type { PlayerState, SubjectId } from '../../core/types';
+import type { PlayerState, SpeechRateMode, SubjectId } from '../../core/types';
 import {
   buildChineseSrsReviewSet,
   buildChineseTrickyRematchSet,
@@ -42,6 +42,7 @@ import {
   MATH_TIER_META,
 } from '../../subjects/math/questSets';
 import type { MathQuestSet } from '../../subjects/math/types';
+import { DeviceVoiceSyncPanel } from '../components/DeviceVoiceSyncPanel';
 
 interface WritingLogViewProps {
   player: PlayerState;
@@ -49,6 +50,7 @@ interface WritingLogViewProps {
   onSelectSubject: (subjectId: SubjectId) => void;
   onImportState: (nextState: PlayerState) => void;
   onRecordBackup?: () => void;
+  onChangeSpeechRateMode?: (mode: SpeechRateMode) => void;
   onStartEnglishRun: (wordSet: WordSet) => void;
   onStartMathRun: (questSet: MathQuestSet) => void;
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
@@ -72,6 +74,7 @@ export const WritingLogView: React.FC<WritingLogViewProps> = ({
   onSelectSubject,
   onImportState,
   onRecordBackup,
+  onChangeSpeechRateMode,
   onStartEnglishRun,
   onStartMathRun,
   onStartChineseRun,
@@ -511,6 +514,14 @@ export const WritingLogView: React.FC<WritingLogViewProps> = ({
           {backupNotice.text}
         </div>
       )}
+
+      {/* Phase 9C: iPad Voice, Portable Sync Code & Add-to-Home-Screen Guide */}
+      <DeviceVoiceSyncPanel
+        player={player}
+        onImportState={onImportState}
+        onRecordBackup={onRecordBackup}
+        onChangeSpeechRateMode={onChangeSpeechRateMode}
+      />
     </div>
   );
 };

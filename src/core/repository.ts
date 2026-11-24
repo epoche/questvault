@@ -795,6 +795,7 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
         ? { parentPinHash: hashParentPin(obj.parentPin) }
         : {}),
     showZhuyin: Boolean(obj.showZhuyin),
+    ...(obj.speechRateMode === 'slow' ? { speechRateMode: 'slow' as const } : {}),
     muted: Boolean(obj.muted),
   };
 }

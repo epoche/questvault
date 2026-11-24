@@ -287,8 +287,11 @@ export interface PlayerState {
   lastBackupAt?: string;
   parentPinHash?: string;
   showZhuyin?: boolean;
+  speechRateMode?: SpeechRateMode;
   muted: boolean;
 }
+
+export type SpeechRateMode = 'normal' | 'slow';
 
 export interface SubjectDescriptor {
   id: SubjectId;

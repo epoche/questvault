@@ -38,7 +38,7 @@ import {
   WEEKLY_REWARD_PRESETS,
 } from '../../core/analytics';
 import { exportPlayerStateJson } from '../../core/repository';
-import type { PlayerState, SubjectId, WeeklyGoalConfig } from '../../core/types';
+import type { PlayerState, SpeechRateMode, SubjectId, WeeklyGoalConfig } from '../../core/types';
 import { customChineseRecordToWordSet } from '../../subjects/chinese/chineseCustomParser';
 import type { ChineseWordSet } from '../../subjects/chinese/types';
 import { customRecordToWordSet } from '../../subjects/english/customParser';
@@ -47,6 +47,7 @@ import {
   classifyHeatmapCell,
   getFactHeatmapKey,
 } from '../../subjects/math/factFluencyEngine';
+import { DeviceVoiceSyncPanel } from '../components/DeviceVoiceSyncPanel';
 import { PrintableCertificateModal } from '../components/PrintableCertificateModal';
 
 interface ParentViewProps {
@@ -60,6 +61,8 @@ interface ParentViewProps {
   onUpdateWeeklyGoal?: (goal: WeeklyGoalConfig) => void;
   onRedeemWeeklyReward?: (weekKey: string) => void;
   onRecordBackup?: () => void;
+  onImportState?: (nextState: PlayerState) => void;
+  onChangeSpeechRateMode?: (mode: SpeechRateMode) => void;
 }
 
 const GATE_COOLDOWN_SEC = 8;
@@ -75,6 +78,8 @@ export const ParentView: React.FC<ParentViewProps> = ({
   onUpdateWeeklyGoal,
   onRedeemWeeklyReward,
   onRecordBackup,
+  onImportState,
+  onChangeSpeechRateMode,
 }) => {
   const hasSavedPin = Boolean(
     player.parentPinHash && PARENT_PIN_HASH_RE.test(player.parentPinHash),
@@ -102,6 +107,18 @@ export const ParentView: React.FC<ParentViewProps> = ({
     () => player.weeklyGoal?.rewardText ?? WEEKLY_REWARD_PRESETS[0],
   );
   const [goalSavedMsg, setGoalSavedMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGoalEn(player.weeklyGoal?.enTarget ?? 3);
+    setGoalZh(player.weeklyGoal?.zhTarget ?? 3);
+    setGoalMath(player.weeklyGoal?.mathTarget ?? 3);
+    setGoalRewardText(player.weeklyGoal?.rewardText ?? WEEKLY_REWARD_PRESETS[0]);
+  }, [
+    player.weeklyGoal?.enTarget,
+    player.weeklyGoal?.zhTarget,
+    player.weeklyGoal?.mathTarget,
+    player.weeklyGoal?.rewardText,
+  ]);
   const [backupSavedNotice, setBackupSavedNotice] = useState<{
     tone: 'ok' | 'warn';
     text: string;
@@ -1189,6 +1206,15 @@ export const ParentView: React.FC<ParentViewProps> = ({
           )}
         </section>
       </div>
+
+      {/* Phase 9C: iPad Voice, Portable Sync Code & Add-to-Home-Screen Guide */}
+      <DeviceVoiceSyncPanel
+        player={player}
+        onImportState={onImportState}
+        onRecordBackup={onRecordBackup}
+        onChangeSpeechRateMode={onChangeSpeechRateMode}
+        compact
+      />
 
       {/* 5. Parent Gate Security & 4-Digit Quick PIN Settings */}
       <section
