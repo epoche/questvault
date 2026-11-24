@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS } from '../src/core/achievements';
 import { COLLECTIBLES, getCollectiblesByPack, MYSTERY_PACKS, PACK_CATEGORIES } from '../src/core/packs';
+import { ROOM_DECOR_ITEMS } from '../src/core/roomCatalog';
 import { BUILTIN_CHAPTER_SERIES } from '../src/subjects/chinese/chapterStories';
 import { BUILTIN_ENGLISH_CHAPTER_SERIES } from '../src/subjects/english/englishChapterStories';
 import { ALL_LOGIC_MODULES } from '../src/subjects/logic/logicTypes';
@@ -14,7 +15,9 @@ describe('Global Catalog Invariants (Single Source of Truth)', () => {
     expect(MYSTERY_PACKS).toHaveLength(48);
     expect(COLLECTIBLES).toHaveLength(390);
     expect(PACK_CATEGORIES.find((c) => c.id === 'all')?.label).toBe(`All ${MYSTERY_PACKS.length}`);
-    expect(ACHIEVEMENTS).toHaveLength(38);
+    expect(ACHIEVEMENTS).toHaveLength(42);
+    expect(ROOM_DECOR_ITEMS).toHaveLength(16);
+    expect(new Set(ROOM_DECOR_ITEMS.map((d) => d.id)).size).toBe(16);
     expect(BUILTIN_CHAPTER_SERIES).toHaveLength(8);
     expect(BUILTIN_ENGLISH_CHAPTER_SERIES).toHaveLength(4);
     expect(ALL_LOGIC_MODULES).toHaveLength(8);

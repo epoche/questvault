@@ -100,10 +100,12 @@ export interface RoomDecorItem {
   x: number;
   /** Center Y in the 800x450 SVG coordinate space (chosen to avoid the 8 critter slots). */
   y: number;
+  /** Highlighted with a special golden Adventure Map crest once unlocked via 7-day full week. */
+  adventureReward?: boolean;
 }
 
 /**
- * 12 free cute original SVG furniture & decor stickers for My Critter Room.
+ * 16 cute original SVG furniture & decor stickers for My Critter Room (12 starter + 4 Phase 9B).
  * Coordinates are deliberately placed in open scenic zones clear of the 8 critter slots:
  * Critter slots are at x≈128/312/496/672, y≈148 (upper) and y≈330–342 (lower).
  */
@@ -120,8 +122,49 @@ export const ROOM_DECOR_ITEMS: readonly RoomDecorItem[] = [
   { id: 'decor-shell-fountain', name: 'Pearl Shell Lamp', zhName: '珍珠貝殼燈', emoji: '🐚', x: 222, y: 406 },
   { id: 'decor-cocoa-mug', name: 'Warm Cocoa Mug', zhName: '熱可可杯', emoji: '☕', x: 586, y: 406 },
   { id: 'decor-flower-garland', name: 'Flower Garland', zhName: '四季花環', emoji: '💐', x: 400, y: 120 },
+  {
+    id: 'decor-golden-trophy',
+    name: 'Golden Crown Trophy',
+    zhName: '黃金皇冠獎盃',
+    emoji: '🏆',
+    x: 68,
+    y: 64,
+    adventureReward: true,
+  },
+  {
+    id: 'decor-starlight-string',
+    name: 'Rainbow Star Lights',
+    zhName: '彩虹星星燈串',
+    emoji: '🌟',
+    x: 726,
+    y: 60,
+    adventureReward: true,
+  },
+  {
+    id: 'decor-boba-bar',
+    name: 'Mini Boba Bar',
+    zhName: '迷你珍奶吧台',
+    emoji: '🧋',
+    x: 736,
+    y: 406,
+    adventureReward: true,
+  },
+  {
+    id: 'decor-magic-orrery',
+    name: 'Magic Star Orrery',
+    zhName: '魔法星球儀',
+    emoji: '🪐',
+    x: 66,
+    y: 406,
+    adventureReward: true,
+  },
 ];
 
 export const VALID_ROOM_DECOR_IDS: ReadonlySet<string> = new Set(
   ROOM_DECOR_ITEMS.map((d) => d.id),
 );
+
+export const ADVENTURE_EXCLUSIVE_DECOR_IDS: ReadonlySet<string> = new Set(
+  ROOM_DECOR_ITEMS.filter((d) => d.adventureReward).map((d) => d.id),
+);
+

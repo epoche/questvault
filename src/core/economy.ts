@@ -15,6 +15,7 @@ import {
 } from '../subjects/math/factFluencyEngine';
 import { LOGIC_DAILY_TOKEN_CAP } from '../subjects/logic/logicTypes';
 import {
+  ADVENTURE_EXCLUSIVE_DECOR_IDS,
   CRITTER_ROOM_MAX_DECOR,
   VALID_CRITTER_ROOM_THEME_IDS,
   VALID_ROOM_DECOR_IDS,
@@ -800,6 +801,12 @@ export function toggleCritterRoomDecor(
   if (prevDecorIds.includes(decorId)) {
     nextDecorIds = prevDecorIds.filter((id) => id !== decorId);
   } else {
+    if (
+      ADVENTURE_EXCLUSIVE_DECOR_IDS.has(decorId) &&
+      !(state.unlockedRoomDecorIds ?? []).includes(decorId)
+    ) {
+      return state;
+    }
     if (prevDecorIds.length >= CRITTER_ROOM_MAX_DECOR) {
       return state;
     }

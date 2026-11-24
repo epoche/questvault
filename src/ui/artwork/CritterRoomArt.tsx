@@ -193,6 +193,79 @@ function renderDecorStickerSvg(id: string): React.ReactNode {
           ))}
         </g>
       );
+    case 'decor-golden-trophy':
+      return (
+        <g>
+          {/* Pedestal */}
+          <rect x="-15" y="13" width="30" height="8" rx="3" fill="#78350F" stroke="#1C1917" strokeWidth="2" />
+          <rect x="-5" y="4" width="10" height="10" fill="#F59E0B" stroke="#1C1917" strokeWidth="1.8" />
+          {/* Trophy Cup & Handles */}
+          <path d="M-14 -14 C-24 -14 -24 0 -12 2" fill="none" stroke="#D97706" strokeWidth="3" strokeLinecap="round" />
+          <path d="M14 -14 C24 -14 24 0 12 2" fill="none" stroke="#D97706" strokeWidth="3" strokeLinecap="round" />
+          <path d="M-15 -16 L15 -16 L11 4 Q0 10 -11 4 Z" fill="#FDE047" stroke="#1C1917" strokeWidth="2.2" strokeLinejoin="round" />
+          {/* Crown Emblem */}
+          <polygon points="0,-11 2.2,-6 7.5,-6 3.3,-3 4.8,2 0,-1 -4.8,2 -3.3,-3 -7.5,-6 -2.2,-6" fill="#D97706" />
+        </g>
+      );
+    case 'decor-starlight-string':
+      return (
+        <g>
+          <path d="M-46 -8 Q0 14 46 -8" fill="none" stroke="#1C1917" strokeWidth="2.2" strokeLinecap="round" />
+          {[
+            [-34, -2, '#F472B6'],
+            [-17, 5, '#FACC15'],
+            [0, 8, '#38BDF8'],
+            [17, 5, '#34D399'],
+            [34, -2, '#C084FC'],
+          ].map(([cx, cy, fill], i) => (
+            <g key={i} transform={`translate(${cx}, ${cy})`}>
+              <circle cx="0" cy="0" r="8" fill={fill as string} opacity="0.32" />
+              <polygon
+                points="0,-7 2,-2 7,-2 3,1 4.5,6 0,3 -4.5,6 -3,1 -7,-2 -2,-2"
+                fill={fill as string}
+                stroke="#1C1917"
+                strokeWidth="1.4"
+              />
+            </g>
+          ))}
+        </g>
+      );
+    case 'decor-boba-bar':
+      return (
+        <g>
+          {/* Wooden counter */}
+          <rect x="-26" y="4" width="52" height="18" rx="4" fill="#FDBA74" stroke="#1C1917" strokeWidth="2.2" />
+          <rect x="-28" y="0" width="56" height="6" rx="3" fill="#FFFDF8" stroke="#1C1917" strokeWidth="2" />
+          {/* Two mini boba cups */}
+          <g transform="translate(-11, -10)">
+            <rect x="-2" y="-12" width="4" height="12" rx="1.5" fill="#EC4899" stroke="#1C1917" strokeWidth="1.3" />
+            <path d="M-8 -4 L8 -4 L6 10 L-6 10 Z" fill="#FDE68A" stroke="#1C1917" strokeWidth="1.8" />
+            <circle cx="-3" cy="7" r="1.8" fill="#1C1917" />
+            <circle cx="2" cy="7" r="1.8" fill="#1C1917" />
+          </g>
+          <g transform="translate(11, -10)">
+            <rect x="-2" y="-12" width="4" height="12" rx="1.5" fill="#0D9488" stroke="#1C1917" strokeWidth="1.3" />
+            <path d="M-8 -4 L8 -4 L6 10 L-6 10 Z" fill="#FBCFE8" stroke="#1C1917" strokeWidth="1.8" />
+            <circle cx="-3" cy="7" r="1.8" fill="#1C1917" />
+            <circle cx="2" cy="7" r="1.8" fill="#1C1917" />
+          </g>
+        </g>
+      );
+    case 'decor-magic-orrery':
+      return (
+        <g>
+          {/* Brass base */}
+          <ellipse cx="0" cy="18" rx="16" ry="5" fill="#D97706" stroke="#1C1917" strokeWidth="2" />
+          <line x1="0" y1="15" x2="0" y2="-2" stroke="#1C1917" strokeWidth="2.6" />
+          {/* Orbit rings */}
+          <ellipse cx="0" cy="-4" rx="22" ry="9" fill="none" stroke="#818CF8" strokeWidth="2" transform="rotate(-18 0 -4)" />
+          <ellipse cx="0" cy="-4" rx="17" ry="7" fill="none" stroke="#F472B6" strokeWidth="1.8" transform="rotate(24 0 -4)" />
+          {/* Glowing sun center + orbiting mini planets */}
+          <circle cx="0" cy="-4" r="7.5" fill="#FDE047" stroke="#1C1917" strokeWidth="2" />
+          <circle cx="19" cy="-10" r="4" fill="#38BDF8" stroke="#1C1917" strokeWidth="1.6" />
+          <circle cx="-16" cy="2" r="3.5" fill="#FB7185" stroke="#1C1917" strokeWidth="1.6" />
+        </g>
+      );
     default:
       return null;
   }

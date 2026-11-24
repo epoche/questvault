@@ -11,10 +11,10 @@ import { ALL_LOGIC_MODULES, LOGIC_REASONING_MODULES, SPATIAL_MODULES } from '../
 
 describe('Phase 7C — 38 Achievement Badges, Parent Corner Logic Stats & Certificate Highlights', () => {
   it('ships 38 unique achievement badges (including 8 Logic & Spatial badges) with unique IDs and titles', () => {
-    expect(ACHIEVEMENTS).toHaveLength(38);
-    expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(38);
-    expect(new Set(ACHIEVEMENTS.map((a) => a.title)).size).toBe(38);
-    expect(new Set(ACHIEVEMENTS.map((a) => a.zhTitle)).size).toBe(38);
+    expect(ACHIEVEMENTS.length).toBeGreaterThanOrEqual(38);
+    expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(ACHIEVEMENTS.length);
+    expect(new Set(ACHIEVEMENTS.map((a) => a.title)).size).toBe(ACHIEVEMENTS.length);
+    expect(new Set(ACHIEVEMENTS.map((a) => a.zhTitle)).size).toBe(ACHIEVEMENTS.length);
 
     const logicBadges = ACHIEVEMENTS.filter((a) => a.category === 'logic');
     expect(logicBadges).toHaveLength(8);
@@ -91,7 +91,7 @@ describe('Phase 7C — 38 Achievement Badges, Parent Corner Logic Stats & Certif
     const cert = buildCertificateSummary(player, new Date(2026, 10, 24));
     expect(cert.logicModulesCleared).toBe(2);
     expect(cert.logicModulesTotal).toBe(8);
-    expect(cert.achievementsTotal).toBe(38);
+    expect(cert.achievementsTotal).toBe(ACHIEVEMENTS.length);
   });
 
   it('resists duplicate IDs, unknown IDs, NaN/Infinity logicStats, and runs>0 with totalQuestions=0', () => {

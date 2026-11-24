@@ -210,6 +210,18 @@ export interface WeeklyAdventureState {
   makeupUsed?: boolean;
 }
 
+export interface CritterFriendshipRecord {
+  xp: number;
+  lastPetDate?: string;
+}
+
+export interface RoomDailyActivity {
+  dateKey: string;
+  treatsUsed: number;
+  tokensEarned: number;
+  quizzesCorrect: number;
+}
+
 export interface PlayerState {
   version: 1;
   displayName: string;
@@ -225,6 +237,9 @@ export interface PlayerState {
   shinyVault?: Record<string, boolean>;
   favoriteCollectibleIds?: string[];
   critterRoom?: CritterRoomState;
+  critterFriendship?: Record<string, CritterFriendshipRecord>;
+  roomDailyActivity?: RoomDailyActivity;
+  totalRoomQuizzesCorrect?: number;
   unlockedRoomDecorIds?: string[];
   weeklyAdventure?: WeeklyAdventureState;
   adventureWeeksCleared?: number;

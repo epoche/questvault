@@ -32,7 +32,7 @@ describe('Phase 6C Layer 1 — 30 Achievement Badges & Printable Bilingual Honor
   it('ships 30 unique achievement badges and accurately evaluates all 12 new Phase 5–6 predicates', () => {
     expect(ACHIEVEMENTS.length).toBeGreaterThanOrEqual(30);
     expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(ACHIEVEMENTS.length);
-    expect(new Set(ACHIEVEMENTS.map((a) => a.zhTitle)).size).toBe(38);
+    expect(new Set(ACHIEVEMENTS.map((a) => a.zhTitle)).size).toBe(ACHIEVEMENTS.length);
 
     // Construct a progressed state that unlocks all 12 new Phase 5-6 achievements
     const vault150: Record<string, number> = {};

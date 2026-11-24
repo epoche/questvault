@@ -113,6 +113,12 @@ def main() -> int:
                     page.get_by_role("button", name="Vault").first.click()
                     page.wait_for_selector("input[aria-label='Search Vault collectibles']", timeout=10000)
 
+                    # Phase 9B Critter Room 2.0 check
+                    page.get_by_role("button", name="盲盒小屋").click()
+                    page.wait_for_selector("text=點心 3/3", timeout=10000)
+                    page.wait_for_selector("text=今日獎勵 0/25", timeout=10000)
+                    page.wait_for_selector("text=小屋擺飾貼紙（16 件）", timeout=10000)
+
                     page.get_by_role("button", name="Progress").first.click()
                     page.wait_for_selector("text=Vault Backup", timeout=10000)
 

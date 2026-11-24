@@ -40,12 +40,15 @@ import type {
   PlayerState,
   Rarity,
 } from '../../core/types';
+import type { CritterCareResult, RoomTreatItem } from '../../core/critterCare';
 import { CollectibleArt } from '../artwork/CollectibleArt';
 import { AchievementWall } from '../components/AchievementWall';
 import { CritterRoomPanel } from '../components/CritterRoomPanel';
 
 interface VaultViewProps {
   player: PlayerState;
+  showZhuyin?: boolean;
+  onToggleZhuyin?: () => void;
   onEquipAvatar: (collectibleId: string) => void;
   onSellDuplicate: (collectibleId: string) => void;
   onCraftShiny: (collectibleId: string) => void;
@@ -57,6 +60,15 @@ interface VaultViewProps {
   onUpdateRoomTheme?: (themeId: CritterRoomThemeId) => void;
   onPlaceRoomCritter?: (slotIndex: number, collectibleId: string | null) => void;
   onToggleRoomDecor?: (decorId: string) => void;
+  onPetCritter?: (collectibleId: string) => CritterCareResult | null;
+  onFeedCritterTreat?: (
+    collectibleId: string,
+    treatId: RoomTreatItem['id'],
+  ) => CritterCareResult | null;
+  onAnswerRoomPopQuiz?: (
+    collectibleId: string,
+    isCorrect: boolean,
+  ) => CritterCareResult | null;
 }
 
 type PackFilter = 'all' | 'owned' | 'shiny' | 'unowned' | 'favorites' | 'craftable' | PackId;
@@ -65,6 +77,8 @@ const FUSE_SOURCE_RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic'];
 
 export const VaultView: React.FC<VaultViewProps> = ({
   player,
+  showZhuyin,
+  onToggleZhuyin,
   onEquipAvatar,
   onSellDuplicate,
   onCraftShiny,
@@ -76,6 +90,9 @@ export const VaultView: React.FC<VaultViewProps> = ({
   onUpdateRoomTheme,
   onPlaceRoomCritter,
   onToggleRoomDecor,
+  onPetCritter,
+  onFeedCritterTreat,
+  onAnswerRoomPopQuiz,
 }) => {
   const [vaultSection, setVaultSection] = useState<'collection' | 'room' | 'achievements'>('collection');
   const [categoryFilter, setCategoryFilter] = useState<'all' | PackCategory>('all');
@@ -242,9 +259,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
       ) : vaultSection === 'room' ? (
         <CritterRoomPanel
           player={player}
+          showZhuyin={showZhuyin}
+          onToggleZhuyin={onToggleZhuyin}
           onUpdateRoomTheme={(themeId) => onUpdateRoomTheme?.(themeId)}
           onPlaceRoomCritter={(slotIdx, cid) => onPlaceRoomCritter?.(slotIdx, cid)}
           onToggleRoomDecor={(decorId) => onToggleRoomDecor?.(decorId)}
+          onPetCritter={onPetCritter}
+          onFeedCritterTreat={onFeedCritterTreat}
+          onAnswerRoomPopQuiz={onAnswerRoomPopQuiz}
         />
       ) : (
         <>

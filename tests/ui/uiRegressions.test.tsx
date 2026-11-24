@@ -16,6 +16,8 @@ import { PlacementView } from '../../src/ui/views/PlacementView';
 import { VaultView } from '../../src/ui/views/VaultView';
 import { WritingLogView } from '../../src/ui/views/WritingLogView';
 import { getWeekDateKeys, recordAdventureStamp } from '../../src/core/adventureMap';
+import { feedCritterTreat, petCritter, recordCritterPopQuizResult } from '../../src/core/critterCare';
+import { CritterRoomPanel } from '../../src/ui/components/CritterRoomPanel';
 import { TopBar } from '../../src/ui/components/TopBar';
 import { WeeklyAdventureBar } from '../../src/ui/components/WeeklyAdventureBar';
 
@@ -398,4 +400,75 @@ describe('UI Component Regressions (happy-dom + React Testing Library)', () => {
     expect(onClaim).toHaveBeenCalledTimes(1);
     expect(onClaim).toHaveBeenCalledWith(3);
   });
+
+  it('supports CritterRoomPanel 2.0 pet, treat feeding, bilingual pop-quiz re-entry lock, and 16 room stickers', () => {
+    let player = createInitialPlayerState('Chloe');
+    const starterId = player.equippedCollectibleId;
+    player.vault[starterId] = 1;
+    player.critterRoom = {
+      themeId: 'strawberry-cafe',
+      slots: [starterId, null, null, null, null, null, null, null],
+      decorIds: [],
+    };
+    const todayKey = '2026-11-24';
+
+    const onPet = vi.fn((cid: string) => {
+      const res = petCritter(player, cid, todayKey);
+      player = res.state;
+      return res;
+    });
+    const onFeed = vi.fn((cid: string, treatId: 'boba' | 'daifuku' | 'cookie') => {
+      const res = feedCritterTreat(player, cid, treatId, todayKey);
+      player = res.state;
+      return res;
+    });
+    const onPopQuiz = vi.fn((cid: string, isCorrect: boolean) => {
+      const res = recordCritterPopQuizResult(player, cid, isCorrect, todayKey);
+      player = res.state;
+      return res;
+    });
+
+    const { container } = render(
+      <CritterRoomPanel
+        player={player}
+        showZhuyin={false}
+        onToggleZhuyin={vi.fn()}
+        onUpdateRoomTheme={vi.fn()}
+        onPlaceRoomCritter={vi.fn()}
+        onToggleRoomDecor={vi.fn()}
+        onPetCritter={onPet}
+        onFeedCritterTreat={onFeed}
+        onAnswerRoomPopQuiz={onPopQuiz}
+      />,
+    );
+
+    // Zero <form> and displays 16 room decor stickers
+    expect(container.querySelectorAll('form, [type="submit"]').length).toBe(0);
+    expect(screen.getByText(/小屋擺飾貼紙（16 件）/)).toBeTruthy();
+
+    // Tap placed critter in slot 0
+    const placedSlotBtn = screen.getByRole('button', { name: /in Upper Left Shelf/i });
+    fireEvent.click(placedSlotBtn);
+
+    // Same-tick double-click on Pet fires strictly ONCE
+    const petBtn = screen.getByRole('button', { name: /摸摸頭 Pet/i });
+    fireEvent.click(petBtn);
+    fireEvent.click(petBtn);
+    expect(onPet).toHaveBeenCalledTimes(1);
+
+    // Open bilingual pop-quiz bubble and double-click first choice -> fires strictly ONCE
+    const quizBtn = screen.getByRole('button', { name: /夥伴出題考我/i });
+    fireEvent.click(quizBtn);
+    const quizContainer = screen.getByText(/驚喜小考/).closest('div')?.parentElement?.parentElement;
+    expect(quizContainer).toBeTruthy();
+    const choiceBtns = Array.from(quizContainer!.querySelectorAll('button')).filter(
+      (b) => !/注音|再來一題/.test(b.textContent ?? '') && b.getAttribute('aria-label') !== 'Speak quiz word',
+    );
+    expect(choiceBtns.length).toBe(2);
+    fireEvent.click(choiceBtns[0]);
+    fireEvent.click(choiceBtns[0]);
+    expect(onPopQuiz).toHaveBeenCalledTimes(1);
+    expect(onFeed).toHaveBeenCalledTimes(0);
+  });
 });
+

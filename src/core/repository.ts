@@ -4,6 +4,7 @@ import { hashParentPin, ISO_WEEK_KEY_RE, PARENT_PIN_HASH_RE } from './analytics'
 import { createInitialPlayerState } from './economy';
 import { getCollectibleById, getPackById, STARTER_COLLECTIBLE_ID } from './packs';
 import {
+  ADVENTURE_EXCLUSIVE_DECOR_IDS,
   CRITTER_ROOM_MAX_DECOR,
   VALID_CRITTER_ROOM_THEME_IDS,
   VALID_ROOM_DECOR_IDS,
@@ -288,11 +289,22 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
       }
       return null;
     });
+    const rawUnlockedDecor = Array.isArray(obj.unlockedRoomDecorIds)
+      ? obj.unlockedRoomDecorIds.filter(
+          (id): id is string =>
+            typeof id === 'string' &&
+            (ADVENTURE_REWARD_DECOR_IDS as readonly string[]).includes(id),
+        )
+      : [];
+    const unlockedExclusiveSet = new Set(rawUnlockedDecor);
     const rawDecorIds = Array.isArray(obj.critterRoom.decorIds) ? obj.critterRoom.decorIds : [];
     const sanitizedDecorIds = Array.from(
       new Set(
         rawDecorIds.filter(
-          (id): id is string => typeof id === 'string' && VALID_ROOM_DECOR_IDS.has(id),
+          (id): id is string =>
+            typeof id === 'string' &&
+            VALID_ROOM_DECOR_IDS.has(id) &&
+            (!ADVENTURE_EXCLUSIVE_DECOR_IDS.has(id) || unlockedExclusiveSet.has(id)),
         ),
       ),
     ).slice(0, CRITTER_ROOM_MAX_DECOR);
@@ -704,10 +716,70 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
         };
       }
 
+      const critterFriendship: PlayerState['critterFriendship'] = {};
+      if (isRecord(obj.critterFriendship)) {
+        for (const [id, rec] of Object.entries(obj.critterFriendship)) {
+          if (
+            (sanitizedVault[id] ?? 0) > 0 &&
+            getCollectibleById(id) &&
+            isRecord(rec) &&
+            typeof rec.xp === 'number' &&
+            Number.isFinite(rec.xp) &&
+            rec.xp >= 0
+          ) {
+            critterFriendship[id] = {
+              xp: Math.min(999, Math.floor(rec.xp)),
+              ...(typeof rec.lastPetDate === 'string' && DATE_KEY_RE.test(rec.lastPetDate)
+                ? { lastPetDate: rec.lastPetDate }
+                : {}),
+            };
+          }
+        }
+      }
+
+      let roomDailyActivity: PlayerState['roomDailyActivity'] = undefined;
+      if (
+        isRecord(obj.roomDailyActivity) &&
+        typeof obj.roomDailyActivity.dateKey === 'string' &&
+        DATE_KEY_RE.test(obj.roomDailyActivity.dateKey)
+      ) {
+        const treatsUsed =
+          typeof obj.roomDailyActivity.treatsUsed === 'number' &&
+          Number.isFinite(obj.roomDailyActivity.treatsUsed)
+            ? Math.max(0, Math.min(3, Math.floor(obj.roomDailyActivity.treatsUsed)))
+            : 0;
+        const tokensEarned =
+          typeof obj.roomDailyActivity.tokensEarned === 'number' &&
+          Number.isFinite(obj.roomDailyActivity.tokensEarned)
+            ? Math.max(0, Math.min(25, Math.floor(obj.roomDailyActivity.tokensEarned)))
+            : 0;
+        const quizzesCorrect =
+          typeof obj.roomDailyActivity.quizzesCorrect === 'number' &&
+          Number.isFinite(obj.roomDailyActivity.quizzesCorrect)
+            ? Math.max(0, Math.min(10_000, Math.floor(obj.roomDailyActivity.quizzesCorrect)))
+            : 0;
+        roomDailyActivity = {
+          dateKey: obj.roomDailyActivity.dateKey,
+          treatsUsed,
+          tokensEarned,
+          quizzesCorrect,
+        };
+      }
+
+      const totalRoomQuizzesCorrect =
+        typeof obj.totalRoomQuizzesCorrect === 'number' &&
+        Number.isFinite(obj.totalRoomQuizzesCorrect) &&
+        obj.totalRoomQuizzesCorrect > 0
+          ? Math.min(1_000_000, Math.floor(obj.totalRoomQuizzesCorrect))
+          : 0;
+
       return {
         ...(unlockedRoomDecorIds.length > 0 ? { unlockedRoomDecorIds } : {}),
         ...(adventureWeeksCleared > 0 ? { adventureWeeksCleared } : {}),
         ...(weeklyAdventure ? { weeklyAdventure } : {}),
+        ...(Object.keys(critterFriendship).length > 0 ? { critterFriendship } : {}),
+        ...(roomDailyActivity ? { roomDailyActivity } : {}),
+        ...(totalRoomQuizzesCorrect > 0 ? { totalRoomQuizzesCorrect } : {}),
       };
     })(),
     ...(typeof obj.pinnedWishlistPackId === 'string' &&

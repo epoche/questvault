@@ -8,6 +8,12 @@ import {
 } from './core/adventureMap';
 import { hashParentPin } from './core/analytics';
 import { audioService } from './core/audio';
+import {
+  feedCritterTreat,
+  petCritter,
+  recordCritterPopQuizResult,
+  type RoomTreatItem,
+} from './core/critterCare';
 import { getLocalDateKey } from './core/date';
 import {
   awardBlitzSessionRewards,
@@ -542,6 +548,29 @@ export const App: React.FC = () => {
 
   const handleToggleRoomDecor = (decorId: string) => {
     commitPlayer((prev) => toggleCritterRoomDecor(prev, decorId));
+  };
+
+  const handlePetCritter = (collectibleId: string) => {
+    const res = petCritter(playerRef.current, collectibleId, getLocalDateKey());
+    if (res.ok) commitPlayer(() => res.state);
+    return res;
+  };
+
+  const handleFeedCritterTreat = (collectibleId: string, treatId: RoomTreatItem['id']) => {
+    const res = feedCritterTreat(playerRef.current, collectibleId, treatId, getLocalDateKey());
+    if (res.ok) commitPlayer(() => res.state);
+    return res;
+  };
+
+  const handleAnswerRoomPopQuiz = (collectibleId: string, isCorrect: boolean) => {
+    const res = recordCritterPopQuizResult(
+      playerRef.current,
+      collectibleId,
+      isCorrect,
+      getLocalDateKey(),
+    );
+    if (res.ok) commitPlayer(() => res.state);
+    return res;
   };
 
   const handleCompleteLogicModule = (
@@ -1741,6 +1770,8 @@ export const App: React.FC = () => {
             ) : activeTab === 'vault' ? (
               <VaultView
                 player={player}
+                showZhuyin={showZhuyin}
+                onToggleZhuyin={handleToggleZhuyin}
                 onEquipAvatar={handleEquipAvatar}
                 onSellDuplicate={handleSellDuplicate}
                 onCraftShiny={handleCraftShiny}
@@ -1752,6 +1783,9 @@ export const App: React.FC = () => {
                 onUpdateRoomTheme={handleUpdateRoomTheme}
                 onPlaceRoomCritter={handlePlaceRoomCritter}
                 onToggleRoomDecor={handleToggleRoomDecor}
+                onPetCritter={handlePetCritter}
+                onFeedCritterTreat={handleFeedCritterTreat}
+                onAnswerRoomPopQuiz={handleAnswerRoomPopQuiz}
               />
             ) : (
               <WritingLogView
