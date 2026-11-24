@@ -24,6 +24,7 @@ import {
   type FactFluencyQuestion,
   type FactOperationMode,
 } from '../../subjects/math/factFluencyEngine';
+import { BLOOKET_CHOICE_PALETTE as CHOICE_STYLES } from '../theme/choicePalette';
 
 export interface FactFluencyCompletionPayload {
   mode: FactOperationMode;
@@ -43,13 +44,6 @@ interface FactFluencyViewProps {
   onExit: () => void;
   onGoToMarket: () => void;
 }
-
-const CHOICE_STYLES = [
-  { bg: '#EF4444', border: '#991B1B', shape: '▲' },
-  { bg: '#2563EB', border: '#1E3A8A', shape: '◆' },
-  { bg: '#F59E0B', border: '#B45309', shape: '●' },
-  { bg: '#059669', border: '#065F46', shape: '■' },
-];
 
 const MODE_OPTIONS: { id: FactOperationMode; label: string; badge: string; desc: string }[] = [
   { id: 'multiplication', label: '× Times Tables', badge: '2–12 × 2–12', desc: 'Adaptive weak-spot focus' },

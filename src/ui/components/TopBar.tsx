@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BookOpen,
   Check,
@@ -58,6 +58,15 @@ export const TopBar: React.FC<TopBarProps> = ({
   const activeSubject = getSubjectById(activeSubjectId);
   const claimableAchievements = getClaimableAchievementCount(player);
 
+  useEffect(() => {
+    if (!subjectMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSubjectMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [subjectMenuOpen]);
+
   const commitName = () => {
     const cleaned = draftName.trim();
     if (cleaned) {
@@ -80,6 +89,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             <button
               type="button"
               onClick={() => onSelectTab('vault')}
+              aria-label="Open Vault to switch avatar"
               title="Open Vault to switch avatar"
               className="qv-btn relative rounded-2xl border-2 border-[#1C1917] p-0.5 bg-white shrink-0"
             >
@@ -138,6 +148,8 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <div className="relative shrink-0">
                       <button
                         type="button"
+                        aria-haspopup="menu"
+                        aria-expanded={subjectMenuOpen}
                         onClick={() => setSubjectMenuOpen((v) => !v)}
                         className="qv-btn inline-flex min-h-[32px] sm:min-h-[36px] items-center gap-0.5 sm:gap-1 rounded-full border border-[#D8D0C1] bg-white px-2 sm:px-3 py-0.5 sm:py-1 text-[11px] sm:text-xs font-bold text-[#1C1917] whitespace-nowrap"
                       >
@@ -154,13 +166,18 @@ export const TopBar: React.FC<TopBarProps> = ({
                             className="fixed inset-0 z-30"
                             onClick={() => setSubjectMenuOpen(false)}
                           />
-                          <div className="qv-surface fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:mt-2 z-40 sm:w-64 rounded-2xl p-2">
+                          <div
+                            role="menu"
+                            aria-label="Switch subject"
+                            className="qv-surface fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:mt-2 z-40 sm:w-64 rounded-2xl p-2"
+                          >
                             {SUBJECTS.map((subj) => {
                               const isActive = subj.id === activeSubjectId;
                               return (
                                 <button
                                   key={subj.id}
                                   type="button"
+                                  role="menuitem"
                                   disabled={subj.status !== 'active'}
                                   onClick={() => {
                                     onSelectSubject(subj.id);

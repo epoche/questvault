@@ -88,20 +88,23 @@ export const PackOpeningModal: React.FC<PackOpeningModalProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [pull, phase, onClose]);
 
-  if (!pull) return null;
-
-  const rarityInfo = RARITY_CONFIGS[pull.collectible.rarity];
-  const packCost = getPackById(pull.packId)?.cost ?? PACK_COST;
-  const isHighRarity =
-    pull.collectible.rarity === 'epic' ||
-    pull.collectible.rarity === 'legendary' ||
-    pull.collectible.rarity === 'chroma';
-  const isChroma = pull.collectible.rarity === 'chroma';
+  const rarityInfo = pull ? RARITY_CONFIGS[pull.collectible.rarity] : null;
+  const packCost = pull ? (getPackById(pull.packId)?.cost ?? PACK_COST) : PACK_COST;
+  const isHighRarity = pull
+    ? pull.collectible.rarity === 'epic' ||
+      pull.collectible.rarity === 'legendary' ||
+      pull.collectible.rarity === 'chroma'
+    : false;
+  const isChroma = pull?.collectible.rarity === 'chroma';
 
   return (
     <AnimatePresence>
+      {pull && rarityInfo && (
       <motion.div
         key="pack-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mystery Pack Reveal"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -335,6 +338,7 @@ export const PackOpeningModal: React.FC<PackOpeningModalProps> = ({
           )}
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 };

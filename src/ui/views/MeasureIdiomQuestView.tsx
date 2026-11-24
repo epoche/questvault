@@ -22,6 +22,7 @@ import type { MeasureIdiomQuestion, MeasureIdiomSet } from '../../subjects/chine
 import { CollectibleArt } from '../artwork/CollectibleArt';
 import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 import { RubyWord } from '../components/RubyWord';
+import { BLOOKET_CHOICE_PALETTE as CHOICE_STYLES } from '../theme/choicePalette';
 
 export interface MeasureIdiomCompletionPayload {
   setId: string;
@@ -46,13 +47,6 @@ interface MeasureIdiomQuestViewProps {
   onExit: () => void;
   onGoToMarket: () => void;
 }
-
-const CHOICE_STYLES = [
-  { bg: '#EF4444', border: '#991B1B', shape: '▲' },
-  { bg: '#2563EB', border: '#1E3A8A', shape: '◆' },
-  { bg: '#F59E0B', border: '#B45309', shape: '●' },
-  { bg: '#059669', border: '#065F46', shape: '■' },
-];
 
 export const MeasureIdiomQuestView: React.FC<MeasureIdiomQuestViewProps> = ({
   questSet,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
   BookMarked,
@@ -6,43 +6,28 @@ import {
   BookText,
   Brain,
   Calculator,
-  Castle,
   CheckCircle2,
-  ChefHat,
-  ChevronDown,
-  ChevronUp,
-  Coins,
   Dna,
-  Fish,
   Flame,
-  Gamepad2,
   Gift,
-  Headphones,
-  HeartPulse,
   Languages,
   MessageSquareQuote,
-  Play,
   Plus,
   Puzzle,
   Ruler,
   Search,
   Sparkles,
   Star,
-  Swords,
   Target,
   Trash2,
   Wrench,
   X,
-  Zap,
 } from 'lucide-react';
 import { computeWeeklyGoalProgress } from '../../core/analytics';
 import {
-  ARCADE_DAILY_TOKEN_CAP,
-  DAILY_MIXED_WARMUP_BONUS,
   DAILY_TRI_SUBJECT_BONUS,
   getQuestRewardPolicy,
   getTodayArcadeTokensEarned,
-  type QuestRewardPolicy,
 } from '../../core/economy';
 import { getDueReviewItems, getTrickyWords } from '../../core/mastery';
 import { countClinicPatients, type MixedWarmupMode } from '../../core/mixedWarmupEngine';
@@ -118,6 +103,8 @@ import { MATH_PLACEMENT_BONUS_TOKENS } from '../../subjects/math/mathPlacement';
 import { BUILTIN_MATH_SETS, getMathSetsByTier, MATH_TIER_META } from '../../subjects/math/questSets';
 import type { MathQuestSet } from '../../subjects/math/types';
 import { CollectibleArt, PackEnvelopeArt } from '../artwork/CollectibleArt';
+import { HeroStage } from '../components/HeroStage';
+import { QuestCard } from '../components/QuestCard';
 import { RubyWord } from '../components/RubyWord';
 
 interface HomeViewProps {
@@ -160,6 +147,21 @@ interface HomeViewProps {
   onGoToMarket: () => void;
   onClearWishlistPack?: () => void;
 }
+
+type QuestMode =
+  | 'words'
+  | 'stories'
+  | 'roots'
+  | 'grammar'
+  | 'spelling'
+  | 'enChapters'
+  | 'figurative'
+  | 'radicals'
+  | 'measures'
+  | 'patterns'
+  | 'lookAlike'
+  | 'chapters'
+  | 'barModels';
 
 const SUBJECT_TABS: {
   id: SubjectId;
@@ -212,24 +214,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onGoToMarket,
   onClearWishlistPack,
 }) => {
-  const [questMode, setQuestMode] = useState<
-    | 'words'
-    | 'stories'
-    | 'roots'
-    | 'grammar'
-    | 'spelling'
-    | 'enChapters'
-    | 'figurative'
-    | 'radicals'
-    | 'measures'
-    | 'patterns'
-    | 'lookAlike'
-    | 'chapters'
-    | 'barModels'
-  >('words');
+  const [questMode, setQuestMode] = useState<QuestMode>('words');
   const [showArcadeDrawer, setShowArcadeDrawer] = useState(false);
   const [voucherOpen, setVoucherOpen] = useState(false);
-  const effectiveQuestMode =
+
+  const isZh = activeSubjectId === 'chinese';
+  const todayKey = getLocalDateKey();
+
+  useEffect(() => {
+    if (!voucherOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setVoucherOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [voucherOpen]);
+
+  const effectiveQuestMode: QuestMode =
     activeSubjectId === 'math'
       ? questMode === 'barModels'
         ? 'barModels'
@@ -251,104 +252,80 @@ export const HomeView: React.FC<HomeViewProps> = ({
               questMode === 'barModels')
           ? 'words'
           : questMode;
+
   const packsReady = Math.floor(player.tokens / MIN_PACK_COST);
-  const todayKey = getLocalDateKey();
-  const weeklyGoalProgress = computeWeeklyGoalProgress(player);
+  const weeklyGoalProgress = useMemo(() => computeWeeklyGoalProgress(player), [player]);
+  const clinicCount = useMemo(() => countClinicPatients(player), [player]);
+  const arcadeEarnedToday = useMemo(
+    () => getTodayArcadeTokensEarned(player, todayKey),
+    [player, todayKey],
+  );
 
-  const renderDoneRewardBadge = (policy: QuestRewardPolicy, isZh: boolean, defaultLabel: string) => {
-    if (policy.tier === 'practice-0') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#475569]">
-          <CheckCircle2 className="h-3.5 w-3.5 text-[#64748B]" />
-          {isZh ? '今日已領 · +0' : 'Claimed · +0'}
-        </span>
-      );
-    }
-    if (policy.tier === 'full-srs-due') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF5] border border-[#059669] px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
-          <Sparkles className="h-3.5 w-3.5" />
-          {isZh ? 'SRS 複習 100%' : 'SRS Due · 100%'}
-        </span>
-      );
-    }
-    if (policy.tier === 'review-50') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#FFFBEB] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309]">
-          <CheckCircle2 className="h-3.5 w-3.5 text-[#047857]" />
-          {isZh ? '複習 50%' : 'Review 50%'}
-        </span>
-      );
-    }
-    if (policy.tier === 'math-diminished') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#FFFBEB] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309]">
-          <CheckCircle2 className="h-3.5 w-3.5 text-[#047857]" />
-          30% Practice
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
-        <CheckCircle2 className="h-3.5 w-3.5" />
-        {defaultLabel}
-      </span>
-    );
-  };
+  const enSets = useMemo(() => getWordSetsByTier(activeTier), [activeTier]);
+  const enRootFamilies = useMemo(() => getEnglishRootFamiliesByTier(activeTier), [activeTier]);
+  const enGrammarSets = useMemo(() => getEnglishGrammarSetsByTier(activeTier), [activeTier]);
+  const enSpellingSets = useMemo(() => getSpellingSetsByTier(activeTier), [activeTier]);
+  const enFigurativeSets = useMemo(() => getFigurativeSetsByTier(activeTier), [activeTier]);
+  const mathSets = useMemo(() => getMathSetsByTier(activeTier), [activeTier]);
+  const zhSets = useMemo(() => getChineseSetsByTier(activeTier), [activeTier]);
+  const zhRadicalFamilies = useMemo(() => getRadicalFamiliesByTier(activeTier), [activeTier]);
+  const zhMeasureIdiomSets = useMemo(() => getMeasureIdiomSetsByTier(activeTier), [activeTier]);
+  const zhSentencePatterns = useMemo(() => getSentencePatternSetsByTier(activeTier), [activeTier]);
+  const zhLookAlikeSets = useMemo(() => getLookAlikeSetsByTier(activeTier), [activeTier]);
+  const enReadingSets = useMemo(() => getEnglishReadingByTier(activeTier), [activeTier]);
+  const zhReadingSets = useMemo(() => getChineseReadingByTier(activeTier), [activeTier]);
 
-  const enSets = getWordSetsByTier(activeTier);
-  const enRootFamilies = getEnglishRootFamiliesByTier(activeTier);
-  const enGrammarSets = getEnglishGrammarSetsByTier(activeTier);
-  const enSpellingSets = getSpellingSetsByTier(activeTier);
-  const enFigurativeSets = getFigurativeSetsByTier(activeTier);
-  const mathSets = getMathSetsByTier(activeTier);
-  const zhSets = getChineseSetsByTier(activeTier);
-  const zhRadicalFamilies = getRadicalFamiliesByTier(activeTier);
-  const zhMeasureIdiomSets = getMeasureIdiomSetsByTier(activeTier);
-  const zhSentencePatterns = getSentencePatternSetsByTier(activeTier);
-  const zhLookAlikeSets = getLookAlikeSetsByTier(activeTier);
-  const enReadingSets = getEnglishReadingByTier(activeTier);
-  const zhReadingSets = getChineseReadingByTier(activeTier);
-
-  const enCustomSets = player.customWordSets
-    .filter((s) => (s.subjectId ?? 'english') === 'english')
-    .map(customRecordToWordSet);
-  const zhCustomSets = player.customWordSets
-    .filter((s) => s.subjectId === 'chinese')
-    .map(customChineseRecordToWordSet);
+  const enCustomSets = useMemo(
+    () =>
+      player.customWordSets
+        .filter((s) => (s.subjectId ?? 'english') === 'english')
+        .map(customRecordToWordSet),
+    [player.customWordSets],
+  );
+  const zhCustomSets = useMemo(
+    () =>
+      player.customWordSets
+        .filter((s) => s.subjectId === 'chinese')
+        .map(customChineseRecordToWordSet),
+    [player.customWordSets],
+  );
 
   const bossDate =
     player.subjectBossRematchDate?.[activeSubjectId] ??
     (activeSubjectId === 'english' ? player.lastBossRematchDate : undefined);
 
-  const enRematch =
-    activeSubjectId === 'english'
-      ? buildTrickyRematchWordSet(player.wordMastery, BUILTIN_WORD_SETS, bossDate)
-      : null;
-  const mathRematch =
-    activeSubjectId === 'math'
-      ? buildMathTrickyRematchSet(player.wordMastery, BUILTIN_MATH_SETS, bossDate)
-      : null;
-  const zhRematch =
-    activeSubjectId === 'chinese'
-      ? buildChineseTrickyRematchSet(player.wordMastery, BUILTIN_CHINESE_SETS, bossDate)
-      : null;
-
-  const enSrs =
-    activeSubjectId === 'english'
-      ? buildEnglishSrsReviewSet(player.wordMastery, BUILTIN_WORD_SETS)
-      : null;
-  const mathSrs =
-    activeSubjectId === 'math'
-      ? buildMathSrsReviewSet(player.wordMastery, BUILTIN_MATH_SETS)
-      : null;
-  const zhSrs =
-    activeSubjectId === 'chinese'
-      ? buildChineseSrsReviewSet(player.wordMastery, BUILTIN_CHINESE_SETS)
-      : null;
-
-  const dueSrsCount = getDueReviewItems(player.wordMastery, activeSubjectId).length;
-  const trickyCount = getTrickyWords(player.wordMastery, activeSubjectId).length;
+  const { enRematch, mathRematch, zhRematch, enSrs, mathSrs, zhSrs, dueSrsCount, trickyCount } =
+    useMemo(
+      () => ({
+        enRematch:
+          activeSubjectId === 'english'
+            ? buildTrickyRematchWordSet(player.wordMastery, BUILTIN_WORD_SETS, bossDate)
+            : null,
+        mathRematch:
+          activeSubjectId === 'math'
+            ? buildMathTrickyRematchSet(player.wordMastery, BUILTIN_MATH_SETS, bossDate)
+            : null,
+        zhRematch:
+          activeSubjectId === 'chinese'
+            ? buildChineseTrickyRematchSet(player.wordMastery, BUILTIN_CHINESE_SETS, bossDate)
+            : null,
+        enSrs:
+          activeSubjectId === 'english'
+            ? buildEnglishSrsReviewSet(player.wordMastery, BUILTIN_WORD_SETS)
+            : null,
+        mathSrs:
+          activeSubjectId === 'math'
+            ? buildMathSrsReviewSet(player.wordMastery, BUILTIN_MATH_SETS)
+            : null,
+        zhSrs:
+          activeSubjectId === 'chinese'
+            ? buildChineseSrsReviewSet(player.wordMastery, BUILTIN_CHINESE_SETS)
+            : null,
+        dueSrsCount: getDueReviewItems(player.wordMastery, activeSubjectId).length,
+        trickyCount: getTrickyWords(player.wordMastery, activeSubjectId).length,
+      }),
+      [player.wordMastery, activeSubjectId, bossDate],
+    );
 
   const dailySubjects =
     player.dailyQuest?.dateKey === todayKey ? player.dailyQuest.completedSubjects : [];
@@ -393,6 +370,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
         ? MATH_PLACEMENT_BONUS_TOKENS
         : CHINESE_PLACEMENT_BONUS_TOKENS;
 
+  const pinnedPack = player.pinnedWishlistPackId
+    ? getPackById(player.pinnedWishlistPackId)
+    : undefined;
+
+  const modeTabClass = (mode: QuestMode) =>
+    `qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+      effectiveQuestMode === mode
+        ? 'bg-white text-[#1C1917] shadow-xs'
+        : 'text-[#57534E] hover:text-[#1C1917]'
+    }`;
+
   return (
     <div className="space-y-6">
       {/* Subject Quick Switcher Strip (English / Math / 中文) */}
@@ -418,7 +406,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           })}
         </div>
 
-        {activeSubjectId === 'chinese' && (
+        {isZh && (
           <button
             type="button"
             onClick={onToggleZhuyin}
@@ -433,357 +421,117 @@ export const HomeView: React.FC<HomeViewProps> = ({
         )}
       </div>
 
-      {/* Visual-First Arcade Hero Stage (Clean 2-Tier Hierarchy) */}
-      {(() => {
-        const clinicCount = countClinicPatients(player);
-        const arcadeEarnedToday = getTodayArcadeTokensEarned(player, todayKey);
-        const isZh = activeSubjectId === 'chinese';
-        const arcadeGames: {
-          id: string;
-          label: string;
-          sub: string;
-          bg: string;
-          border: string;
-          icon: React.ReactNode;
-          onClick: () => void;
-        }[] = [
-          {
-            id: 'blitz',
-            label: isZh ? '60秒無盡衝分' : '60s Blitz',
-            sub: isZh ? '極速答題連擊' : 'Fast streak rush',
-            bg: '#7C3AED',
-            border: '#4C1D95',
-            icon: <Zap className="h-4 w-4 fill-current" />,
-            onClick: () => onStartBlitz(activeSubjectId),
-          },
-          {
-            id: 'cafe',
-            label: isZh ? 'Boba Café 小店' : 'Boba Café',
-            sub: isZh ? '出餐賺金幣升級' : 'Serve & upgrade',
-            bg: '#EA580C',
-            border: '#9A3412',
-            icon: <ChefHat className="h-4 w-4" />,
-            onClick: () => onStartCafe(activeSubjectId),
-          },
-          {
-            id: 'fishing',
-            label: isZh ? '星海釣魚' : 'Star Fishing',
-            sub: isZh ? '釣稀有星海大魚' : 'Catch rare fish',
-            bg: '#0891B2',
-            border: '#155E75',
-            icon: <Fish className="h-4 w-4" />,
-            onClick: () => onStartFishing(activeSubjectId),
-          },
-          {
-            id: 'boss',
-            label: isZh ? '夥伴打魔王' : 'Boss Battle',
-            sub: isZh ? '盲盒戰隊合體技' : 'Critter team combo',
-            bg: '#EF4444',
-            border: '#991B1B',
-            icon: <Swords className="h-4 w-4" />,
-            onClick: () => onStartBossBattle(activeSubjectId),
-          },
-          ...(onStartTowerDefense
-            ? [
-                {
-                  id: 'tower',
-                  label: isZh ? '夥伴塔防' : 'Tower Defense',
-                  sub: isZh ? '排兵佈陣守城堡' : 'Defend the waves',
-                  bg: '#4F46E5',
-                  border: '#312E81',
-                  icon: <Castle className="h-4 w-4" />,
-                  onClick: () => onStartTowerDefense(activeSubjectId),
-                },
-              ]
-            : []),
-        ];
+      {/* Visual-First Arcade Hero Stage (Clean 2-Tier Hierarchy + Collapsible Arcade Hall) */}
+      <HeroStage
+        player={player}
+        activeSubjectId={activeSubjectId}
+        todayKey={todayKey}
+        heroTitle={heroTitle}
+        packsReady={packsReady}
+        placementCompleted={placementCompleted}
+        warmUpBonus={warmUpBonus}
+        clinicCount={clinicCount}
+        arcadeEarnedToday={arcadeEarnedToday}
+        showArcadeDrawer={showArcadeDrawer}
+        onToggleArcadeDrawer={() => setShowArcadeDrawer((v) => !v)}
+        onHeroPlay={handleHeroPlay}
+        onStartPlacement={onStartPlacement}
+        onGoToMarket={onGoToMarket}
+        onStartBlitz={onStartBlitz}
+        onStartCafe={onStartCafe}
+        onStartFishing={onStartFishing}
+        onStartBossBattle={onStartBossBattle}
+        onStartTowerDefense={onStartTowerDefense}
+        onOpenLogicLab={onOpenLogicLab}
+        onOpenMixedWarmup={onOpenMixedWarmup}
+        onStartFactFluency={onStartFactFluency}
+        onStartChineseListening={onStartChineseListening}
+      />
 
-        return (
-          <section className="qv-surface rounded-3xl p-5 sm:p-6 space-y-4">
-            {/* Tier 1: Primary Hero Row (Only 2–3 core actions + Level Finder) */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 sm:gap-5 min-w-0">
-                <div className="flex items-center gap-3.5 sm:block">
-                  <div className="qv-float shrink-0">
-                    <CollectibleArt
-                      id={player.equippedCollectibleId}
-                      size={80}
-                      shiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
-                      className="border-2 border-[#1C1917] shadow-sm"
-                    />
-                  </div>
-                  <h1 className="sm:hidden font-display text-2xl font-extrabold text-[#1C1917]">
-                    {isZh ? `嗨，${player.displayName}！` : `Hi, ${player.displayName}!`}
-                  </h1>
-                </div>
+      {/* ⭐ Pinned Wishlist Pack Progress Strip (Bilingual) */}
+      {pinnedPack &&
+        (() => {
+          const remaining = Math.max(0, pinnedPack.cost - player.tokens);
+          const pct = Math.max(
+            0,
+            Math.min(100, Math.round((player.tokens / Math.max(1, pinnedPack.cost)) * 100)),
+          );
+          const ready = remaining === 0;
+          return (
+            <section className="rounded-2xl border-2 border-[#F59E0B] bg-gradient-to-r from-[#FFFBEB] to-[#FEF3C7] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <PackEnvelopeArt packId={pinnedPack.id} size={38} />
                 <div className="min-w-0">
-                  <h1 className="hidden sm:block font-display text-2xl sm:text-3xl font-extrabold text-[#1C1917]">
-                    {isZh ? `嗨，${player.displayName}！` : `Hi, ${player.displayName}!`}
-                  </h1>
-                  <div className="sm:mt-2.5 flex flex-wrap items-center gap-2.5">
-                    <button
-                      type="button"
-                      onClick={handleHeroPlay}
-                      className="qv-arcade-btn inline-flex min-h-[46px] items-center gap-2 rounded-2xl border-2 border-[#1C1917] bg-[#2563EB] px-5 py-2.5 font-display text-base font-extrabold text-white"
-                      style={{ borderBottomColor: '#1E3A8A' }}
-                    >
-                      <Play className="h-4 w-4 fill-current" />
-                      <span>{heroTitle}</span>
-                    </button>
-
-                    {onOpenMixedWarmup && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenMixedWarmup('daily-warmup')}
-                        className="qv-arcade-btn inline-flex min-h-[46px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#F59E0B] px-4 py-2.5 font-display text-sm font-extrabold text-[#1C1917]"
-                        style={{ borderBottomColor: '#B45309' }}
-                      >
-                        <Zap className="h-4 w-4 fill-current" />
-                        <span>{isZh ? '5分鐘混合暖身' : '5-Min Warm-Up'}</span>
-                        <span className="rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-extrabold text-[#92400E] tabular-nums">
-                          {player.dailyMixedWarmupDate === todayKey
-                            ? '✓'
-                            : `+${DAILY_MIXED_WARMUP_BONUS}`}
-                        </span>
-                      </button>
-                    )}
-
-                    {packsReady > 0 && (
-                      <button
-                        type="button"
-                        onClick={onGoToMarket}
-                        className="qv-arcade-btn inline-flex min-h-[46px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#FEF3C7] px-4 py-2.5 font-display text-sm font-extrabold text-[#1C1917] tabular-nums"
-                        style={{ borderBottomColor: '#D97706' }}
-                      >
-                        <Sparkles className="h-4 w-4 text-[#D97706]" />
-                        <span>
-                          {isZh
-                            ? `抽 ${packsReady} 包盲盒！`
-                            : `Open ${packsReady} ${packsReady === 1 ? 'Pack' : 'Packs'}!`}
-                        </span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 3-Minute Level Finder Pill (compact when already completed) */}
-              <button
-                type="button"
-                onClick={onStartPlacement}
-                className={`qv-btn qv-hover-lift flex items-center justify-between md:flex-col md:items-end gap-1.5 rounded-2xl border-2 px-4 py-2.5 text-left md:text-right shrink-0 ${
-                  placementCompleted
-                    ? 'border-[#E7E2D8] bg-[#FAF7F2] text-[#57534E]'
-                    : 'min-h-[48px] border-[#1C1917] bg-[#FFFBEB] text-[#1C1917]'
-                }`}
-              >
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
-                    placementCompleted
-                      ? 'bg-[#E7E2D8] text-[#57534E]'
-                      : 'bg-[#F59E0B] text-white'
-                  }`}
-                >
-                  <Coins className="h-3 w-3" />
-                  {placementCompleted
-                    ? isZh
-                      ? '重新測等級'
-                      : 'Re-check Level'
-                    : isZh
-                      ? `+${warmUpBonus} 獎勵！`
-                      : `+${warmUpBonus} Bonus!`}
-                </span>
-                <span className="font-display text-xs sm:text-sm font-extrabold">
-                  {isZh
-                    ? '3 分鐘中文分級暖身 →'
-                    : activeSubjectId === 'math'
-                      ? '3-Min Math Warm-Up →'
-                      : '3-Min Level Warm-Up →'}
-                </span>
-              </button>
-            </div>
-
-            {/* Tier 2: Calm Quick-Launch Dock + Collapsible Arcade Hall (5 Games) */}
-            <div className="rounded-2xl border border-[#EBE5D9] bg-[#FAF7F2] p-2.5 sm:p-3 space-y-2.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  aria-expanded={showArcadeDrawer}
-                  onClick={() => setShowArcadeDrawer((v) => !v)}
-                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border-2 px-3 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                    showArcadeDrawer
-                      ? 'border-[#1C1917] bg-[#1C1917] text-white'
-                      : 'border-[#DDD6FE] bg-white text-[#5B21B6] hover:border-[#7C3AED]'
-                  }`}
-                >
-                  <Gamepad2 className="h-4 w-4" />
-                  <span>{isZh ? `街機大廳 (${arcadeGames.length})` : `Arcade Games (${arcadeGames.length})`}</span>
-                  {showArcadeDrawer ? (
-                    <ChevronUp className="h-3.5 w-3.5" />
-                  ) : (
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  )}
-                </button>
-
-                {onOpenLogicLab && (
-                  <button
-                    type="button"
-                    onClick={onOpenLogicLab}
-                    className="qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border-2 border-[#DDD6FE] bg-white px-3 py-1.5 font-display text-xs sm:text-sm font-extrabold text-[#6D28D9] hover:border-[#7C3AED]"
-                  >
-                    <Brain className="h-4 w-4" />
-                    <span>{isZh ? '邏輯空間館' : 'Logic & Spatial'}</span>
-                  </button>
-                )}
-
-                {onOpenMixedWarmup && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenMixedWarmup('mistake-clinic')}
-                    className="qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border-2 border-[#99F6E4] bg-white px-3 py-1.5 font-display text-xs sm:text-sm font-extrabold text-[#0F766E] hover:border-[#0D9488]"
-                  >
-                    <HeartPulse className="h-4 w-4" />
-                    <span>{isZh ? '錯題急救診所' : 'Mistake Clinic'}</span>
-                    {clinicCount > 0 && (
-                      <span className="rounded-full bg-[#F43F5E] px-1.5 py-0.5 text-[10px] font-extrabold text-white tabular-nums">
-                        {clinicCount}
-                      </span>
-                    )}
-                  </button>
-                )}
-
-                {activeSubjectId === 'math' && onStartFactFluency && (
-                  <button
-                    type="button"
-                    onClick={onStartFactFluency}
-                    className="qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border-2 border-[#A7F3D0] bg-white px-3 py-1.5 font-display text-xs sm:text-sm font-extrabold text-[#047857] hover:border-[#059669]"
-                  >
-                    <Zap className="h-4 w-4 fill-current" />
-                    <span>Fact Fluency Dojo</span>
-                  </button>
-                )}
-
-                {activeSubjectId === 'chinese' && (
-                  <button
-                    type="button"
-                    onClick={onStartChineseListening}
-                    className="qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border-2 border-[#FBCFE8] bg-white px-3 py-1.5 font-display text-xs sm:text-sm font-extrabold text-[#BE185D] hover:border-[#DB2777]"
-                  >
-                    <Headphones className="h-4 w-4" />
-                    <span>聽音辨字</span>
-                  </button>
-                )}
-              </div>
-
-              {showArcadeDrawer && (
-                <div className="pt-2 border-t border-[#E7E2D8] space-y-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-extrabold text-[#57534E]">
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs font-extrabold text-[#92400E]">
+                    <Star className="h-3.5 w-3.5 fill-[#F59E0B] text-[#D97706] shrink-0" />
                     <span>
-                      {isZh
-                        ? '🎮 選擇一款小遊戲邊玩邊複習：'
-                        : '🎮 Pick a fast arcade game to practice & earn Tokens:'}
+                      {isZh ? `願望卡包：${pinnedPack.name}` : `Wishlist Pack: ${pinnedPack.name}`}
                     </span>
-                    <span className="rounded-full bg-white border border-[#E7E2D8] px-2.5 py-0.5 text-[#92400E] tabular-nums">
-                      {isZh
-                        ? `今日街機代幣 ${arcadeEarnedToday} / ${ARCADE_DAILY_TOKEN_CAP}`
-                        : `Today’s Arcade Cap: ${arcadeEarnedToday} / ${ARCADE_DAILY_TOKEN_CAP}`}
+                    <span className="tabular-nums text-[#B45309]">
+                      ({Math.min(player.tokens, pinnedPack.cost)}/{pinnedPack.cost} Tokens)
                     </span>
                   </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                    {arcadeGames.map((game) => (
-                      <button
-                        key={game.id}
-                        type="button"
-                        onClick={game.onClick}
-                        className="qv-arcade-btn flex flex-col items-start justify-between gap-1 rounded-2xl border-2 border-[#1C1917] px-3.5 py-2.5 text-left text-white"
-                        style={{ backgroundColor: game.bg, borderBottomColor: game.border }}
-                      >
-                        <div className="flex items-center gap-1.5 font-display text-sm font-extrabold">
-                          {game.icon}
-                          <span>{game.label}</span>
-                        </div>
-                        <span className="text-[11px] font-bold text-white/85">{game.sub}</span>
-                      </button>
-                    ))}
+                  <div className="mt-1 flex items-center gap-2">
+                    <div className="h-2 w-28 sm:w-40 overflow-hidden rounded-full bg-white/90 border border-[#FCD34D]">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: ready ? '#059669' : '#F59E0B' }}
+                      />
+                    </div>
+                    <span className="text-[11px] font-bold text-[#78350F] tabular-nums">
+                      {ready
+                        ? isZh
+                          ? '🎉 代幣夠抽了！'
+                          : '🎉 Ready to open!'
+                        : isZh
+                          ? `還差 ${remaining} Tokens 就能抽！`
+                          : `${remaining} more Tokens to open!`}
+                    </span>
                   </div>
-                </div>
-              )}
-            </div>
-          </section>
-        );
-      })()}
-
-      {/* ⭐ Pinned Wishlist Pack Progress Strip */}
-      {(() => {
-        const pinnedPack = player.pinnedWishlistPackId
-          ? getPackById(player.pinnedWishlistPackId)
-          : undefined;
-        if (!pinnedPack) return null;
-        const remaining = Math.max(0, pinnedPack.cost - player.tokens);
-        const pct = Math.max(0, Math.min(100, Math.round((player.tokens / Math.max(1, pinnedPack.cost)) * 100)));
-        const ready = remaining === 0;
-        return (
-          <section className="rounded-2xl border-2 border-[#F59E0B] bg-gradient-to-r from-[#FFFBEB] to-[#FEF3C7] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <PackEnvelopeArt packId={pinnedPack.id} size={38} />
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5 text-xs font-extrabold text-[#92400E]">
-                  <Star className="h-3.5 w-3.5 fill-[#F59E0B] text-[#D97706] shrink-0" />
-                  <span>願望卡包：{pinnedPack.name}</span>
-                  <span className="tabular-nums text-[#B45309]">
-                    ({Math.min(player.tokens, pinnedPack.cost)}/{pinnedPack.cost} Tokens)
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <div className="h-2 w-28 sm:w-40 overflow-hidden rounded-full bg-white/90 border border-[#FCD34D]">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, backgroundColor: ready ? '#059669' : '#F59E0B' }}
-                    />
-                  </div>
-                  <span className="text-[11px] font-bold text-[#78350F] tabular-nums">
-                    {ready ? '🎉 代幣夠抽了！' : `還差 ${remaining} Tokens 就能抽！`}
-                  </span>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onGoToMarket}
-                className="qv-btn inline-flex min-h-[36px] items-center gap-1 rounded-xl border-2 border-[#1C1917] bg-white px-3 py-1 text-xs font-extrabold text-[#1C1917]"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-[#D97706]" />
-                <span>{ready ? '去開願望盒 →' : '看卡包 →'}</span>
-              </button>
-              {onClearWishlistPack && (
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  aria-label="Clear pinned wishlist pack"
-                  onClick={onClearWishlistPack}
-                  className="qv-btn inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#FCD34D] bg-white/80 text-[#92400E]"
+                  onClick={onGoToMarket}
+                  className="qv-btn inline-flex min-h-[36px] items-center gap-1 rounded-xl border-2 border-[#1C1917] bg-white px-3 py-1 text-xs font-extrabold text-[#1C1917]"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <Sparkles className="h-3.5 w-3.5 text-[#D97706]" />
+                  <span>
+                    {ready
+                      ? isZh
+                        ? '去開願望盒 →'
+                        : 'Open Wishlist Pack →'
+                      : isZh
+                        ? '看卡包 →'
+                        : 'View Packs →'}
+                  </span>
                 </button>
-              )}
-            </div>
-          </section>
-        );
-      })()}
+                {onClearWishlistPack && (
+                  <button
+                    type="button"
+                    aria-label="Clear pinned wishlist pack"
+                    onClick={onClearWishlistPack}
+                    className="qv-btn inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#FCD34D] bg-white/80 text-[#92400E]"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </section>
+          );
+        })()}
 
       {/* Daily Tri-Subject Quest + Streak Chest Strip */}
       <section className="qv-surface rounded-2xl px-4 py-3 sm:px-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] border border-[#FED7AA] px-2.5 py-1 font-display text-xs font-extrabold text-[#C2410C] tabular-nums">
             <Flame className="h-3.5 w-3.5 fill-current" />
-            {activeSubjectId === 'chinese'
-              ? `連勝 ${streakDays} 天`
-              : `${streakDays}-Day Streak`}
+            {isZh ? `連勝 ${streakDays} 天` : `${streakDays}-Day Streak`}
           </span>
 
           <span className="font-display text-xs sm:text-sm font-extrabold text-[#1C1917]">
-            {activeSubjectId === 'chinese' ? '今日三科任務：' : 'Daily 3-Subject Quest:'}
+            {isZh ? '今日三科任務：' : 'Daily 3-Subject Quest:'}
           </span>
 
           <div className="flex items-center gap-1.5">
@@ -813,7 +561,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {dailyClaimed ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-3 py-1 text-xs font-extrabold text-[#047857]">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              {activeSubjectId === 'chinese' ? '今日三科寶箱已領取！' : 'Daily Chest Claimed!'}
+              {isZh ? '今日三科寶箱已領取！' : 'Daily Chest Claimed!'}
             </span>
           ) : dailyAllDone ? (
             <button
@@ -824,7 +572,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             >
               <Gift className="h-4 w-4" />
               <span>
-                {activeSubjectId === 'chinese'
+                {isZh
                   ? `領取 +${dailyRewardAmount} 三科寶箱！`
                   : `Claim +${dailyRewardAmount} Daily Chest!`}
               </span>
@@ -832,29 +580,33 @@ export const HomeView: React.FC<HomeViewProps> = ({
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-1 text-xs font-extrabold text-[#B45309] tabular-nums">
               <Gift className="h-3.5 w-3.5" />
-              {activeSubjectId === 'chinese'
-                ? `完成三科領 +${dailyRewardAmount}`
-                : `Complete all 3 for +${dailyRewardAmount}`}
+              {isZh ? `完成三科領 +${dailyRewardAmount}` : `Complete all 3 for +${dailyRewardAmount}`}
             </span>
           )}
         </div>
       </section>
 
-      {/* Phase 4D: Weekly Goal Progress Bar & Real-World Reward Voucher */}
+      {/* Weekly Goal Progress Bar & Real-World Reward Voucher (Bilingual) */}
       {weeklyGoalProgress.enabled && (
         <section className="qv-surface rounded-2xl px-4 py-3 sm:px-5 border-2 border-[#FDE68A] bg-[#FFFDF8] space-y-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] border border-[#F59E0B] px-2.5 py-0.5 font-display text-xs font-extrabold text-[#B45309]">
                 <Target className="h-3.5 w-3.5" />
-                {activeSubjectId === 'chinese' ? '本週目標' : 'Weekly Goal'}
+                {isZh ? '本週目標' : 'Weekly Goal'}
               </span>
               <span className="text-xs sm:text-sm font-extrabold text-[#1C1917] tabular-nums">
-                {weeklyGoalProgress.enTarget > 0 && `EN ${weeklyGoalProgress.enDone}/${weeklyGoalProgress.enTarget}`}
-                {weeklyGoalProgress.enTarget > 0 && (weeklyGoalProgress.zhTarget > 0 || weeklyGoalProgress.mathTarget > 0) ? ' · ' : ''}
-                {weeklyGoalProgress.zhTarget > 0 && `中文 ${weeklyGoalProgress.zhDone}/${weeklyGoalProgress.zhTarget}`}
+                {weeklyGoalProgress.enTarget > 0 &&
+                  `EN ${weeklyGoalProgress.enDone}/${weeklyGoalProgress.enTarget}`}
+                {weeklyGoalProgress.enTarget > 0 &&
+                (weeklyGoalProgress.zhTarget > 0 || weeklyGoalProgress.mathTarget > 0)
+                  ? ' · '
+                  : ''}
+                {weeklyGoalProgress.zhTarget > 0 &&
+                  `中文 ${weeklyGoalProgress.zhDone}/${weeklyGoalProgress.zhTarget}`}
                 {weeklyGoalProgress.zhTarget > 0 && weeklyGoalProgress.mathTarget > 0 ? ' · ' : ''}
-                {weeklyGoalProgress.mathTarget > 0 && `Math ${weeklyGoalProgress.mathDone}/${weeklyGoalProgress.mathTarget}`}
+                {weeklyGoalProgress.mathTarget > 0 &&
+                  `Math ${weeklyGoalProgress.mathDone}/${weeklyGoalProgress.mathTarget}`}
               </span>
             </div>
 
@@ -866,12 +618,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 style={{ borderBottomColor: '#B45309' }}
               >
                 <Gift className="h-4 w-4" />
-                <span>🎉 打開本週真實獎勵券！</span>
+                <span>{isZh ? '🎉 打開本週真實獎勵券！' : '🎉 Open Weekly Reward Voucher!'}</span>
               </button>
             ) : weeklyGoalProgress.isMet && weeklyGoalProgress.isRedeemed ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF5] border border-[#10B981] px-3 py-1 text-xs font-extrabold text-[#047857]">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                🏆 本週獎勵已兌換！
+                {isZh ? '🏆 本週獎勵已兌換！' : '🏆 Weekly Reward Redeemed!'}
               </span>
             ) : (
               <span className="text-xs font-bold text-[#92400E] truncate max-w-[260px]">
@@ -892,7 +644,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </section>
       )}
 
-      {/* Real-World Reward Voucher Modal (Kid celebrates; Parent Corner redeems) */}
+      {/* Real-World Reward Voucher Modal */}
       {voucherOpen && weeklyGoalProgress.isMet && (
         <div
           role="dialog"
@@ -989,10 +741,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div>
               <div className="inline-flex items-center gap-1 rounded-full bg-[#0284C7] px-2.5 py-0.5 text-xs font-extrabold text-white">
                 <Brain className="h-3.5 w-3.5" />
-                {activeSubjectId === 'chinese' ? '記憶曲線每日複習' : 'SRS MEMORY REVIEW DUE'}
+                {isZh ? '記憶曲線每日複習' : 'SRS MEMORY REVIEW DUE'}
               </div>
               <h2 className="mt-1 font-display text-lg sm:text-xl font-extrabold text-[#1C1917] tabular-nums">
-                {activeSubjectId === 'chinese'
+                {isZh
                   ? `今天有 ${dueSrsCount} 個詞語到期複習，鎖進長期記憶！`
                   : activeSubjectId === 'math'
                     ? `${dueSrsCount} Math Skills Ready for Memory Review!`
@@ -1001,7 +753,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           </div>
           <span className="shrink-0 rounded-2xl border-2 border-[#1C1917] bg-[#0284C7] px-4 py-2.5 font-display text-sm font-extrabold text-white">
-            {activeSubjectId === 'chinese' ? '複習 →' : 'Review →'}
+            {isZh ? '複習 →' : 'Review →'}
           </span>
         </button>
       )}
@@ -1027,10 +779,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div>
               <div className="inline-flex items-center gap-1 rounded-full bg-[#E11D48] px-2.5 py-0.5 text-xs font-extrabold text-white">
                 <Flame className="h-3.5 w-3.5 fill-current" />
-                {activeSubjectId === 'chinese' ? '1.5× 每日錯詞魔王戰' : '1.5× DAILY BOSS REMATCH'}
+                {isZh ? '1.5× 每日錯詞魔王戰' : '1.5× DAILY BOSS REMATCH'}
               </div>
               <h2 className="mt-1 font-display text-xl font-extrabold text-[#1C1917] tabular-nums">
-                {activeSubjectId === 'chinese'
+                {isZh
                   ? `擊敗你的 ${trickyCount} 個常錯詞語！`
                   : activeSubjectId === 'math'
                     ? `Beat Your ${trickyCount} Tricky Math Skills!`
@@ -1039,12 +791,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           </div>
           <span className="shrink-0 rounded-2xl border-2 border-[#1C1917] bg-[#E11D48] px-4 py-2.5 font-display text-sm font-extrabold text-white">
-            {activeSubjectId === 'chinese' ? '挑戰 →' : 'Battle →'}
+            {isZh ? '挑戰 →' : 'Battle →'}
           </span>
         </button>
       )}
 
-      {/* Visual 4-Tier Selector + Single School Words Import Button */}
+      {/* Visual 4-Tier Selector + School Words Import + Quest Mode Grids */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -1074,212 +826,87 @@ export const HomeView: React.FC<HomeViewProps> = ({
               className="qv-btn inline-flex min-h-[42px] items-center gap-1.5 rounded-2xl border-2 border-[#0D9488] bg-[#F0FDFA] px-4 py-2 text-xs sm:text-sm font-extrabold text-[#0F766E]"
             >
               <Plus className="h-4 w-4" />
-              <span>
-                {activeSubjectId === 'chinese' ? '匯入中文生字表' : 'Import School Words'}
-              </span>
+              <span>{isZh ? '匯入中文生字表' : 'Import School Words'}</span>
             </button>
           )}
         </div>
 
-        {/* Mode Switcher for English & Chinese: Word Quests vs Radical Builder (ZH) vs Story Quests vs Chapter Series (ZH) */}
-        {activeSubjectId !== 'math' && (
+        {/* Mode Switcher */}
+        {activeSubjectId !== 'math' ? (
           <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl border-2 border-[#E5DFD3] bg-[#F3EFE7] p-1">
-            <button
-              type="button"
-              onClick={() => setQuestMode('words')}
-              className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                effectiveQuestMode === 'words'
-                  ? 'bg-white text-[#1C1917] shadow-xs'
-                  : 'text-[#57534E] hover:text-[#1C1917]'
-              }`}
-            >
+            <button type="button" onClick={() => setQuestMode('words')} className={modeTabClass('words')}>
               <BookOpen className="h-4 w-4 text-[#2563EB]" />
-              <span>
-                {activeSubjectId === 'chinese'
-                  ? `詞彙關卡 (${zhSets.length})`
-                  : `Word Quests (${enSets.length})`}
-              </span>
+              <span>{isZh ? `詞彙關卡 (${zhSets.length})` : `Word Quests (${enSets.length})`}</span>
             </button>
-            {activeSubjectId === 'chinese' && (
+            {isZh && (
               <>
-                <button
-                  type="button"
-                  onClick={() => setQuestMode('radicals')}
-                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                    effectiveQuestMode === 'radicals'
-                      ? 'bg-white text-[#1C1917] shadow-xs'
-                      : 'text-[#57534E] hover:text-[#1C1917]'
-                  }`}
-                >
+                <button type="button" onClick={() => setQuestMode('radicals')} className={modeTabClass('radicals')}>
                   <Puzzle className="h-4 w-4 text-[#0D9488]" />
                   <span>偏旁工廠 ({zhRadicalFamilies.length})</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setQuestMode('measures')}
-                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                    effectiveQuestMode === 'measures'
-                      ? 'bg-white text-[#1C1917] shadow-xs'
-                      : 'text-[#57534E] hover:text-[#1C1917]'
-                  }`}
-                >
+                <button type="button" onClick={() => setQuestMode('measures')} className={modeTabClass('measures')}>
                   <Ruler className="h-4 w-4 text-[#4F46E5]" />
                   <span>量詞與成語 ({zhMeasureIdiomSets.length})</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setQuestMode('patterns')}
-                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                    effectiveQuestMode === 'patterns'
-                      ? 'bg-white text-[#1C1917] shadow-xs'
-                      : 'text-[#57534E] hover:text-[#1C1917]'
-                  }`}
-                >
+                <button type="button" onClick={() => setQuestMode('patterns')} className={modeTabClass('patterns')}>
                   <Sparkles className="h-4 w-4 text-[#EA580C]" />
                   <span>句型魔方 ({zhSentencePatterns.length})</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setQuestMode('lookAlike')}
-                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                    effectiveQuestMode === 'lookAlike'
-                      ? 'bg-white text-[#1C1917] shadow-xs'
-                      : 'text-[#57534E] hover:text-[#1C1917]'
-                  }`}
-                >
+                <button type="button" onClick={() => setQuestMode('lookAlike')} className={modeTabClass('lookAlike')}>
                   <Search className="h-4 w-4 text-[#DB2777]" />
                   <span>形近字館 ({zhLookAlikeSets.length})</span>
                 </button>
               </>
             )}
-            <button
-              type="button"
-              onClick={() => setQuestMode('stories')}
-              className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                effectiveQuestMode === 'stories'
-                  ? 'bg-white text-[#1C1917] shadow-xs'
-                  : 'text-[#57534E] hover:text-[#1C1917]'
-              }`}
-            >
+            <button type="button" onClick={() => setQuestMode('stories')} className={modeTabClass('stories')}>
               <BookText className="h-4 w-4 text-[#DB2777]" />
-              <span>
-                {activeSubjectId === 'chinese'
-                  ? `短篇閱讀 (${zhReadingSets.length})`
-                  : `Story Quests (${enReadingSets.length})`}
-              </span>
+              <span>{isZh ? `短篇閱讀 (${zhReadingSets.length})` : `Story Quests (${enReadingSets.length})`}</span>
             </button>
             {activeSubjectId === 'english' && (
               <>
-                <button
-                  type="button"
-                  onClick={() => setQuestMode('roots')}
-                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                    effectiveQuestMode === 'roots'
-                      ? 'bg-white text-[#1C1917] shadow-xs'
-                      : 'text-[#57534E] hover:text-[#1C1917]'
-                  }`}
-                >
+                <button type="button" onClick={() => setQuestMode('roots')} className={modeTabClass('roots')}>
                   <Dna className="h-4 w-4 text-[#2563EB]" />
                   <span>Word Roots ({enRootFamilies.length})</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setQuestMode('grammar')}
-                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                    effectiveQuestMode === 'grammar'
-                      ? 'bg-white text-[#1C1917] shadow-xs'
-                      : 'text-[#57534E] hover:text-[#1C1917]'
-                  }`}
-                >
+                <button type="button" onClick={() => setQuestMode('grammar')} className={modeTabClass('grammar')}>
                   <Wrench className="h-4 w-4 text-[#EA580C]" />
                   <span>Grammar Lab ({enGrammarSets.length})</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setQuestMode('spelling')}
-                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                    effectiveQuestMode === 'spelling'
-                      ? 'bg-white text-[#1C1917] shadow-xs'
-                      : 'text-[#57534E] hover:text-[#1C1917]'
-                  }`}
-                >
+                <button type="button" onClick={() => setQuestMode('spelling')} className={modeTabClass('spelling')}>
                   <Sparkles className="h-4 w-4 text-[#D97706]" />
                   <span>Spelling Bee ({enSpellingSets.length})</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setQuestMode('figurative')}
-                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                    effectiveQuestMode === 'figurative'
-                      ? 'bg-white text-[#1C1917] shadow-xs'
-                      : 'text-[#57534E] hover:text-[#1C1917]'
-                  }`}
-                >
+                <button type="button" onClick={() => setQuestMode('figurative')} className={modeTabClass('figurative')}>
                   <MessageSquareQuote className="h-4 w-4 text-[#0D9488]" />
                   <span>Figurative Lab ({enFigurativeSets.length})</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setQuestMode('enChapters')}
-                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                    effectiveQuestMode === 'enChapters'
-                      ? 'bg-white text-[#1C1917] shadow-xs'
-                      : 'text-[#57534E] hover:text-[#1C1917]'
-                  }`}
-                >
+                <button type="button" onClick={() => setQuestMode('enChapters')} className={modeTabClass('enChapters')}>
                   <BookMarked className="h-4 w-4 text-[#7C3AED]" />
                   <span>Chapter Books ({BUILTIN_ENGLISH_CHAPTER_SERIES.length})</span>
                 </button>
               </>
             )}
-            {activeSubjectId === 'chinese' && (
-              <button
-                type="button"
-                onClick={() => setQuestMode('chapters')}
-                className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                  effectiveQuestMode === 'chapters'
-                    ? 'bg-white text-[#1C1917] shadow-xs'
-                    : 'text-[#57534E] hover:text-[#1C1917]'
-                }`}
-              >
+            {isZh && (
+              <button type="button" onClick={() => setQuestMode('chapters')} className={modeTabClass('chapters')}>
                 <BookMarked className="h-4 w-4 text-[#7C3AED]" />
                 <span>章節小說 ({BUILTIN_CHAPTER_SERIES.length})</span>
               </button>
             )}
           </div>
-        )}
-
-        {/* Phase 5B: Math Mode Switcher (Math Quests vs Bar Model Lab) */}
-        {activeSubjectId === 'math' && (
+        ) : (
           <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl border-2 border-[#E5DFD3] bg-[#F3EFE7] p-1">
-            <button
-              type="button"
-              onClick={() => setQuestMode('words')}
-              className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                effectiveQuestMode === 'words'
-                  ? 'bg-white text-[#1C1917] shadow-xs'
-                  : 'text-[#57534E] hover:text-[#1C1917]'
-              }`}
-            >
+            <button type="button" onClick={() => setQuestMode('words')} className={modeTabClass('words')}>
               <Calculator className="h-4 w-4 text-[#059669]" />
               <span>Math Quests ({mathSets.length})</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setQuestMode('barModels')}
-              className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
-                effectiveQuestMode === 'barModels'
-                  ? 'bg-white text-[#1C1917] shadow-xs'
-                  : 'text-[#57534E] hover:text-[#1C1917]'
-              }`}
-            >
+            <button type="button" onClick={() => setQuestMode('barModels')} className={modeTabClass('barModels')}>
               <BarChart3 className="h-4 w-4 text-[#2563EB]" />
               <span>Bar Model Lab ({BAR_MODEL_UNITS.length})</span>
             </button>
           </div>
         )}
 
-        {/* Saved Custom School Word Sets — Surfaced ABOVE built-in cards for instant access */}
+        {/* Saved Custom School Word Sets */}
         {activeSubjectId === 'english' && effectiveQuestMode === 'words' && enCustomSets.length > 0 && (
           <div className="space-y-2.5">
             <h2 className="font-display text-base font-extrabold text-[#0F766E]">
@@ -1292,18 +919,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   className="qv-surface rounded-3xl p-4 flex items-center justify-between gap-3 border-[#0D9488]"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <CollectibleArt
-                      id={set.emblemCollectibleId}
-                      size={52}
-                      className="border-2 border-[#1C1917]"
-                    />
+                    <CollectibleArt id={set.emblemCollectibleId} size={52} className="border-2 border-[#1C1917]" />
                     <div className="min-w-0">
-                      <h3 className="font-display text-base font-extrabold truncate">
-                        {set.title}
-                      </h3>
-                      <span className="text-xs font-bold text-[#0F766E] tabular-nums">
-                        {set.words.length} words
-                      </span>
+                      <h3 className="font-display text-base font-extrabold truncate">{set.title}</h3>
+                      <span className="text-xs font-bold text-[#0F766E] tabular-nums">{set.words.length} words</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -1329,7 +948,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
-        {activeSubjectId === 'chinese' && effectiveQuestMode === 'words' && zhCustomSets.length > 0 && (
+        {isZh && effectiveQuestMode === 'words' && zhCustomSets.length > 0 && (
           <div className="space-y-2.5">
             <h2 className="font-display text-base font-extrabold text-[#0F766E]">
               我的中文學校生字表 ({zhCustomSets.length})
@@ -1341,18 +960,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   className="qv-surface rounded-3xl p-4 flex items-center justify-between gap-3 border-[#0D9488]"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <CollectibleArt
-                      id={set.emblemCollectibleId}
-                      size={52}
-                      className="border-2 border-[#1C1917]"
-                    />
+                    <CollectibleArt id={set.emblemCollectibleId} size={52} className="border-2 border-[#1C1917]" />
                     <div className="min-w-0">
-                      <h3 className="font-display text-base font-extrabold truncate">
-                        {set.title}
-                      </h3>
-                      <span className="text-xs font-bold text-[#0F766E] tabular-nums">
-                        {set.words.length} 個生詞
-                      </span>
+                      <h3 className="font-display text-base font-extrabold truncate">{set.title}</h3>
+                      <span className="text-xs font-bold text-[#0F766E] tabular-nums">{set.words.length} 個生詞</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -1378,90 +989,68 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
-        {/* Chinese Chapter Story Series Grid (4 series x 5 episodes = 20 episodes) */}
-        {activeSubjectId === 'chinese' && effectiveQuestMode === 'chapters' && (
+        {/* Chinese Chapter Story Series Grid */}
+        {isZh && effectiveQuestMode === 'chapters' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {BUILTIN_CHAPTER_SERIES.map((series) => {
-              const epDone = getSeriesCompletedCount(
-                series,
-                player.completedChapterEpisodeIds ?? [],
-              );
-              const allDone = isSeriesFullyCompleted(
-                series,
-                player.completedChapterEpisodeIds ?? [],
-              );
+              const epDone = getSeriesCompletedCount(series, player.completedChapterEpisodeIds ?? []);
+              const allDone = isSeriesFullyCompleted(series, player.completedChapterEpisodeIds ?? []);
               const claimed = (player.claimedChapterSeriesIds ?? []).includes(series.id);
+              const badge =
+                allDone && !claimed ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F59E0B] px-2.5 py-0.5 text-xs font-extrabold text-white">
+                    <Gift className="h-3.5 w-3.5" />
+                    +40 寶箱可領！
+                  </span>
+                ) : claimed ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    全 5 集通關！
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#1C1917] tabular-nums">
+                    已讀 {epDone}/5 集
+                  </span>
+                );
               return (
-                <button
+                <QuestCard
                   key={series.id}
-                  type="button"
+                  emblemCollectibleId={series.emblemCollectibleId}
+                  emblemSize={68}
+                  bgHex={series.bgHex}
+                  accentHex={series.accentHex}
+                  tag={`Tier ${series.tier} · ${series.genreTag}`}
+                  statusBadge={badge}
+                  title={`《${series.title}》`}
+                  titleSize="xl"
+                  subtitle={series.tagline}
                   onClick={() => onStartChapterSeries(series)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: series.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={series.emblemCollectibleId}
-                      size={68}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
-                      <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: series.accentHex }}
-                      >
-                        Tier {series.tier} · {series.genreTag}
-                      </span>
-                      {allDone && !claimed ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#F59E0B] px-2.5 py-0.5 text-xs font-extrabold text-white">
-                          <Gift className="h-3.5 w-3.5" />
-                          +40 寶箱可領！
+                  <div className="flex items-center gap-1.5 pt-1">
+                    {series.episodes.map((ep) => {
+                      const done = (player.completedChapterEpisodeIds ?? []).includes(ep.id);
+                      return (
+                        <span
+                          key={ep.id}
+                          className={`rounded-lg px-2 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                            done
+                              ? 'bg-[#ECFDF5] text-[#047857] border border-[#6EE7B7]'
+                              : 'bg-[#F3EFE7] text-[#57534E]'
+                          }`}
+                        >
+                          EP{ep.episodeNumber}
                         </span>
-                      ) : claimed ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          全 5 集通關！
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#1C1917] tabular-nums">
-                          已讀 {epDone}/5 集
-                        </span>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                  <div className="p-5 space-y-2">
-                    <h3 className="font-display text-xl font-extrabold text-[#1C1917]">
-                      《{series.title}》
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">{series.tagline}</p>
-                    <div className="flex items-center gap-1.5 pt-1">
-                      {series.episodes.map((ep) => {
-                        const done = (player.completedChapterEpisodeIds ?? []).includes(ep.id);
-                        return (
-                          <span
-                            key={ep.id}
-                            className={`rounded-lg px-2 py-0.5 text-[11px] font-extrabold tabular-nums ${
-                              done
-                                ? 'bg-[#ECFDF5] text-[#047857] border border-[#6EE7B7]'
-                                : 'bg-[#F3EFE7] text-[#57534E]'
-                            }`}
-                          >
-                            EP{ep.episodeNumber}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </button>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
         {/* Chinese Radical Builder Grid */}
-        {activeSubjectId === 'chinese' && effectiveQuestMode === 'radicals' && (
+        {isZh && effectiveQuestMode === 'radicals' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {zhRadicalFamilies.map((fam) => {
               const done = (player.completedRadicalIds ?? []).includes(fam.id);
@@ -1475,67 +1064,45 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 words: fam.items.map((it) => it.char),
               });
               return (
-                <button
+                <QuestCard
                   key={fam.id}
-                  type="button"
+                  emblemCollectibleId={fam.emblemCollectibleId}
+                  emblemSize={58}
+                  emblemExtra={
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-[#1C1917] bg-white font-display text-2xl font-extrabold text-[#1C1917] shadow-xs">
+                      {fam.anchor}
+                    </div>
+                  }
+                  bgHex={isPhonetic ? '#F0FDFA' : '#FDF2F8'}
+                  accentHex={isPhonetic ? '#0D9488' : '#DB2777'}
+                  tag={isPhonetic ? '同聲旁家族' : '同部首家族'}
+                  done={done}
+                  policy={policy}
+                  isZh
+                  doneDefaultLabel="已解鎖"
+                  rewardRange="+25–30"
+                  title={fam.title}
+                  subtitle={fam.subtitle}
                   onClick={() => onStartRadicalFamily(fam)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: isPhonetic ? '#F0FDFA' : '#FDF2F8' }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <CollectibleArt
-                        id={fam.emblemCollectibleId}
-                        size={58}
-                        className="border-2 border-[#1C1917]"
-                      />
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-[#1C1917] bg-white font-display text-2xl font-extrabold text-[#1C1917] shadow-xs">
-                        {fam.anchor}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {fam.items.map((it) => (
                       <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: isPhonetic ? '#0D9488' : '#DB2777' }}
+                        key={it.char}
+                        className="rounded-lg bg-[#F3EFE7] px-2.5 py-1 text-sm font-extrabold text-[#1C1917]"
                       >
-                        {isPhonetic ? '同聲旁家族' : '同部首家族'}
+                        <RubyWord word={it.char} zhuyin={it.zhuyin} showZhuyin={showZhuyin} />
                       </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, true, '已解鎖')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +25–30
-                        </span>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                  <div className="p-5 space-y-2.5">
-                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
-                      {fam.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">{fam.subtitle}</p>
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {fam.items.map((it) => (
-                        <span
-                          key={it.char}
-                          className="rounded-lg bg-[#F3EFE7] px-2.5 py-1 text-sm font-extrabold text-[#1C1917]"
-                        >
-                          <RubyWord word={it.char} zhuyin={it.zhuyin} showZhuyin={showZhuyin} />
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </button>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {/* Phase 4A: Chinese Measure Words & Idiom Context Grid */}
-        {activeSubjectId === 'chinese' && effectiveQuestMode === 'measures' && (
+        {/* Chinese Measure Words & Idiom Context Grid */}
+        {isZh && effectiveQuestMode === 'measures' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {zhMeasureIdiomSets.map((ms) => {
               const done = (player.completedMeasureIds ?? []).includes(ms.id);
@@ -1549,66 +1116,43 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 words: ms.questions.map((q) => q.targetAnswer),
               });
               return (
-                <button
+                <QuestCard
                   key={ms.id}
-                  type="button"
+                  emblemCollectibleId={ms.emblemCollectibleId}
+                  bgHex={ms.bgHex}
+                  accentHex={isMeasure ? '#4F46E5' : '#EA580C'}
+                  tag={isMeasure ? '📏 量詞大作戰' : '💡 易混詞／成語'}
+                  done={done}
+                  policy={policy}
+                  isZh
+                  doneDefaultLabel="已完成"
+                  rewardRange="+45–60"
+                  title={ms.title}
+                  subtitle={ms.subtitle}
                   onClick={() => onStartMeasureIdiomSet(ms)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: ms.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={ms.emblemCollectibleId}
-                      size={60}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    {ms.questions.map((q) => (
                       <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: isMeasure ? '#4F46E5' : '#EA580C' }}
+                        key={q.id}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#F3EFE7] text-base"
+                        aria-hidden="true"
                       >
-                        {isMeasure ? '📏 量詞大作戰' : '💡 易混詞／成語'}
+                        {q.visualEmoji}
                       </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, true, '已完成')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +45–60
-                        </span>
-                      )}
-                    </div>
+                    ))}
+                    <span className="rounded-lg bg-[#F3EFE7] px-2 py-1 text-[11px] font-extrabold text-[#57534E]">
+                      5 題挑戰
+                    </span>
                   </div>
-                  <div className="p-5 space-y-2.5">
-                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
-                      {ms.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">{ms.subtitle}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                      {ms.questions.map((q) => (
-                        <span
-                          key={q.id}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#F3EFE7] text-base"
-                          aria-hidden="true"
-                        >
-                          {q.visualEmoji}
-                        </span>
-                      ))}
-                      <span className="rounded-lg bg-[#F3EFE7] px-2 py-1 text-[11px] font-extrabold text-[#57534E]">
-                        5 題挑戰
-                      </span>
-                    </div>
-                  </div>
-                </button>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {/* Phase 5C: Chinese Sentence Pattern Lab Grid */}
-        {activeSubjectId === 'chinese' && effectiveQuestMode === 'patterns' && (
+        {/* Chinese Sentence Pattern Lab Grid */}
+        {isZh && effectiveQuestMode === 'patterns' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {zhSentencePatterns.map((sp) => {
               const done = (player.completedSentencePatternIds ?? []).includes(sp.id);
@@ -1620,55 +1164,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 completedIds: player.completedSentencePatternIds ?? [],
               });
               return (
-                <button
+                <QuestCard
                   key={sp.id}
-                  type="button"
+                  emblemCollectibleId={sp.emblemCollectibleId}
+                  bgHex={sp.bgHex}
+                  accentHex={sp.accentHex}
+                  tag={`🧱 ${sp.patternBadge}`}
+                  done={done}
+                  policy={policy}
+                  isZh
+                  doneDefaultLabel="已過關"
+                  rewardRange="+35–50"
+                  title={sp.title}
+                  subtitle={sp.subtitle}
                   onClick={() => onStartSentencePatternSet?.(sp)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: sp.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={sp.emblemCollectibleId}
-                      size={60}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
-                      <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: sp.accentHex }}
-                      >
-                        🧱 {sp.patternBadge}
-                      </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, true, '已過關')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +35–50
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-5 space-y-2">
-                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
-                      {sp.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">{sp.subtitle}</p>
-                    <p className="text-[11px] font-extrabold text-[#EA580C]">
-                      ✨ 關聯詞填空 ＋ 句型積木重組（5 題雙關卡）
-                    </p>
-                  </div>
-                </button>
+                  <p className="text-[11px] font-extrabold text-[#EA580C]">
+                    ✨ 關聯詞填空 ＋ 句型積木重組（5 題雙關卡）
+                  </p>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {/* Phase 8B: Chinese Look-Alike Hanzi Lab Grid */}
-        {activeSubjectId === 'chinese' && effectiveQuestMode === 'lookAlike' && (
+        {/* Chinese Look-Alike Hanzi Lab Grid */}
+        {isZh && effectiveQuestMode === 'lookAlike' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {zhLookAlikeSets.map((la) => {
               const done = (player.completedLookAlikeIds ?? []).includes(la.id);
@@ -1681,48 +1202,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 words: la.questions.map((q) => q.targetChar),
               });
               return (
-                <button
+                <QuestCard
                   key={la.id}
-                  type="button"
+                  emblemCollectibleId={la.emblemCollectibleId}
+                  bgHex={la.bgHex}
+                  accentHex={la.accentHex}
+                  tag={`🔍 ${la.shortTag}`}
+                  done={done}
+                  policy={policy}
+                  isZh
+                  doneDefaultLabel="已過關"
+                  rewardRange="+15–40"
+                  title={la.title}
+                  subtitle={la.subtitle}
                   onClick={() => onStartLookAlikeSet?.(la)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: la.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={la.emblemCollectibleId}
-                      size={60}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
-                      <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: la.accentHex }}
-                      >
-                        🔍 {la.shortTag}
-                      </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, true, '已過關')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +15–40
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-5 space-y-2">
-                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
-                      {la.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">{la.subtitle}</p>
-                    <p className="text-[11px] font-extrabold text-[#DB2777]">
-                      🔎 雙胞胎放大鏡對比 ＋ 5 題情境辨字衝刺
-                    </p>
-                  </div>
-                </button>
+                  <p className="text-[11px] font-extrabold text-[#DB2777]">
+                    🔎 雙胞胎放大鏡對比 ＋ 5 題情境辨字衝刺
+                  </p>
+                </QuestCard>
               );
             })}
           </div>
@@ -1731,9 +1229,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {/* Story Quests Grid (English & Traditional Chinese) */}
         {activeSubjectId !== 'math' && effectiveQuestMode === 'stories' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {(activeSubjectId === 'chinese' ? zhReadingSets : enReadingSets).map((rq) => {
+            {(isZh ? zhReadingSets : enReadingSets).map((rq) => {
               const done = player.completedQuestSetIds.includes(rq.id);
-              const isZh = activeSubjectId === 'chinese';
               const policy = getQuestRewardPolicy(player, {
                 questSetId: rq.id,
                 kind: 'static',
@@ -1741,63 +1238,42 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 todayKey,
               });
               return (
-                <button
+                <QuestCard
                   key={rq.id}
-                  type="button"
+                  emblemCollectibleId={rq.emblemCollectibleId}
+                  emblemSize={68}
+                  bgHex={rq.bgHex}
+                  accentHex={rq.accentHex}
+                  tag={rq.shortTag}
+                  done={done}
+                  policy={policy}
+                  isZh={isZh}
+                  doneDefaultLabel={isZh ? '已讀完' : 'Read'}
+                  rewardRange="+50–65"
+                  title={rq.title}
+                  titleSize="xl"
                   onClick={() => onStartReadingRun(rq)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: rq.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={rq.emblemCollectibleId}
-                      size={68}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
-                      <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: rq.accentHex }}
+                  <div className="space-y-1">
+                    {rq.passages.map((p, idx) => (
+                      <div
+                        key={p.id}
+                        className="text-xs font-bold text-[#57534E] flex items-center gap-1.5"
                       >
-                        {rq.shortTag}
-                      </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, isZh, isZh ? '已讀完' : 'Read')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +50–65
+                        <BookText className="h-3.5 w-3.5 text-[#2563EB] shrink-0" />
+                        <span className="truncate">
+                          {isZh ? `短文 ${idx + 1}：${p.title}` : `Story ${idx + 1}: ${p.title}`}
                         </span>
-                      )}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="p-5 space-y-2.5">
-                    <h3 className="font-display text-xl font-extrabold text-[#1C1917]">
-                      {rq.title}
-                    </h3>
-                    <div className="space-y-1">
-                      {rq.passages.map((p, idx) => (
-                        <div
-                          key={p.id}
-                          className="text-xs font-bold text-[#57534E] flex items-center gap-1.5"
-                        >
-                          <BookText className="h-3.5 w-3.5 text-[#2563EB] shrink-0" />
-                          <span className="truncate">
-                            {isZh ? `短文 ${idx + 1}：${p.title}` : `Story ${idx + 1}: ${p.title}`}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </button>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {/* Phase 4B: English Word Roots & Prefixes Lab Grid */}
+        {/* English Word Roots & Prefixes Lab Grid */}
         {activeSubjectId === 'english' && effectiveQuestMode === 'roots' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {enRootFamilies.map((fam) => {
@@ -1811,72 +1287,43 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 words: fam.items.map((it) => it.word),
               });
               return (
-                <button
+                <QuestCard
                   key={fam.id}
-                  type="button"
+                  emblemCollectibleId={fam.emblemCollectibleId}
+                  emblemSize={58}
+                  emblemExtra={
+                    <span className="rounded-2xl border-2 border-[#1C1917] bg-white px-3 py-1.5 font-display text-xl font-extrabold text-[#1C1917]">
+                      {fam.morpheme}
+                    </span>
+                  }
+                  bgHex={fam.bgHex}
+                  accentHex={fam.accentHex}
+                  tag={fam.kind === 'prefix' ? 'Prefix' : fam.kind === 'suffix' ? 'Suffix' : 'Root'}
+                  done={done}
+                  policy={policy}
+                  doneDefaultLabel="Mastered"
+                  rewardRange="+35–50"
+                  title={fam.title}
+                  subtitle={`“${fam.morpheme}” = ${fam.morphemeMeaning}`}
                   onClick={() => onStartEnglishRootFamily(fam)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: fam.bgHex }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <CollectibleArt
-                        id={fam.emblemCollectibleId}
-                        size={58}
-                        className="border-2 border-[#1C1917]"
-                      />
-                      <span className="rounded-2xl border-2 border-[#1C1917] bg-white px-3 py-1.5 font-display text-xl font-extrabold text-[#1C1917]">
-                        {fam.morpheme}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {fam.items.map((it) => (
                       <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: fam.accentHex }}
+                        key={it.word}
+                        className="rounded-lg bg-[#F3EFE7] px-2 py-0.5 text-xs font-bold text-[#44403C]"
                       >
-                        {fam.kind === 'prefix'
-                          ? 'Prefix'
-                          : fam.kind === 'suffix'
-                            ? 'Suffix'
-                            : 'Root'}
+                        {it.word}
                       </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, false, 'Mastered')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +35–50
-                        </span>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                  <div className="p-5 space-y-2.5">
-                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
-                      {fam.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">
-                      “{fam.morpheme}” = {fam.morphemeMeaning}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {fam.items.map((it) => (
-                        <span
-                          key={it.word}
-                          className="rounded-lg bg-[#F3EFE7] px-2 py-0.5 text-xs font-bold text-[#44403C]"
-                        >
-                          {it.word}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </button>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {/* Phase 4B: English Grammar Repair Lab Grid */}
+        {/* English Grammar Repair Lab Grid */}
         {activeSubjectId === 'english' && effectiveQuestMode === 'grammar' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {enGrammarSets.map((gs) => {
@@ -1890,65 +1337,41 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 words: gs.questions.map((q) => q.targetAnswer),
               });
               return (
-                <button
+                <QuestCard
                   key={gs.id}
-                  type="button"
+                  emblemCollectibleId={gs.emblemCollectibleId}
+                  bgHex={gs.bgHex}
+                  accentHex={gs.accentHex}
+                  tag={gs.categoryTag}
+                  done={done}
+                  policy={policy}
+                  doneDefaultLabel="Repaired"
+                  rewardRange="+45–60"
+                  title={gs.title}
+                  subtitle={gs.subtitle}
                   onClick={() => onStartGrammarRepairSet(gs)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: gs.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={gs.emblemCollectibleId}
-                      size={60}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    {gs.questions.map((q) => (
                       <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: gs.accentHex }}
+                        key={q.id}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#F3EFE7] text-base"
+                        aria-hidden="true"
                       >
-                        {gs.categoryTag}
+                        {q.emoji}
                       </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, false, 'Repaired')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +45–60
-                        </span>
-                      )}
-                    </div>
+                    ))}
+                    <span className="rounded-lg bg-[#F3EFE7] px-2 py-1 text-[11px] font-extrabold text-[#57534E]">
+                      5 Fixes
+                    </span>
                   </div>
-                  <div className="p-5 space-y-2.5">
-                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
-                      {gs.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">{gs.subtitle}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                      {gs.questions.map((q) => (
-                        <span
-                          key={q.id}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#F3EFE7] text-base"
-                          aria-hidden="true"
-                        >
-                          {q.emoji}
-                        </span>
-                      ))}
-                      <span className="rounded-lg bg-[#F3EFE7] px-2 py-1 text-[11px] font-extrabold text-[#57534E]">
-                        5 Fixes
-                      </span>
-                    </div>
-                  </div>
-                </button>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {/* Phase 5A: English Spelling Bee Lab Grid */}
+        {/* English Spelling Bee Lab Grid */}
         {activeSubjectId === 'english' && effectiveQuestMode === 'spelling' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {enSpellingSets.map((sp) => {
@@ -1962,48 +1385,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 words: sp.items.map((it) => it.word),
               });
               return (
-                <button
+                <QuestCard
                   key={sp.id}
-                  type="button"
+                  emblemCollectibleId={sp.emblemCollectibleId}
+                  bgHex="#FFFBEB"
+                  accentHex="#D97706"
+                  tag={`🐝 ${sp.badge}`}
+                  done={done}
+                  policy={policy}
+                  doneDefaultLabel="Spelled"
+                  rewardRange="+25–35"
+                  title={sp.title}
+                  subtitle={sp.subtitle}
                   onClick={() => onStartSpellingSet?.(sp)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div className="px-5 py-4 flex items-center justify-between gap-3 bg-[#FFFBEB]">
-                    <CollectibleArt
-                      id={sp.emblemCollectibleId}
-                      size={60}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
-                      <span className="rounded-full bg-[#D97706] px-2.5 py-0.5 text-xs font-extrabold text-white">
-                        🐝 {sp.badge}
-                      </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, false, 'Spelled')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +25–35
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-5 space-y-2">
-                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
-                      {sp.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">{sp.subtitle}</p>
-                    <p className="text-[11px] font-extrabold text-[#B45309]">
-                      🔊 5 Audio Spelling Challenges · Tiles & Keyboard
-                    </p>
-                  </div>
-                </button>
+                  <p className="text-[11px] font-extrabold text-[#B45309]">
+                    🔊 5 Audio Spelling Challenges · Tiles & Keyboard
+                  </p>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {/* Phase 8B: English Figurative Language & Context Clues Lab Grid */}
+        {/* English Figurative Language & Context Clues Lab Grid */}
         {activeSubjectId === 'english' && effectiveQuestMode === 'figurative' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {enFigurativeSets.map((fg) => {
@@ -2016,54 +1421,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 completedIds: player.completedFigurativeIds ?? [],
               });
               return (
-                <button
+                <QuestCard
                   key={fg.id}
-                  type="button"
+                  emblemCollectibleId={fg.emblemCollectibleId}
+                  bgHex={fg.bgHex}
+                  accentHex={fg.accentHex}
+                  tag={`💬 ${fg.categoryTag}`}
+                  done={done}
+                  policy={policy}
+                  doneDefaultLabel="Mastered"
+                  rewardRange="+15–40"
+                  title={fg.title}
+                  subtitle={fg.subtitle}
                   onClick={() => onStartFigurativeSet?.(fg)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: fg.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={fg.emblemCollectibleId}
-                      size={60}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
-                      <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: fg.accentHex }}
-                      >
-                        💬 {fg.categoryTag}
-                      </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, false, 'Mastered')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +15–40
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-5 space-y-2">
-                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
-                      {fg.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">{fg.subtitle}</p>
-                    <p className="text-[11px] font-extrabold text-[#0D9488]">
-                      ✨ 5 Literary & Context Clue Quests · Bilingual Tips
-                    </p>
-                  </div>
-                </button>
+                  <p className="text-[11px] font-extrabold text-[#0D9488]">
+                    ✨ 5 Literary & Context Clue Quests · Bilingual Tips
+                  </p>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {/* Phase 5A: English Chapter Story Series Grid */}
+        {/* English Chapter Story Series Grid (with +40 Series Chest Badge) */}
         {activeSubjectId === 'english' && effectiveQuestMode === 'enChapters' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {BUILTIN_ENGLISH_CHAPTER_SERIES.map((series) => {
@@ -2075,71 +1456,61 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 series,
                 player.completedEnglishChapterIds ?? [],
               );
+              const claimed = (player.claimedEnglishChapterSeriesIds ?? []).includes(series.id);
+              const badge =
+                fullDone && !claimed ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F59E0B] px-2.5 py-0.5 text-xs font-extrabold text-white">
+                    <Gift className="h-3.5 w-3.5" />
+                    +40 Chest Ready!
+                  </span>
+                ) : fullDone ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    All 5 Chapters Done!
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#1C1917] tabular-nums">
+                    {epDone}/5 Chapters
+                  </span>
+                );
               return (
-                <button
+                <QuestCard
                   key={series.id}
-                  type="button"
+                  emblemCollectibleId={series.emblemCollectibleId}
+                  emblemSize={66}
+                  bgHex={series.bgHex}
+                  accentHex={series.accentHex}
+                  tag={`${series.genreTag} · Tier ${series.tier}`}
+                  statusBadge={badge}
+                  title={series.title}
+                  titleSize="xl"
+                  subtitle={series.subtitle}
                   onClick={() => onStartEnglishChapterSeries?.(series)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: series.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={series.emblemCollectibleId}
-                      size={66}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
-                      <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: series.accentHex }}
-                      >
-                        {series.genreTag} · Tier {series.tier}
-                      </span>
-                      {fullDone ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#047857]">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          All 5 Chapters Done!
+                  <div className="flex items-center gap-1.5 pt-1">
+                    {series.episodes.map((ep) => {
+                      const done = (player.completedEnglishChapterIds ?? []).includes(ep.id);
+                      return (
+                        <span
+                          key={ep.id}
+                          className={`rounded-lg px-2 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                            done
+                              ? 'bg-[#ECFDF5] text-[#047857] border border-[#6EE7B7]'
+                              : 'bg-[#F3EFE7] text-[#57534E]'
+                          }`}
+                        >
+                          Ch.{ep.episodeNumber}
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-[#1C1917] tabular-nums">
-                          {epDone}/5 Chapters
-                        </span>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                  <div className="p-5 space-y-2">
-                    <h3 className="font-display text-xl font-extrabold text-[#1C1917]">
-                      {series.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">{series.subtitle}</p>
-                    <div className="flex items-center gap-1.5 pt-1">
-                      {series.episodes.map((ep) => {
-                        const done = (player.completedEnglishChapterIds ?? []).includes(ep.id);
-                        return (
-                          <span
-                            key={ep.id}
-                            className={`rounded-lg px-2 py-0.5 text-[11px] font-extrabold tabular-nums ${
-                              done
-                                ? 'bg-[#ECFDF5] text-[#047857] border border-[#6EE7B7]'
-                                : 'bg-[#F3EFE7] text-[#57534E]'
-                            }`}
-                          >
-                            Ch.{ep.episodeNumber}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </button>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {/* Quest Cards Grid per Active Subject */}
+        {/* English Word Quests Grid */}
         {activeSubjectId === 'english' && effectiveQuestMode === 'words' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {enSets.map((ws) => {
@@ -2152,60 +1523,38 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 words: ws.words.map((w) => w.word),
               });
               return (
-                <button
+                <QuestCard
                   key={ws.id}
-                  type="button"
+                  emblemCollectibleId={ws.emblemCollectibleId}
+                  emblemSize={68}
+                  bgHex={ws.bgHex}
+                  accentHex={ws.accentHex}
+                  tag={ws.shortTag}
+                  done={done}
+                  policy={policy}
+                  doneDefaultLabel="Cleared"
+                  rewardRange="+55–75"
+                  title={ws.title}
+                  titleSize="xl"
                   onClick={() => onStartEnglishRun(ws)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: ws.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={ws.emblemCollectibleId}
-                      size={68}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {ws.words.map((w) => (
                       <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: ws.accentHex }}
+                        key={w.word}
+                        className="rounded-lg bg-[#F3EFE7] px-2 py-0.5 text-xs font-bold text-[#44403C]"
                       >
-                        {ws.shortTag}
+                        {w.word}
                       </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, false, 'Cleared')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +55–75
-                        </span>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                  <div className="p-5 space-y-3">
-                    <h3 className="font-display text-xl font-extrabold text-[#1C1917]">
-                      {ws.title}
-                    </h3>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ws.words.map((w) => (
-                        <span
-                          key={w.word}
-                          className="rounded-lg bg-[#F3EFE7] px-2 py-0.5 text-xs font-bold text-[#44403C]"
-                        >
-                          {w.word}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </button>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {/* Phase 5B: Math Two-Step Bar Model Lab Grid */}
+        {/* Math Two-Step Bar Model Lab Grid */}
         {activeSubjectId === 'math' && effectiveQuestMode === 'barModels' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {BAR_MODEL_UNITS.map((unit) => {
@@ -2218,53 +1567,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 completedIds: player.completedBarModelIds ?? [],
               });
               return (
-                <button
+                <QuestCard
                   key={unit.id}
-                  type="button"
+                  emblemCollectibleId={unit.emblemCollectibleId}
+                  emblemSize={64}
+                  bgHex={unit.bgHex}
+                  accentHex={unit.accentHex}
+                  tag={`Tier ${unit.tier} · ${unit.ccssTag}`}
+                  done={done}
+                  policy={policy}
+                  doneDefaultLabel="Solved"
+                  rewardRange="+30–40"
+                  title={`📊 ${unit.title}`}
+                  subtitle={unit.subtitle}
                   onClick={() => onStartBarModelUnit?.(unit)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: unit.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={unit.emblemCollectibleId}
-                      size={64}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
-                      <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: unit.accentHex }}
-                      >
-                        Tier {unit.tier} · {unit.ccssTag}
-                      </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, false, 'Solved')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +30–40
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-5 space-y-2">
-                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
-                      📊 {unit.title}
-                    </h3>
-                    <p className="text-xs font-semibold text-[#57534E]">{unit.subtitle}</p>
-                    <p className="text-[11px] font-extrabold text-[#2563EB]">
-                      ♾️ Fresh Dynamic Numbers · Tape Diagram Guide
-                    </p>
-                  </div>
-                </button>
+                  <p className="text-[11px] font-extrabold text-[#2563EB]">
+                    ♾️ Fresh Dynamic Numbers · Tape Diagram Guide
+                  </p>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
+        {/* Math Quests Grid */}
         {activeSubjectId === 'math' && effectiveQuestMode === 'words' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {mathSets.map((ms) => {
@@ -2276,60 +1603,39 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 todayKey,
               });
               return (
-                <button
+                <QuestCard
                   key={ms.id}
-                  type="button"
+                  emblemCollectibleId={ms.emblemCollectibleId}
+                  emblemSize={68}
+                  bgHex={ms.bgHex}
+                  accentHex={ms.accentHex}
+                  tag={ms.shortTag}
+                  done={done}
+                  policy={policy}
+                  doneDefaultLabel="Cleared"
+                  rewardRange="+60–80"
+                  title={ms.title}
+                  titleSize="xl"
                   onClick={() => onStartMathRun(ms)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: ms.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={ms.emblemCollectibleId}
-                      size={68}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {ms.items.map((item) => (
                       <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: ms.accentHex }}
+                        key={item.id}
+                        className="rounded-lg bg-[#F3EFE7] px-2 py-0.5 text-xs font-bold text-[#44403C]"
                       >
-                        {ms.shortTag}
+                        {item.skillLabel}
                       </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, false, 'Cleared')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +60–80
-                        </span>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                  <div className="p-5 space-y-3">
-                    <h3 className="font-display text-xl font-extrabold text-[#1C1917]">
-                      {ms.title}
-                    </h3>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ms.items.map((item) => (
-                        <span
-                          key={item.id}
-                          className="rounded-lg bg-[#F3EFE7] px-2 py-0.5 text-xs font-bold text-[#44403C]"
-                        >
-                          {item.skillLabel}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </button>
+                </QuestCard>
               );
             })}
           </div>
         )}
 
-        {activeSubjectId === 'chinese' && effectiveQuestMode === 'words' && (
+        {/* Chinese Word Quests Grid */}
+        {isZh && effectiveQuestMode === 'words' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {zhSets.map((ws) => {
               const done = player.completedQuestSetIds.includes(ws.id);
@@ -2341,54 +1647,33 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 words: ws.words.map((w) => w.word),
               });
               return (
-                <button
+                <QuestCard
                   key={ws.id}
-                  type="button"
+                  emblemCollectibleId={ws.emblemCollectibleId}
+                  emblemSize={68}
+                  bgHex={ws.bgHex}
+                  accentHex={ws.accentHex}
+                  tag={ws.shortTag}
+                  done={done}
+                  policy={policy}
+                  isZh
+                  doneDefaultLabel="已過關"
+                  rewardRange="+55–75"
+                  title={ws.title}
+                  titleSize="xl"
                   onClick={() => onStartChineseRun(ws)}
-                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
                 >
-                  <div
-                    className="px-5 py-4 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: ws.bgHex }}
-                  >
-                    <CollectibleArt
-                      id={ws.emblemCollectibleId}
-                      size={68}
-                      className="border-2 border-[#1C1917]"
-                    />
-                    <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {ws.words.map((w) => (
                       <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                        style={{ backgroundColor: ws.accentHex }}
+                        key={w.word}
+                        className="rounded-lg bg-[#F3EFE7] px-2 py-0.5 text-xs font-bold text-[#44403C]"
                       >
-                        {ws.shortTag}
+                        <RubyWord word={w.word} zhuyin={w.zhuyin} showZhuyin={showZhuyin} />
                       </span>
-                      {done ? (
-                        renderDoneRewardBadge(policy, true, '已過關')
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
-                          <Coins className="h-3.5 w-3.5" />
-                          +55–75
-                        </span>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                  <div className="p-5 space-y-3">
-                    <h3 className="font-display text-xl font-extrabold text-[#1C1917]">
-                      {ws.title}
-                    </h3>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ws.words.map((w) => (
-                        <span
-                          key={w.word}
-                          className="rounded-lg bg-[#F3EFE7] px-2 py-0.5 text-xs font-bold text-[#44403C]"
-                        >
-                          <RubyWord word={w.word} zhuyin={w.zhuyin} showZhuyin={showZhuyin} />
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </button>
+                </QuestCard>
               );
             })}
           </div>

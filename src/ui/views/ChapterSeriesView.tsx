@@ -34,6 +34,7 @@ import {
 import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 import { RubySentence } from '../components/RubySentence';
 import { RubyWord } from '../components/RubyWord';
+import { BLOOKET_CHOICE_PALETTE as CHOICE_STYLES } from '../theme/choicePalette';
 
 export interface ChapterEpisodeCompletionPayload {
   seriesId: string;
@@ -59,13 +60,6 @@ interface ChapterSeriesViewProps {
   onExit: () => void;
   onGoToMarket: () => void;
 }
-
-const CHOICE_STYLES = [
-  { bg: '#EF4444', border: '#991B1B', shape: '▲' },
-  { bg: '#2563EB', border: '#1E3A8A', shape: '◆' },
-  { bg: '#F59E0B', border: '#B45309', shape: '●' },
-  { bg: '#059669', border: '#065F46', shape: '■' },
-];
 
 export const ChapterSeriesView: React.FC<ChapterSeriesViewProps> = ({
   series,

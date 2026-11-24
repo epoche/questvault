@@ -3,18 +3,16 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  Coins,
   MessageSquareQuote,
-  RotateCcw,
-  Sparkles,
   Volume2,
   XCircle,
 } from 'lucide-react';
 import { audioService } from '../../core/audio';
 import { applyQuestRewardMultiplier, type QuestRewardPolicy } from '../../core/economy';
 import type { FigurativeQuestSet } from '../../subjects/english/figurativeTypes';
-import { CollectibleArt } from '../artwork/CollectibleArt';
+import { QuestSummaryCard } from '../components/QuestSummaryCard';
 import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
+import { LETTER_CHOICE_PALETTE as CHOICE_COLORS } from '../theme/choicePalette';
 
 export interface FigurativeCompletionPayload {
   setId: string;
@@ -34,13 +32,6 @@ interface FigurativeLabViewProps {
   onExit: () => void;
   onGoToMarket: () => void;
 }
-
-const CHOICE_COLORS = [
-  { bg: '#2563EB', border: '#1E3A8A', badge: 'A' },
-  { bg: '#059669', border: '#065F46', badge: 'B' },
-  { bg: '#D97706', border: '#92400E', badge: 'C' },
-  { bg: '#DB2777', border: '#9D174D', badge: 'D' },
-];
 
 function renderHighlightedPassage(passage: string, highlightPhrase?: string) {
   if (!highlightPhrase || !highlightPhrase.trim()) return passage;
@@ -153,54 +144,22 @@ export const FigurativeLabView: React.FC<FigurativeLabViewProps> = ({
   if (done) {
     const acc = Math.round((correctCount / Math.max(1, questSet.questions.length)) * 100);
     return (
-      <div className="mx-auto max-w-2xl space-y-5">
-        <div className="rounded-3xl border-3 border-[#1C1917] bg-white p-6 sm:p-8 text-center shadow-[0_6px_0_#1C1917] space-y-5">
-          <div className="mx-auto flex items-center justify-center gap-3">
-            <CollectibleArt id={equippedCollectibleId} size={64} shiny={isAvatarShiny} />
-            <CollectibleArt id={questSet.emblemCollectibleId} size={64} />
-          </div>
-          <div className="space-y-1">
-            <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#1C1917]">
-              💬 {questSet.title} Clear!
-            </h1>
-            <p className="text-sm font-bold text-[#57534E] tabular-nums">
-              Scored {correctCount} / {questSet.questions.length} ({acc}% accuracy)
-            </p>
-          </div>
-          <div className="mx-auto inline-flex items-center gap-2 rounded-2xl border-2 border-[#F59E0B] bg-[#FFFBEB] px-5 py-2.5 font-display text-lg font-extrabold text-[#B45309] tabular-nums">
-            <Coins className="h-5 w-5 text-[#D97706]" />
-            <span>+{finalAwarded} Tokens</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={handleRestart}
-              className="qv-btn inline-flex min-h-[46px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-white px-5 py-2.5 font-display text-sm font-extrabold text-[#1C1917]"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>Practice Again</span>
-            </button>
-            <button
-              type="button"
-              onClick={onExit}
-              className="qv-arcade-btn inline-flex min-h-[46px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#2563EB] px-5 py-2.5 font-display text-sm font-extrabold text-white"
-              style={{ borderBottomColor: '#1E3A8A' }}
-            >
-              <span>Back to Quests</span>
-            </button>
-            {finalAwarded > 0 && (
-              <button
-                type="button"
-                onClick={onGoToMarket}
-                className="qv-btn inline-flex min-h-[46px] items-center gap-1.5 rounded-2xl border-2 border-[#F59E0B] bg-[#FEF3C7] px-5 py-2.5 font-display text-sm font-extrabold text-[#92400E]"
-              >
-                <Sparkles className="h-4 w-4" />
-                <span>Open Packs!</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <QuestSummaryCard
+        equippedCollectibleId={equippedCollectibleId}
+        isAvatarShiny={isAvatarShiny}
+        emblemCollectibleId={questSet.emblemCollectibleId}
+        title={`💬 ${questSet.title} Clear!`}
+        subtitle={`Scored ${correctCount} / ${questSet.questions.length} (${acc}% accuracy)`}
+        tokensAwarded={finalAwarded}
+        primaryBgHex="#2563EB"
+        primaryBorderBottomHex="#1E3A8A"
+        retryLabel="Practice Again"
+        exitLabel="Back to Quests"
+        marketLabel="Open Packs!"
+        onRetry={handleRestart}
+        onExit={onExit}
+        onGoToMarket={onGoToMarket}
+      />
     );
   }
 

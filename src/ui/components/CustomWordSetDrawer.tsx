@@ -71,6 +71,9 @@ export const CustomWordSetDrawer: React.FC<CustomWordSetDrawerProps> = ({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={isChinese ? '匯入中文學校生字表' : 'Import School Words'}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#1C1917]/55 backdrop-blur-xs p-0 sm:p-4"
       onClick={onClose}
     >

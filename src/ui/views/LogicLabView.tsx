@@ -26,6 +26,7 @@ import {
 import { buildLogicReasoningSession } from '../../subjects/logic/logicReasoningEngine';
 import { buildSpatialSession } from '../../subjects/logic/spatialEngine';
 import { LogicVisual } from '../artwork/LogicVisual';
+import { LETTER_CHOICE_PALETTE as CHOICE_COLORS } from '../theme/choicePalette';
 
 interface LogicLabViewProps {
   player: PlayerState;
@@ -37,13 +38,6 @@ interface LogicLabViewProps {
   onExit: () => void;
   onGoToMarket: () => void;
 }
-
-const CHOICE_COLORS = [
-  { bg: '#2563EB', border: '#1E3A8A', badge: 'A' },
-  { bg: '#059669', border: '#065F46', badge: 'B' },
-  { bg: '#D97706', border: '#92400E', badge: 'C' },
-  { bg: '#DB2777', border: '#9D174D', badge: 'D' },
-];
 
 export const LogicLabView: React.FC<LogicLabViewProps> = ({
   player,

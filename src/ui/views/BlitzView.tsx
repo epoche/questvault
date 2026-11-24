@@ -19,6 +19,7 @@ import type { DifficultyTier, SubjectId } from '../../core/types';
 import { CollectibleArt } from '../artwork/CollectibleArt';
 import { MathVisual } from '../artwork/MathVisual';
 import { RubyWord } from '../components/RubyWord';
+import { BLOOKET_CHOICE_PALETTE as CHOICE_STYLES } from '../theme/choicePalette';
 
 export interface BlitzCompletionPayload {
   subjectId: SubjectId;
@@ -46,13 +47,6 @@ interface BlitzViewProps {
 type BlitzQuestion = ArcadeQuestion;
 
 const BLITZ_DURATION_SEC = 60;
-
-const CHOICE_STYLES = [
-  { bg: '#EF4444', border: '#991B1B', shape: '▲' },
-  { bg: '#2563EB', border: '#1E3A8A', shape: '◆' },
-  { bg: '#F59E0B', border: '#B45309', shape: '●' },
-  { bg: '#059669', border: '#065F46', shape: '■' },
-];
 
 function generateQuestion(subjectId: SubjectId, activeTier: DifficultyTier, seq: number): BlitzQuestion {
   return generateArcadeQuestion(subjectId, activeTier, seq);

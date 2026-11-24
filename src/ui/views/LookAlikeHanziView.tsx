@@ -3,20 +3,18 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  Coins,
-  RotateCcw,
   Search,
-  Sparkles,
   Volume2,
   XCircle,
 } from 'lucide-react';
 import { audioService } from '../../core/audio';
 import { applyQuestRewardMultiplier, type QuestRewardPolicy } from '../../core/economy';
 import type { LookAlikeHanziSet } from '../../subjects/chinese/lookAlikeTypes';
-import { CollectibleArt } from '../artwork/CollectibleArt';
+import { QuestSummaryCard } from '../components/QuestSummaryCard';
 import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
 import { RubySentence } from '../components/RubySentence';
 import { RubyWord } from '../components/RubyWord';
+import { LETTER_CHOICE_PALETTE as CHOICE_COLORS } from '../theme/choicePalette';
 
 export interface LookAlikeCompletionPayload {
   setId: string;
@@ -38,13 +36,6 @@ interface LookAlikeHanziViewProps {
   onExit: () => void;
   onGoToMarket: () => void;
 }
-
-const CHOICE_COLORS = [
-  { bg: '#2563EB', border: '#1E3A8A', badge: 'A' },
-  { bg: '#059669', border: '#065F46', badge: 'B' },
-  { bg: '#D97706', border: '#92400E', badge: 'C' },
-  { bg: '#DB2777', border: '#9D174D', badge: 'D' },
-];
 
 export const LookAlikeHanziView: React.FC<LookAlikeHanziViewProps> = ({
   questSet,
@@ -138,54 +129,22 @@ export const LookAlikeHanziView: React.FC<LookAlikeHanziViewProps> = ({
   if (stage === 'done') {
     const acc = Math.round((correctCount / Math.max(1, questSet.questions.length)) * 100);
     return (
-      <div className="mx-auto max-w-2xl space-y-5">
-        <div className="rounded-3xl border-3 border-[#1C1917] bg-white p-6 sm:p-8 text-center shadow-[0_6px_0_#1C1917] space-y-5">
-          <div className="mx-auto flex items-center justify-center gap-3">
-            <CollectibleArt id={equippedCollectibleId} size={64} shiny={isAvatarShiny} />
-            <CollectibleArt id={questSet.emblemCollectibleId} size={64} />
-          </div>
-          <div className="space-y-1">
-            <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#1C1917]">
-              🔍 {questSet.title} 辨字通關！
-            </h1>
-            <p className="text-sm font-bold text-[#57534E] tabular-nums">
-              答對 {correctCount} / {questSet.questions.length} 題（正確率 {acc}%）
-            </p>
-          </div>
-          <div className="mx-auto inline-flex items-center gap-2 rounded-2xl border-2 border-[#F59E0B] bg-[#FFFBEB] px-5 py-2.5 font-display text-lg font-extrabold text-[#B45309] tabular-nums">
-            <Coins className="h-5 w-5 text-[#D97706]" />
-            <span>+{finalAwarded} Tokens</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={handleRestart}
-              className="qv-btn inline-flex min-h-[46px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-white px-5 py-2.5 font-display text-sm font-extrabold text-[#1C1917]"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>再複習一次</span>
-            </button>
-            <button
-              type="button"
-              onClick={onExit}
-              className="qv-arcade-btn inline-flex min-h-[46px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#DB2777] px-5 py-2.5 font-display text-sm font-extrabold text-white"
-              style={{ borderBottomColor: '#9D174D' }}
-            >
-              <span>回學習主頁</span>
-            </button>
-            {finalAwarded > 0 && (
-              <button
-                type="button"
-                onClick={onGoToMarket}
-                className="qv-btn inline-flex min-h-[46px] items-center gap-1.5 rounded-2xl border-2 border-[#F59E0B] bg-[#FEF3C7] px-5 py-2.5 font-display text-sm font-extrabold text-[#92400E]"
-              >
-                <Sparkles className="h-4 w-4" />
-                <span>去抽盲盒！</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <QuestSummaryCard
+        equippedCollectibleId={equippedCollectibleId}
+        isAvatarShiny={isAvatarShiny}
+        emblemCollectibleId={questSet.emblemCollectibleId}
+        title={`🔍 ${questSet.title} 辨字通關！`}
+        subtitle={`答對 ${correctCount} / ${questSet.questions.length} 題（正確率 ${acc}%）`}
+        tokensAwarded={finalAwarded}
+        primaryBgHex="#DB2777"
+        primaryBorderBottomHex="#9D174D"
+        retryLabel="再複習一次"
+        exitLabel="回學習主頁"
+        marketLabel="去抽盲盒！"
+        onRetry={handleRestart}
+        onExit={onExit}
+        onGoToMarket={onGoToMarket}
+      />
     );
   }
 
