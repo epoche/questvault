@@ -222,6 +222,8 @@ export interface PlayerState {
   claimedEnglishChapterSeriesIds?: string[];
   completedBarModelIds?: string[];
   completedSentencePatternIds?: string[];
+  completedLookAlikeIds?: string[];
+  completedFigurativeIds?: string[];
   completedLogicModuleIds?: string[];
   logicDailyTokens?: BlitzDailyTokens;
   logicStats?: Record<string, { runs: number; totalCorrect: number; totalQuestions: number }>;

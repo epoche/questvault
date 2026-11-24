@@ -368,6 +368,20 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
           ),
         )
       : [],
+    completedLookAlikeIds: Array.isArray(obj.completedLookAlikeIds)
+      ? Array.from(
+          new Set(
+            obj.completedLookAlikeIds.filter((id): id is string => typeof id === 'string'),
+          ),
+        )
+      : [],
+    completedFigurativeIds: Array.isArray(obj.completedFigurativeIds)
+      ? Array.from(
+          new Set(
+            obj.completedFigurativeIds.filter((id): id is string => typeof id === 'string'),
+          ),
+        )
+      : [],
     ...(() => {
       const validLogicIds = new Set([
         'rotation-mirror',

@@ -52,6 +52,7 @@ import {
 } from './subjects/chinese/chapterStories';
 import { customChineseRecordToWordSet } from './subjects/chinese/chineseCustomParser';
 import { CHINESE_PLACEMENT_BONUS_TOKENS } from './subjects/chinese/chinesePlacement';
+import type { LookAlikeHanziSet } from './subjects/chinese/lookAlikeTypes';
 import type { MeasureIdiomSet } from './subjects/chinese/measureIdiomSets';
 import type { RadicalFamily } from './subjects/chinese/radicalFamilies';
 import type { SentencePatternSet } from './subjects/chinese/sentencePatternTypes';
@@ -62,6 +63,7 @@ import {
   EN_CHAPTER_SERIES_CHEST_BONUS,
   type EnglishChapterSeries,
 } from './subjects/english/englishChapterStories';
+import type { FigurativeQuestSet } from './subjects/english/figurativeTypes';
 import type {
   EnglishRootFamily,
   GrammarRepairSet,
@@ -115,8 +117,16 @@ import {
   type GrammarRepairCompletionPayload,
   GrammarRepairView,
 } from './ui/views/GrammarRepairView';
+import {
+  type FigurativeCompletionPayload,
+  FigurativeLabView,
+} from './ui/views/FigurativeLabView';
 import { HomeView } from './ui/views/HomeView';
 import { LogicLabView } from './ui/views/LogicLabView';
+import {
+  type LookAlikeCompletionPayload,
+  LookAlikeHanziView,
+} from './ui/views/LookAlikeHanziView';
 import { MarketView } from './ui/views/MarketView';
 import { MixedWarmupView } from './ui/views/MixedWarmupView';
 import type { MixedWarmupMode } from './core/mixedWarmupEngine';
@@ -173,6 +183,8 @@ export const App: React.FC = () => {
   const [activeMeasureSet, setActiveMeasureSet] = useState<MeasureIdiomSet | null>(null);
   const [activeSentencePatternSet, setActiveSentencePatternSet] =
     useState<SentencePatternSet | null>(null);
+  const [activeLookAlikeSet, setActiveLookAlikeSet] = useState<LookAlikeHanziSet | null>(null);
+  const [activeFigurativeSet, setActiveFigurativeSet] = useState<FigurativeQuestSet | null>(null);
   const [activeChapterSeries, setActiveChapterSeries] = useState<ChapterSeries | null>(null);
   const [activeReadingSet, setActiveReadingSet] = useState<ReadingQuestSet | null>(null);
   const [placementSubject, setPlacementSubject] = useState<SubjectId | null>(null);
@@ -203,6 +215,7 @@ export const App: React.FC = () => {
       activeGrammarSet ||
       activeSpellingSet ||
       activeEnglishChapterSeries ||
+      activeFigurativeSet ||
       activeMathSet ||
       activeMathFluency ||
       activeBarModelUnit ||
@@ -211,6 +224,7 @@ export const App: React.FC = () => {
       activeRadicalFamily ||
       activeMeasureSet ||
       activeSentencePatternSet ||
+      activeLookAlikeSet ||
       activeChapterSeries ||
       activeReadingSet ||
       placementSubject ||
@@ -242,6 +256,7 @@ export const App: React.FC = () => {
     activeGrammarSet,
     activeSpellingSet,
     activeEnglishChapterSeries,
+    activeFigurativeSet,
     activeMathSet,
     activeMathFluency,
     activeBarModelUnit,
@@ -250,6 +265,7 @@ export const App: React.FC = () => {
     activeRadicalFamily,
     activeMeasureSet,
     activeSentencePatternSet,
+    activeLookAlikeSet,
     activeChapterSeries,
     activeReadingSet,
     placementSubject,
@@ -269,6 +285,7 @@ export const App: React.FC = () => {
     setActiveGrammarSet(null);
     setActiveSpellingSet(null);
     setActiveEnglishChapterSeries(null);
+    setActiveFigurativeSet(null);
     setActiveMathSet(null);
     setActiveMathFluency(false);
     setActiveBarModelUnit(null);
@@ -277,6 +294,7 @@ export const App: React.FC = () => {
     setActiveRadicalFamily(null);
     setActiveMeasureSet(null);
     setActiveSentencePatternSet(null);
+    setActiveLookAlikeSet(null);
     setActiveChapterSeries(null);
     setActiveReadingSet(null);
     setPlacementSubject(null);
@@ -1337,6 +1355,88 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleCompleteLookAlike = (payload: LookAlikeCompletionPayload) => {
+    setPlayer((prev) => {
+      const todayKeyNow = getLocalDateKey();
+      const prevIds = prev.completedLookAlikeIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.setId,
+        kind: 'static',
+        subjectId: 'chinese',
+        todayKey: todayKeyNow,
+        completedIds: prevIds,
+        words: payload.wordOutcomes.map((w) => w.word),
+      });
+      const awardedTokens = applyQuestRewardMultiplier(payload.rawTokensEarned, policy.multiplier);
+      const nextIds = prevIds.includes(payload.setId) ? prevIds : [...prevIds, payload.setId];
+      let nextMastery = prev.wordMastery;
+      for (const out of payload.wordOutcomes) {
+        nextMastery = recordWordOutcome(nextMastery, { ...out, subjectId: 'chinese' });
+      }
+      const acc = Math.round((payload.correctCount / Math.max(1, payload.totalQuestions)) * 100);
+      const summary = {
+        id: `zh-la-${Date.now()}`,
+        subjectId: 'chinese' as const,
+        questSetId: payload.setId,
+        questSetTitle: payload.title,
+        tokensEarned: awardedTokens,
+        maxCombo: payload.correctCount,
+        accuracyPct: acc,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + awardedTokens,
+        wordMastery: nextMastery,
+        completedLookAlikeIds: nextIds,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.setId, todayKeyNow),
+        'chinese',
+        todayKeyNow,
+      );
+    });
+  };
+
+  const handleCompleteFigurative = (payload: FigurativeCompletionPayload) => {
+    setPlayer((prev) => {
+      const todayKeyNow = getLocalDateKey();
+      const prevIds = prev.completedFigurativeIds ?? [];
+      const policy = getQuestRewardPolicy(prev, {
+        questSetId: payload.setId,
+        kind: 'static',
+        subjectId: 'english',
+        todayKey: todayKeyNow,
+        completedIds: prevIds,
+      });
+      const awardedTokens = applyQuestRewardMultiplier(payload.rawTokensEarned, policy.multiplier);
+      const nextIds = prevIds.includes(payload.setId) ? prevIds : [...prevIds, payload.setId];
+      const acc = Math.round((payload.correctCount / Math.max(1, payload.totalQuestions)) * 100);
+      const summary = {
+        id: `en-fig-${Date.now()}`,
+        subjectId: 'english' as const,
+        questSetId: payload.setId,
+        questSetTitle: payload.title,
+        tokensEarned: awardedTokens,
+        maxCombo: payload.correctCount,
+        accuracyPct: acc,
+        completedAt: new Date().toISOString(),
+      };
+      const updated: PlayerState = {
+        ...prev,
+        tokens: prev.tokens + awardedTokens,
+        completedFigurativeIds: nextIds,
+        runHistory: [summary, ...prev.runHistory].slice(0, 50),
+      };
+      return recordDailySubjectCompletion(
+        recordDailyQuestClaim(updated, payload.setId, todayKeyNow),
+        'english',
+        todayKeyNow,
+      );
+    });
+  };
+
   const handleSaveCustomSet = (record: CustomWordSetRecord) => {
     setPlayer((prev) => ({
       ...prev,
@@ -1897,6 +1997,49 @@ export const App: React.FC = () => {
                 setActiveTab('market');
               }}
             />
+          ) : activeLookAlikeSet ? (
+            <LookAlikeHanziView
+              key={activeLookAlikeSet.id}
+              questSet={activeLookAlikeSet}
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              showZhuyin={showZhuyin}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeLookAlikeSet.id,
+                kind: 'static',
+                subjectId: 'chinese',
+                todayKey,
+                completedIds: player.completedLookAlikeIds ?? [],
+                words: activeLookAlikeSet.questions.map((q) => q.targetChar),
+              })}
+              onToggleZhuyin={handleToggleZhuyin}
+              onComplete={handleCompleteLookAlike}
+              onExit={() => setActiveLookAlikeSet(null)}
+              onGoToMarket={() => {
+                setActiveLookAlikeSet(null);
+                setActiveTab('market');
+              }}
+            />
+          ) : activeFigurativeSet ? (
+            <FigurativeLabView
+              key={activeFigurativeSet.id}
+              questSet={activeFigurativeSet}
+              equippedCollectibleId={player.equippedCollectibleId}
+              isAvatarShiny={Boolean(player.shinyVault?.[player.equippedCollectibleId])}
+              rewardPolicy={getQuestRewardPolicy(player, {
+                questSetId: activeFigurativeSet.id,
+                kind: 'static',
+                subjectId: 'english',
+                todayKey,
+                completedIds: player.completedFigurativeIds ?? [],
+              })}
+              onComplete={handleCompleteFigurative}
+              onExit={() => setActiveFigurativeSet(null)}
+              onGoToMarket={() => {
+                setActiveFigurativeSet(null);
+                setActiveTab('market');
+              }}
+            />
           ) : activeChineseListening ? (
             <ChineseListeningView
               tier={player.subjectTiers?.chinese ?? 2}
@@ -1929,6 +2072,7 @@ export const App: React.FC = () => {
               onStartGrammarRepairSet={(set) => setActiveGrammarSet(set)}
               onStartSpellingSet={(set) => setActiveSpellingSet(set)}
               onStartEnglishChapterSeries={(series) => setActiveEnglishChapterSeries(series)}
+              onStartFigurativeSet={(set) => setActiveFigurativeSet(set)}
               onStartMathRun={(set) => setActiveMathSet(set)}
               onStartFactFluency={() => setActiveMathFluency(true)}
               onStartBarModelUnit={(unit) => setActiveBarModelUnit(unit)}
@@ -1937,6 +2081,7 @@ export const App: React.FC = () => {
               onStartRadicalFamily={(fam) => setActiveRadicalFamily(fam)}
               onStartMeasureIdiomSet={(set) => setActiveMeasureSet(set)}
               onStartSentencePatternSet={(set) => setActiveSentencePatternSet(set)}
+              onStartLookAlikeSet={(set) => setActiveLookAlikeSet(set)}
               onStartChapterSeries={(series) => setActiveChapterSeries(series)}
               onStartReadingRun={(set) => setActiveReadingSet(set)}
               onOpenCustomImporter={(subj) => setImporterSubject(subj)}

@@ -28,6 +28,12 @@ export default defineConfig({
                   return 'vendor-misc';
                 }
                 if (
+                  id.includes('/src/subjects/english/figurativeSets') ||
+                  id.includes('/src/subjects/english/figurativeTypes')
+                ) {
+                  return 'subject-english-phase8';
+                }
+                if (
                   id.includes('/src/subjects/english/spellingSets') ||
                   id.includes('/src/subjects/english/spellingTypes') ||
                   id.includes('/src/subjects/english/englishChapter')
@@ -42,6 +48,11 @@ export default defineConfig({
                   return 'subject-english-phase4';
                 }
                 if (id.includes('/src/subjects/english/')) return 'subject-english';
+                if (
+                  id.includes('/src/subjects/chinese/lookAlike')
+                ) {
+                  return 'subject-chinese-phase8';
+                }
                 if (
                   id.includes('/src/subjects/chinese/sentencePattern') ||
                   id.includes('/src/subjects/chinese/chapterStoriesSeason2')
@@ -107,7 +118,8 @@ export default defineConfig({
                   id.includes('/src/ui/views/EnglishRootQuestView') ||
                   id.includes('/src/ui/views/GrammarRepairView') ||
                   id.includes('/src/ui/views/SpellingBeeView') ||
-                  id.includes('/src/ui/views/EnglishChapterSeriesView')
+                  id.includes('/src/ui/views/EnglishChapterSeriesView') ||
+                  id.includes('/src/ui/views/FigurativeLabView')
                 ) {
                   return 'views-english';
                 }
@@ -118,7 +130,8 @@ export default defineConfig({
                   id.includes('/src/ui/views/RadicalQuestView') ||
                   id.includes('/src/ui/views/MeasureIdiomQuestView') ||
                   id.includes('/src/ui/views/ChapterSeriesView') ||
-                  id.includes('/src/ui/views/SentencePatternView')
+                  id.includes('/src/ui/views/SentencePatternView') ||
+                  id.includes('/src/ui/views/LookAlikeHanziView')
                 ) {
                   return 'views-chinese';
                 }

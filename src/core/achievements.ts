@@ -128,6 +128,8 @@ function countTotalCompletedQuests(state: PlayerState): number {
     (state.completedEnglishChapterIds?.length ?? 0) +
     (state.completedBarModelIds?.length ?? 0) +
     (state.completedSentencePatternIds?.length ?? 0) +
+    (state.completedLookAlikeIds?.length ?? 0) +
+    (state.completedFigurativeIds?.length ?? 0) +
     (state.completedChapterEpisodeIds?.length ?? 0) +
     countClearedAllLogicModules(state)
   );

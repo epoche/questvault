@@ -17,10 +17,12 @@ import {
   Headphones,
   HeartPulse,
   Languages,
+  MessageSquareQuote,
   Play,
   Plus,
   Puzzle,
   Ruler,
+  Search,
   Sparkles,
   Swords,
   Target,
@@ -54,6 +56,10 @@ import {
 } from '../../subjects/chinese/chineseEngine';
 import { CHINESE_PLACEMENT_BONUS_TOKENS } from '../../subjects/chinese/chinesePlacement';
 import {
+  getLookAlikeSetsByTier,
+  type LookAlikeHanziSet,
+} from '../../subjects/chinese/lookAlikeSets';
+import {
   getMeasureIdiomSetsByTier,
   type MeasureIdiomSet,
 } from '../../subjects/chinese/measureIdiomSets';
@@ -79,6 +85,10 @@ import {
   isEnglishSeriesFullyCompleted,
   type EnglishChapterSeries,
 } from '../../subjects/english/englishChapterStories';
+import {
+  getFigurativeSetsByTier,
+  type FigurativeQuestSet,
+} from '../../subjects/english/figurativeSets';
 import { getEnglishGrammarSetsByTier } from '../../subjects/english/grammarSets';
 import { PLACEMENT_BONUS_TOKENS } from '../../subjects/english/placement';
 import { getEnglishReadingByTier } from '../../subjects/english/readingQuests';
@@ -127,6 +137,7 @@ interface HomeViewProps {
   onStartGrammarRepairSet: (set: GrammarRepairSet) => void;
   onStartSpellingSet?: (set: SpellingSet) => void;
   onStartEnglishChapterSeries?: (series: EnglishChapterSeries) => void;
+  onStartFigurativeSet?: (set: FigurativeQuestSet) => void;
   onStartMathRun: (questSet: MathQuestSet) => void;
   onStartFactFluency?: () => void;
   onStartBarModelUnit?: (unit: BarModelUnitMeta) => void;
@@ -135,6 +146,7 @@ interface HomeViewProps {
   onStartRadicalFamily: (family: RadicalFamily) => void;
   onStartMeasureIdiomSet: (set: MeasureIdiomSet) => void;
   onStartSentencePatternSet?: (set: SentencePatternSet) => void;
+  onStartLookAlikeSet?: (set: LookAlikeHanziSet) => void;
   onStartChapterSeries: (series: ChapterSeries) => void;
   onStartReadingRun: (questSet: ReadingQuestSet) => void;
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
@@ -176,6 +188,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartGrammarRepairSet,
   onStartSpellingSet,
   onStartEnglishChapterSeries,
+  onStartFigurativeSet,
   onStartMathRun,
   onStartFactFluency,
   onStartBarModelUnit,
@@ -184,6 +197,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartRadicalFamily,
   onStartMeasureIdiomSet,
   onStartSentencePatternSet,
+  onStartLookAlikeSet,
   onStartChapterSeries,
   onStartReadingRun,
   onOpenCustomImporter,
@@ -197,9 +211,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
     | 'grammar'
     | 'spelling'
     | 'enChapters'
+    | 'figurative'
     | 'radicals'
     | 'measures'
     | 'patterns'
+    | 'lookAlike'
     | 'chapters'
     | 'barModels'
   >('words');
@@ -214,12 +230,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
             questMode === 'grammar' ||
             questMode === 'spelling' ||
             questMode === 'enChapters' ||
+            questMode === 'figurative' ||
             questMode === 'barModels')
         ? 'words'
         : activeSubjectId === 'english' &&
             (questMode === 'radicals' ||
               questMode === 'measures' ||
               questMode === 'patterns' ||
+              questMode === 'lookAlike' ||
               questMode === 'chapters' ||
               questMode === 'barModels')
           ? 'words'
@@ -273,11 +291,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const enRootFamilies = getEnglishRootFamiliesByTier(activeTier);
   const enGrammarSets = getEnglishGrammarSetsByTier(activeTier);
   const enSpellingSets = getSpellingSetsByTier(activeTier);
+  const enFigurativeSets = getFigurativeSetsByTier(activeTier);
   const mathSets = getMathSetsByTier(activeTier);
   const zhSets = getChineseSetsByTier(activeTier);
   const zhRadicalFamilies = getRadicalFamiliesByTier(activeTier);
   const zhMeasureIdiomSets = getMeasureIdiomSetsByTier(activeTier);
   const zhSentencePatterns = getSentencePatternSetsByTier(activeTier);
+  const zhLookAlikeSets = getLookAlikeSetsByTier(activeTier);
   const enReadingSets = getEnglishReadingByTier(activeTier);
   const zhReadingSets = getChineseReadingByTier(activeTier);
 
@@ -991,6 +1011,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <Sparkles className="h-4 w-4 text-[#EA580C]" />
                   <span>句型魔方 ({zhSentencePatterns.length})</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setQuestMode('lookAlike')}
+                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                    effectiveQuestMode === 'lookAlike'
+                      ? 'bg-white text-[#1C1917] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
+                  }`}
+                >
+                  <Search className="h-4 w-4 text-[#DB2777]" />
+                  <span>形近字館 ({zhLookAlikeSets.length})</span>
+                </button>
               </>
             )}
             <button
@@ -1046,6 +1078,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 >
                   <Sparkles className="h-4 w-4 text-[#D97706]" />
                   <span>Spelling Bee ({enSpellingSets.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuestMode('figurative')}
+                  className={`qv-btn inline-flex min-h-[38px] items-center gap-1.5 rounded-xl px-4 py-1.5 font-display text-xs sm:text-sm font-extrabold transition-colors ${
+                    effectiveQuestMode === 'figurative'
+                      ? 'bg-white text-[#1C1917] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
+                  }`}
+                >
+                  <MessageSquareQuote className="h-4 w-4 text-[#0D9488]" />
+                  <span>Figurative Lab ({enFigurativeSets.length})</span>
                 </button>
                 <button
                   type="button"
@@ -1496,6 +1540,67 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
 
+        {/* Phase 8B: Chinese Look-Alike Hanzi Lab Grid */}
+        {activeSubjectId === 'chinese' && effectiveQuestMode === 'lookAlike' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {zhLookAlikeSets.map((la) => {
+              const done = (player.completedLookAlikeIds ?? []).includes(la.id);
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: la.id,
+                kind: 'static',
+                subjectId: 'chinese',
+                todayKey,
+                completedIds: player.completedLookAlikeIds ?? [],
+                words: la.questions.map((q) => q.targetChar),
+              });
+              return (
+                <button
+                  key={la.id}
+                  type="button"
+                  onClick={() => onStartLookAlikeSet?.(la)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: la.bgHex }}
+                  >
+                    <CollectibleArt
+                      id={la.emblemCollectibleId}
+                      size={60}
+                      className="border-2 border-[#1C1917]"
+                    />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: la.accentHex }}
+                      >
+                        🔍 {la.shortTag}
+                      </span>
+                      {done ? (
+                        renderDoneRewardBadge(policy, true, '已過關')
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
+                          <Coins className="h-3.5 w-3.5" />
+                          +15–40
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2">
+                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
+                      {la.title}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">{la.subtitle}</p>
+                    <p className="text-[11px] font-extrabold text-[#DB2777]">
+                      🔎 雙胞胎放大鏡對比 ＋ 5 題情境辨字衝刺
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Story Quests Grid (English & Traditional Chinese) */}
         {activeSubjectId !== 'math' && effectiveQuestMode === 'stories' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1763,6 +1868,66 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <p className="text-xs font-semibold text-[#57534E]">{sp.subtitle}</p>
                     <p className="text-[11px] font-extrabold text-[#B45309]">
                       🔊 5 Audio Spelling Challenges · Tiles & Keyboard
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Phase 8B: English Figurative Language & Context Clues Lab Grid */}
+        {activeSubjectId === 'english' && effectiveQuestMode === 'figurative' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {enFigurativeSets.map((fg) => {
+              const done = (player.completedFigurativeIds ?? []).includes(fg.id);
+              const policy = getQuestRewardPolicy(player, {
+                questSetId: fg.id,
+                kind: 'static',
+                subjectId: 'english',
+                todayKey,
+                completedIds: player.completedFigurativeIds ?? [],
+              });
+              return (
+                <button
+                  key={fg.id}
+                  type="button"
+                  onClick={() => onStartFigurativeSet?.(fg)}
+                  className="qv-surface qv-btn qv-hover-lift text-left rounded-3xl overflow-hidden flex flex-col"
+                >
+                  <div
+                    className="px-5 py-4 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: fg.bgHex }}
+                  >
+                    <CollectibleArt
+                      id={fg.emblemCollectibleId}
+                      size={60}
+                      className="border-2 border-[#1C1917]"
+                    />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
+                        style={{ backgroundColor: fg.accentHex }}
+                      >
+                        💬 {fg.categoryTag}
+                      </span>
+                      {done ? (
+                        renderDoneRewardBadge(policy, false, 'Mastered')
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-extrabold text-[#B45309] tabular-nums">
+                          <Coins className="h-3.5 w-3.5" />
+                          +15–40
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-2">
+                    <h3 className="font-display text-lg font-extrabold text-[#1C1917]">
+                      {fg.title}
+                    </h3>
+                    <p className="text-xs font-semibold text-[#57534E]">{fg.subtitle}</p>
+                    <p className="text-[11px] font-extrabold text-[#0D9488]">
+                      ✨ 5 Literary & Context Clue Quests · Bilingual Tips
                     </p>
                   </div>
                 </button>
