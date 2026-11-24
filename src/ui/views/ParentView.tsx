@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Award,
   BookOpen,
+  Brain,
   Check,
   Copy,
   Download,
@@ -23,6 +24,7 @@ import {
 import {
   buildWeeklyReviewChineseSet,
   buildWeeklyReviewEnglishSet,
+  computeLogicLabOverview,
   computeWeeklyGoalProgress,
   computeWeeklySnapshot,
   createParentGateChallenge,
@@ -114,6 +116,7 @@ export const ParentView: React.FC<ParentViewProps> = ({
   }, [cooldownSec]);
 
   const snapshot = useMemo(() => computeWeeklySnapshot(player), [player]);
+  const logicOverview = useMemo(() => computeLogicLabOverview(player), [player]);
   const weeklyGoalProgress = useMemo(() => computeWeeklyGoalProgress(player), [player]);
   const backupStatus = useMemo(() => isBackupOverdue(player), [player]);
   const weakSpots = useMemo(
@@ -868,6 +871,86 @@ export const ParentView: React.FC<ParentViewProps> = ({
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Phase 7C: Logic & Spatial Lab Breakdown */}
+      <section className="qv-surface rounded-3xl p-5 sm:p-6 space-y-4 border-2 border-[#DDD6FE] bg-[#FCFAFF]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-[#7C3AED]" />
+            <h2 className="font-display text-lg font-extrabold text-[#1C1917]">
+              🧠 邏輯與空間思維分項統計（Logic & Spatial Lab）
+            </h2>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F5F3FF] border border-[#C4B5FD] px-3 py-1 text-xs font-extrabold text-[#6D28D9] tabular-nums">
+            已通關 {logicOverview.totalCleared} / {logicOverview.totalModules} 模組 · 累計{' '}
+            {logicOverview.totalRuns} 回合
+            {logicOverview.avgAccuracyPct !== null
+              ? ` · 平均正確率 ${logicOverview.avgAccuracyPct}%`
+              : ''}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-extrabold text-[#1D4ED8]">📐 空間視覺推理（Spatial）</div>
+              <div className="text-[11px] font-semibold text-[#1E40AF]">
+                旋轉鏡像 · 3D 積木 · 正方體展開圖 · 摺紙對稱
+              </div>
+            </div>
+            <div className="font-display text-xl font-extrabold text-[#1E3A8A] tabular-nums">
+              {logicOverview.spatialCleared} / {logicOverview.spatialTotal}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#A7F3D0] bg-[#ECFDF5] px-4 py-3 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-extrabold text-[#047857]">🧩 邏輯與運算思維（Logic & Coding）</div>
+              <div className="text-[11px] font-semibold text-[#065F46]">
+                天平代數 · 圖形矩陣 · 3×3 偵探網格 · 機器人積木
+              </div>
+            </div>
+            <div className="font-display text-xl font-extrabold text-[#065F46] tabular-nums">
+              {logicOverview.logicCleared} / {logicOverview.logicTotal}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {logicOverview.modules.map((item) => (
+            <div
+              key={item.meta.id}
+              className={`rounded-2xl border p-3 flex flex-col justify-between gap-1.5 ${
+                item.cleared
+                  ? 'border-[#10B981] bg-[#ECFDF5]'
+                  : 'border-[#E5DFD3] bg-white'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="text-xs font-extrabold text-[#1C1917] truncate">
+                  {item.meta.emoji} {item.meta.zhTitle}
+                </span>
+                {item.cleared ? (
+                  <span className="rounded-full bg-[#059669] px-1.5 py-0.5 text-[10px] font-extrabold text-white shrink-0">
+                    通關
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-[#F5F5F4] px-1.5 py-0.5 text-[10px] font-bold text-[#78716C] shrink-0">
+                    未通關
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] font-bold text-[#57534E] tabular-nums">
+                {item.runs > 0
+                  ? item.accuracyPct !== null
+                    ? `${item.runs} 回合 · 正確率 ${item.accuracyPct}% (${item.totalCorrect}/${item.totalQuestions})`
+                    : `${item.runs} 回合`
+                  : '尚未挑戰'}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

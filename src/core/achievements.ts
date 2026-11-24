@@ -1,8 +1,13 @@
+import {
+  ALL_LOGIC_MODULES,
+  LOGIC_REASONING_MODULES,
+  SPATIAL_MODULES,
+} from '../subjects/logic/logicTypes';
 import { classifyHeatmapCell, getFactHeatmapKey } from '../subjects/math/factFluencyEngine';
 import { getCollectiblesByPack, MYSTERY_PACKS } from './packs';
 import type { PlayerState } from './types';
 
-export type AchievementCategory = 'learning' | 'streak' | 'collection' | 'chinese';
+export type AchievementCategory = 'learning' | 'streak' | 'collection' | 'chinese' | 'logic';
 
 export type AchievementRewardType = 'tokens' | 'starDust';
 
@@ -50,6 +55,68 @@ function countCompletedPacks(state: PlayerState): number {
   return crowns;
 }
 
+const SPATIAL_ID_SET = new Set<string>(SPATIAL_MODULES.map((m) => m.id));
+const LOGIC_REASONING_ID_SET = new Set<string>(LOGIC_REASONING_MODULES.map((m) => m.id));
+const ALL_LOGIC_ID_SET = new Set<string>(ALL_LOGIC_MODULES.map((m) => m.id));
+
+function getUniqueValidLogicIds(state: PlayerState): Set<string> {
+  const raw = Array.isArray(state.completedLogicModuleIds) ? state.completedLogicModuleIds : [];
+  const valid = new Set<string>();
+  for (const id of raw) {
+    if (typeof id === 'string' && ALL_LOGIC_ID_SET.has(id)) {
+      valid.add(id);
+    }
+  }
+  return valid;
+}
+
+function countClearedSpatialModules(state: PlayerState): number {
+  let count = 0;
+  for (const id of getUniqueValidLogicIds(state)) {
+    if (SPATIAL_ID_SET.has(id)) count += 1;
+  }
+  return count;
+}
+
+function countClearedLogicReasoningModules(state: PlayerState): number {
+  let count = 0;
+  for (const id of getUniqueValidLogicIds(state)) {
+    if (LOGIC_REASONING_ID_SET.has(id)) count += 1;
+  }
+  return count;
+}
+
+function countClearedAllLogicModules(state: PlayerState): number {
+  return getUniqueValidLogicIds(state).size;
+}
+
+function countTotalLogicRuns(state: PlayerState): number {
+  const stats = state.logicStats;
+  if (!stats || typeof stats !== 'object') return 0;
+  return Object.entries(stats).reduce((sum, [id, s]) => {
+    if (!ALL_LOGIC_ID_SET.has(id) || !s || typeof s !== 'object') return sum;
+    const runs = typeof s.runs === 'number' && Number.isFinite(s.runs) ? Math.max(0, Math.floor(s.runs)) : 0;
+    return sum + runs;
+  }, 0);
+}
+
+function countTotalLogicCorrect(state: PlayerState): number {
+  const stats = state.logicStats;
+  if (!stats || typeof stats !== 'object') return 0;
+  return Object.entries(stats).reduce((sum, [id, s]) => {
+    if (!ALL_LOGIC_ID_SET.has(id) || !s || typeof s !== 'object') return sum;
+    const q =
+      typeof s.totalQuestions === 'number' && Number.isFinite(s.totalQuestions)
+        ? Math.max(0, Math.floor(s.totalQuestions))
+        : 0;
+    const c =
+      typeof s.totalCorrect === 'number' && Number.isFinite(s.totalCorrect)
+        ? Math.max(0, Math.min(q, Math.floor(s.totalCorrect)))
+        : 0;
+    return sum + c;
+  }, 0);
+}
+
 function countTotalCompletedQuests(state: PlayerState): number {
   return (
     state.completedQuestSetIds.length +
@@ -61,7 +128,8 @@ function countTotalCompletedQuests(state: PlayerState): number {
     (state.completedEnglishChapterIds?.length ?? 0) +
     (state.completedBarModelIds?.length ?? 0) +
     (state.completedSentencePatternIds?.length ?? 0) +
-    (state.completedChapterEpisodeIds?.length ?? 0)
+    (state.completedChapterEpisodeIds?.length ?? 0) +
+    countClearedAllLogicModules(state)
   );
 }
 
@@ -535,12 +603,127 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     bgHex: '#FFF1F2',
     getCurrent: (s) => s.completedChapterEpisodeIds?.length ?? 0,
   },
+
+  // Phase 7C Logic & Spatial Lab Milestones (+8 -> 38 Total)
+  {
+    id: 'ach-spatial-first',
+    category: 'logic',
+    emoji: '📐',
+    title: 'Spatial Spark',
+    zhTitle: '空間偵探新手',
+    description: '通關任意 1 個空間視覺推理模組',
+    target: 1,
+    rewardType: 'tokens',
+    rewardAmount: 15,
+    accentHex: '#2563EB',
+    bgHex: '#EFF6FF',
+    getCurrent: countClearedSpatialModules,
+  },
+  {
+    id: 'ach-spatial-all',
+    category: 'logic',
+    emoji: '🧊',
+    title: 'Spatial Master',
+    zhTitle: '空間幾何全制霸',
+    description: '通關全部 4 個空間視覺推理模組',
+    target: 4,
+    rewardType: 'starDust',
+    rewardAmount: 35,
+    accentHex: '#0D9488',
+    bgHex: '#F0FDFA',
+    getCurrent: countClearedSpatialModules,
+  },
+  {
+    id: 'ach-logic-first',
+    category: 'logic',
+    emoji: '⚖️',
+    title: 'Logic Detective',
+    zhTitle: '邏輯推理新手',
+    description: '通關任意 1 個邏輯推演與運算模組',
+    target: 1,
+    rewardType: 'tokens',
+    rewardAmount: 15,
+    accentHex: '#D97706',
+    bgHex: '#FFFBEB',
+    getCurrent: countClearedLogicReasoningModules,
+  },
+  {
+    id: 'ach-logic-all',
+    category: 'logic',
+    emoji: '🤖',
+    title: 'Logic & Coding Pro',
+    zhTitle: '邏輯運算全制霸',
+    description: '通關全部 4 個邏輯推演與運算模組',
+    target: 4,
+    rewardType: 'starDust',
+    rewardAmount: 35,
+    accentHex: '#0284C7',
+    bgHex: '#F0F9FF',
+    getCurrent: countClearedLogicReasoningModules,
+  },
+  {
+    id: 'ach-logic-lab-8',
+    category: 'logic',
+    emoji: '🧠',
+    title: 'Grand Thinker',
+    zhTitle: '邏輯空間大滿貫',
+    description: '通關全部 8 個邏輯與空間思維館模組',
+    target: 8,
+    rewardType: 'starDust',
+    rewardAmount: 60,
+    accentHex: '#7C3AED',
+    bgHex: '#F5F3FF',
+    getCurrent: countClearedAllLogicModules,
+  },
+  {
+    id: 'ach-logic-runs-5',
+    category: 'logic',
+    emoji: '🎯',
+    title: 'Puzzle Enthusiast',
+    zhTitle: '燒腦解謎達人',
+    description: '在邏輯與空間思維館完成 5 回合挑戰',
+    target: 5,
+    rewardType: 'tokens',
+    rewardAmount: 20,
+    accentHex: '#4F46E5',
+    bgHex: '#EEF2FF',
+    getCurrent: countTotalLogicRuns,
+  },
+  {
+    id: 'ach-logic-correct-25',
+    category: 'logic',
+    emoji: '💡',
+    title: 'Sharp Mind',
+    zhTitle: '靈光一閃小博士',
+    description: '在邏輯與空間思維館累計答對 25 題',
+    target: 25,
+    rewardType: 'tokens',
+    rewardAmount: 25,
+    accentHex: '#059669',
+    bgHex: '#ECFDF5',
+    getCurrent: countTotalLogicCorrect,
+  },
+  {
+    id: 'ach-logic-correct-60',
+    category: 'logic',
+    emoji: '🌟',
+    title: 'Genius Strategist',
+    zhTitle: '超強思維戰略家',
+    description: '在邏輯與空間思維館累計答對 60 題',
+    target: 60,
+    rewardType: 'starDust',
+    rewardAmount: 45,
+    accentHex: '#DB2777',
+    bgHex: '#FDF2F8',
+    getCurrent: countTotalLogicCorrect,
+  },
 ];
 
 export function evaluateAchievements(state: PlayerState): AchievementProgress[] {
   const claimedSet = new Set(state.claimedAchievementIds ?? []);
   return ACHIEVEMENTS.map((def) => {
-    const rawCurrent = Math.max(0, def.getCurrent(state));
+    const raw = def.getCurrent(state);
+    const rawCurrent = Number.isFinite(raw) ? Math.max(0, raw) : 0;
     const current = Math.min(def.target, rawCurrent);
     const unlocked = rawCurrent >= def.target;
     const claimed = claimedSet.has(def.id);
@@ -586,7 +769,8 @@ export function claimAchievementReward(
     return { ok: false, reason: 'already_claimed' };
   }
 
-  if (def.getCurrent(state) < def.target) {
+  const raw = def.getCurrent(state);
+  if (!Number.isFinite(raw) || raw < def.target) {
     return { ok: false, reason: 'not_unlocked' };
   }
 

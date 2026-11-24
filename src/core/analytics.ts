@@ -10,6 +10,12 @@ import type { ChineseTargetWord, ChineseWordSet } from '../subjects/chinese/type
 import { BUILTIN_CHINESE_SETS } from '../subjects/chinese/wordSets';
 import type { TargetWord, WordSet } from '../subjects/english/types';
 import { BUILTIN_WORD_SETS } from '../subjects/english/wordSets';
+import {
+  ALL_LOGIC_MODULES,
+  LOGIC_REASONING_MODULES,
+  SPATIAL_MODULES,
+  type LogicModuleMeta,
+} from '../subjects/logic/logicTypes';
 import { classifyWordMastery } from './mastery';
 
 export interface WeeklySnapshot {
@@ -406,11 +412,88 @@ export function buildWeeklyReviewChineseSet(player: PlayerState): ChineseWordSet
   };
 }
 
+export interface LogicModuleOverviewItem {
+  meta: LogicModuleMeta;
+  cleared: boolean;
+  runs: number;
+  totalCorrect: number;
+  totalQuestions: number;
+  accuracyPct: number | null;
+}
+
+export interface LogicLabOverview {
+  spatialCleared: number;
+  spatialTotal: number;
+  logicCleared: number;
+  logicTotal: number;
+  totalCleared: number;
+  totalModules: number;
+  totalRuns: number;
+  totalCorrect: number;
+  totalQuestions: number;
+  avgAccuracyPct: number | null;
+  modules: LogicModuleOverviewItem[];
+}
+
+export function computeLogicLabOverview(player: PlayerState): LogicLabOverview {
+  const completedSet = new Set(
+    Array.isArray(player.completedLogicModuleIds) ? player.completedLogicModuleIds : [],
+  );
+  const statsMap =
+    player.logicStats && typeof player.logicStats === 'object' ? player.logicStats : {};
+
+  let totalRuns = 0;
+  let totalCorrect = 0;
+  let totalQuestions = 0;
+
+  const modules: LogicModuleOverviewItem[] = ALL_LOGIC_MODULES.map((meta) => {
+    const stat = statsMap[meta.id];
+    const runs = stat && Number.isFinite(stat.runs) ? Math.max(0, Math.floor(stat.runs)) : 0;
+    const q =
+      stat && Number.isFinite(stat.totalQuestions)
+        ? Math.max(0, Math.floor(stat.totalQuestions))
+        : 0;
+    const c =
+      stat && Number.isFinite(stat.totalCorrect)
+        ? Math.max(0, Math.min(q, Math.floor(stat.totalCorrect)))
+        : 0;
+    totalRuns += runs;
+    totalCorrect += c;
+    totalQuestions += q;
+    return {
+      meta,
+      cleared: completedSet.has(meta.id),
+      runs,
+      totalCorrect: c,
+      totalQuestions: q,
+      accuracyPct: q > 0 ? Math.round((c / q) * 100) : null,
+    };
+  });
+
+  const spatialCleared = SPATIAL_MODULES.filter((m) => completedSet.has(m.id)).length;
+  const logicCleared = LOGIC_REASONING_MODULES.filter((m) => completedSet.has(m.id)).length;
+
+  return {
+    spatialCleared,
+    spatialTotal: SPATIAL_MODULES.length,
+    logicCleared,
+    logicTotal: LOGIC_REASONING_MODULES.length,
+    totalCleared: spatialCleared + logicCleared,
+    totalModules: ALL_LOGIC_MODULES.length,
+    totalRuns,
+    totalCorrect,
+    totalQuestions,
+    avgAccuracyPct: totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : null,
+    modules,
+  };
+}
+
 export function formatWeeklyReportText(
   player: PlayerState,
   nowIso: string = new Date().toISOString(),
 ): string {
   const snap = computeWeeklySnapshot(player, nowIso);
+  const logicOverview = computeLogicLabOverview(player);
   const weakEn = getWeakSpotRadar(player.wordMastery, 'english', 5);
   const weakZh = getWeakSpotRadar(player.wordMastery, 'chinese', 5);
   const weakMath = getWeakSpotRadar(player.wordMastery, 'math', 5);
@@ -425,6 +508,7 @@ export function formatWeeklyReportText(
     `近 7 天賺取 Tokens：+${snap.tokensEarned}｜本週造句：${snap.writingCountThisWeek} 句`,
     `累積精熟詞彙／技能：${snap.masteredWordsCount} / ${snap.practicedWordsCount}`,
     `中文偏旁工廠：${snap.completedRadicalsCount} / ${snap.totalRadicalsCount} 家族｜章節微小說：${snap.completedChapterEpisodesCount} / ${snap.totalChapterEpisodesCount} 集（全系列通關 ${snap.completedChapterSeriesCount}/${snap.totalChapterSeriesCount}）`,
+    `邏輯與空間思維館：通關 ${logicOverview.totalCleared} / ${logicOverview.totalModules} 模組（空間 ${logicOverview.spatialCleared}/${logicOverview.spatialTotal}｜邏輯運算 ${logicOverview.logicCleared}/${logicOverview.logicTotal}）｜累計 ${logicOverview.totalRuns} 回合${logicOverview.avgAccuracyPct !== null ? `（正確率 ${logicOverview.avgAccuracyPct}%）` : ''}`,
     ``,
     `【待加強弱點雷達】`,
     `- 英文重點詞：${weakEn.length > 0 ? weakEn.map((w) => `${w.word}（錯 ${w.missed} 次）`).join('、') : '目前無常錯詞，表現很棒！'}`,

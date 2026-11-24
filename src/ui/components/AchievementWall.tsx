@@ -19,6 +19,7 @@ const CATEGORY_TABS: { id: 'all' | AchievementCategory; label: string }[] = [
   { id: 'streak', label: '連勝毅力' },
   { id: 'collection', label: '盲盒收藏' },
   { id: 'chinese', label: '中文與閱讀' },
+  { id: 'logic', label: '🧠 邏輯空間' },
 ];
 
 export const AchievementWall: React.FC<AchievementWallProps> = ({

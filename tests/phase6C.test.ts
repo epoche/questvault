@@ -30,9 +30,9 @@ function makeRun(
 
 describe('Phase 6C Layer 1 — 30 Achievement Badges & Printable Bilingual Honor Certificate', () => {
   it('ships 30 unique achievement badges and accurately evaluates all 12 new Phase 5–6 predicates', () => {
-    expect(ACHIEVEMENTS).toHaveLength(30);
-    expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(30);
-    expect(new Set(ACHIEVEMENTS.map((a) => a.zhTitle)).size).toBe(30);
+    expect(ACHIEVEMENTS).toHaveLength(38);
+    expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(38);
+    expect(new Set(ACHIEVEMENTS.map((a) => a.zhTitle)).size).toBe(38);
 
     // Construct a progressed state that unlocks all 12 new Phase 5-6 achievements
     const vault150: Record<string, number> = {};
@@ -186,7 +186,7 @@ describe('Phase 6C Layer 1 — 30 Achievement Badges & Printable Bilingual Honor
     expect(cert.streakDays).toBe(6);
     expect(cert.vaultOwned).toBe(2);
     expect(cert.vaultTotal).toBe(358);
-    expect(cert.achievementsTotal).toBe(30);
+    expect(cert.achievementsTotal).toBe(38);
     expect(cert.honorTitleZh).toBe('三科學習模範生');
     expect(cert.honorTitleEn).toBe('Tri-Subject Honor Champion');
   });

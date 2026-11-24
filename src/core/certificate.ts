@@ -1,3 +1,4 @@
+import { ALL_LOGIC_MODULES } from '../subjects/logic/logicTypes';
 import { ACHIEVEMENTS, evaluateAchievements } from './achievements';
 import { computeWeeklySnapshot } from './analytics';
 import { COLLECTIBLES } from './packs';
@@ -18,6 +19,8 @@ export interface CertificateSummary {
   shinyCount: number;
   achievementsUnlocked: number;
   achievementsTotal: number;
+  logicModulesCleared: number;
+  logicModulesTotal: number;
   zhDate: string;
   enDate: string;
   honorTitleZh: string;
@@ -50,6 +53,8 @@ export function formatCertificateDates(date: Date): { zhDate: string; enDate: st
   };
 }
 
+const VALID_LOGIC_ID_SET = new Set<string>(ALL_LOGIC_MODULES.map((m) => m.id));
+
 export function buildCertificateSummary(
   player: PlayerState,
   now: Date = new Date(),
@@ -64,6 +69,11 @@ export function buildCertificateSummary(
   );
   const achievementsUnlocked = evaluateAchievements(player).filter((a) => a.unlocked).length;
   const streakDays = Math.max(0, player.streakDays ?? 0);
+  const logicModulesCleared = new Set(
+    (Array.isArray(player.completedLogicModuleIds) ? player.completedLogicModuleIds : []).filter(
+      (id) => typeof id === 'string' && VALID_LOGIC_ID_SET.has(id),
+    ),
+  ).size;
 
   let honorTitleZh = '勤學小冒險家';
   let honorTitleEn = 'Rising Quest Scholar';
@@ -73,7 +83,7 @@ export function buildCertificateSummary(
   } else if (weekly.totalRuns >= 5 || streakDays >= 5 || achievementsUnlocked >= 8) {
     honorTitleZh = '三科學習模範生';
     honorTitleEn = 'Tri-Subject Honor Champion';
-  } else if (weekly.totalRuns >= 1 || vaultOwned >= 5) {
+  } else if (weekly.totalRuns >= 1 || vaultOwned >= 5 || logicModulesCleared >= 1) {
     honorTitleZh = '閃耀學習之星';
     honorTitleEn = 'Shining Learning Star';
   }
@@ -95,6 +105,8 @@ export function buildCertificateSummary(
     shinyCount,
     achievementsUnlocked,
     achievementsTotal: ACHIEVEMENTS.length,
+    logicModulesCleared,
+    logicModulesTotal: ALL_LOGIC_MODULES.length,
     zhDate,
     enDate,
     honorTitleZh,

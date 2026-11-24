@@ -235,6 +235,11 @@ export const PrintableCertificateModal: React.FC<PrintableCertificateModalProps>
                     ✨ {isZh ? `閃卡 ${summary.shinyCount} 張` : `${summary.shinyCount} Shiny`}
                   </span>
                 )}
+                {summary.logicModulesCleared > 0 && (
+                  <span className="rounded-xl border border-[#DDD6FE] bg-[#F5F3FF] px-3 py-1.5 text-[#6D28D9] tabular-nums">
+                    🧠 {isZh ? `邏輯空間 ${summary.logicModulesCleared} / ${summary.logicModulesTotal}` : `Logic Lab ${summary.logicModulesCleared} / ${summary.logicModulesTotal}`}
+                  </span>
+                )}
                 <span className="rounded-xl border border-[#E7E2D8] bg-white px-3 py-1.5 tabular-nums">
                   🏆 {isZh ? `成就 ${summary.achievementsUnlocked} / ${summary.achievementsTotal}` : `Badges ${summary.achievementsUnlocked} / ${summary.achievementsTotal}`}
                 </span>
