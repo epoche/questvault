@@ -3,6 +3,8 @@ name: Deploy QuestVault to GitHub Pages
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -30,21 +32,53 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
+      - name: Static engineering iron-rule checks
+        run: |
+          if grep -rnE '<form|type="submit"' src/; then
+            echo "ERROR: Forbidden <form> or type='submit' found in src/"
+            exit 1
+          fi
+          if grep -rnE 'id="[^"$]+' src/ui/artwork/; then
+            echo "ERROR: Static un-namespaced SVG id found in src/ui/artwork/"
+            exit 1
+          fi
+
+      - name: Run full Vitest suite (core, fuzz, and UI regressions)
         run: npm test
 
-      - name: Build production bundle
-        run: npm run build
+      - name: Verify offline single-file HTML build
+        run: npm run build:single
+
+      - name: Build production bundle & verify < 500 kB chunks
+        run: |
+          npm run build
+          node -e '
+            const fs = require("fs");
+            const files = fs.readdirSync("dist/assets").filter((f) => f.endsWith(".js"));
+            let max = 0, maxFile = "";
+            for (const f of files) {
+              const sz = fs.statSync("dist/assets/" + f).size;
+              if (sz > max) { max = sz; maxFile = f; }
+              if (sz >= 500 * 1024) {
+                console.error("ERROR: Vite JS chunk exceeds 500 kB:", f, sz);
+                process.exit(1);
+              }
+            }
+            console.log(`Verified ${files.length} JS chunks, max=${maxFile} (${(max / 1024).toFixed(2)} kB < 500 kB)`);
+          '
 
       - name: Setup Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     environment:
       name: github-pages
