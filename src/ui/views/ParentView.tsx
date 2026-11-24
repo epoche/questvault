@@ -21,6 +21,8 @@ import {
   Target,
   Trash2,
 } from 'lucide-react';
+import { getAdventureMapSnapshot } from '../../core/adventureMap';
+import { getLocalDateKey } from '../../core/date';
 import {
   buildWeeklyReviewChineseSet,
   buildWeeklyReviewEnglishSet,
@@ -729,10 +731,23 @@ export const ParentView: React.FC<ParentViewProps> = ({
           <h2 className="font-display text-lg font-extrabold text-[#1C1917]">
             本週學習總覽（近 7 天）
           </h2>
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] border border-[#FED7AA] px-3 py-1 text-xs font-extrabold text-[#C2410C] tabular-nums">
-            <Flame className="h-3.5 w-3.5 fill-current" />
-            連勝 {snapshot.streakDays} 天 · 活躍 {snapshot.activeDays} 天
-          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(() => {
+              const adv = getAdventureMapSnapshot(player, getLocalDateKey());
+              return (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#E0F2FE] border border-[#7DD3FC] px-3 py-1 text-xs font-extrabold text-[#0369A1] tabular-nums">
+                  🗺️ 本週尋寶 {adv.stampedCount}/7 天
+                  {(player.adventureWeeksCleared ?? 0) > 0
+                    ? ` · 全勤 ${player.adventureWeeksCleared} 週`
+                    : ''}
+                </span>
+              );
+            })()}
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] border border-[#FED7AA] px-3 py-1 text-xs font-extrabold text-[#C2410C] tabular-nums">
+              <Flame className="h-3.5 w-3.5 fill-current" />
+              連勝 {snapshot.streakDays} 天 · 活躍 {snapshot.activeDays} 天
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

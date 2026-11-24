@@ -1,4 +1,5 @@
 import { ALL_LOGIC_MODULES } from '../subjects/logic/logicTypes';
+import { ADVENTURE_REWARD_DECOR_IDS, DATE_KEY_RE } from './adventureMap';
 import { hashParentPin, ISO_WEEK_KEY_RE, PARENT_PIN_HASH_RE } from './analytics';
 import { createInitialPlayerState } from './economy';
 import { getCollectibleById, getPackById, STARTER_COLLECTIBLE_ID } from './packs';
@@ -7,7 +8,13 @@ import {
   VALID_CRITTER_ROOM_THEME_IDS,
   VALID_ROOM_DECOR_IDS,
 } from './roomCatalog';
-import type { CritterRoomThemeId, PackId, PlayerState, SubjectId } from './types';
+import type {
+  AdventureMilestoneDays,
+  CritterRoomThemeId,
+  PackId,
+  PlayerState,
+  SubjectId,
+} from './types';
 
 export const STORAGE_KEY = 'questvault.player.v1';
 
@@ -634,6 +641,73 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
           rewardText,
           ...(redeemedWeekKey ? { redeemedWeekKey } : {}),
         },
+      };
+    })(),
+    ...(() => {
+      const validRewardDecors = new Set<string>(ADVENTURE_REWARD_DECOR_IDS);
+      const unlockedRoomDecorIds = Array.isArray(obj.unlockedRoomDecorIds)
+        ? Array.from(
+            new Set(
+              obj.unlockedRoomDecorIds.filter(
+                (id): id is string =>
+                  typeof id === 'string' &&
+                  (VALID_ROOM_DECOR_IDS.has(id) || validRewardDecors.has(id)),
+              ),
+            ),
+          )
+        : [];
+      const adventureWeeksCleared =
+        typeof obj.adventureWeeksCleared === 'number' &&
+        Number.isFinite(obj.adventureWeeksCleared) &&
+        obj.adventureWeeksCleared > 0
+          ? Math.floor(obj.adventureWeeksCleared)
+          : 0;
+
+      let weeklyAdventure: PlayerState['weeklyAdventure'] = undefined;
+      if (isRecord(obj.weeklyAdventure) && typeof obj.weeklyAdventure.weekKey === 'string' && ISO_WEEK_KEY_RE.test(obj.weeklyAdventure.weekKey)) {
+        const stampedDates = Array.isArray(obj.weeklyAdventure.stampedDates)
+          ? Array.from(
+              new Set(
+                obj.weeklyAdventure.stampedDates.filter(
+                  (d): d is string => typeof d === 'string' && DATE_KEY_RE.test(d),
+                ),
+              ),
+            ).slice(0, 7)
+          : [];
+        const claimedMilestones = Array.isArray(obj.weeklyAdventure.claimedMilestones)
+          ? (Array.from(
+              new Set(
+                obj.weeklyAdventure.claimedMilestones.filter(
+                  (m): m is AdventureMilestoneDays => m === 3 || m === 5 || m === 7,
+                ),
+              ),
+            ).sort((a, b) => a - b) as AdventureMilestoneDays[])
+          : [];
+        const subjectsByDate: Record<string, string[]> = {};
+        if (isRecord(obj.weeklyAdventure.subjectsByDate)) {
+          for (const [dk, arr] of Object.entries(obj.weeklyAdventure.subjectsByDate)) {
+            if (!DATE_KEY_RE.test(dk) || !Array.isArray(arr)) continue;
+            const cleaned = Array.from(
+              new Set(
+                arr.filter((s): s is string => typeof s === 'string' && s.trim().length > 0 && s.length <= 24),
+              ),
+            ).slice(0, 8);
+            if (cleaned.length > 0) subjectsByDate[dk] = cleaned;
+          }
+        }
+        weeklyAdventure = {
+          weekKey: obj.weeklyAdventure.weekKey,
+          stampedDates,
+          claimedMilestones,
+          subjectsByDate,
+          makeupUsed: Boolean(obj.weeklyAdventure.makeupUsed),
+        };
+      }
+
+      return {
+        ...(unlockedRoomDecorIds.length > 0 ? { unlockedRoomDecorIds } : {}),
+        ...(adventureWeeksCleared > 0 ? { adventureWeeksCleared } : {}),
+        ...(weeklyAdventure ? { weeklyAdventure } : {}),
       };
     })(),
     ...(typeof obj.pinnedWishlistPackId === 'string' &&

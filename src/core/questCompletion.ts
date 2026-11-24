@@ -1,3 +1,4 @@
+import { recordAdventureStamp } from './adventureMap';
 import {
   applyQuestRewardMultiplier,
   getQuestRewardPolicy,
@@ -157,6 +158,7 @@ export function completeQuestRun(
   }
   if (input.markDailySubject !== false) {
     nextState = recordDailySubjectCompletion(nextState, input.subjectId, input.todayKey);
+    nextState = recordAdventureStamp(nextState, input.todayKey, input.subjectId);
   }
 
   return {

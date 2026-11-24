@@ -200,6 +200,16 @@ export interface FactMasteryEntry {
   avgMs: number;
 }
 
+export type AdventureMilestoneDays = 3 | 5 | 7;
+
+export interface WeeklyAdventureState {
+  weekKey: string;
+  stampedDates: string[];
+  claimedMilestones: AdventureMilestoneDays[];
+  subjectsByDate?: Record<string, string[]>;
+  makeupUsed?: boolean;
+}
+
 export interface PlayerState {
   version: 1;
   displayName: string;
@@ -215,6 +225,9 @@ export interface PlayerState {
   shinyVault?: Record<string, boolean>;
   favoriteCollectibleIds?: string[];
   critterRoom?: CritterRoomState;
+  unlockedRoomDecorIds?: string[];
+  weeklyAdventure?: WeeklyAdventureState;
+  adventureWeeksCleared?: number;
   wordMastery: Record<string, WordMasteryRecord>;
   completedQuestSetIds: string[];
   completedRadicalIds?: string[];

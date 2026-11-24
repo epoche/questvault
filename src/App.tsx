@@ -1,6 +1,11 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MotionConfig } from 'motion/react';
 import { claimAchievementReward } from './core/achievements';
+import {
+  applyAdventureMakeupStamp,
+  claimAdventureMilestone,
+  recordAdventureStamp,
+} from './core/adventureMap';
 import { hashParentPin } from './core/analytics';
 import { audioService } from './core/audio';
 import { getLocalDateKey } from './core/date';
@@ -544,14 +549,19 @@ export const App: React.FC = () => {
     correctCount: number,
     totalQuestions: number,
   ) => {
+    const todayKeyNow = getLocalDateKey();
     const res = awardLogicModuleRewards(
       playerRef.current,
       moduleId,
       correctCount,
       totalQuestions,
-      getLocalDateKey(),
+      todayKeyNow,
     );
-    commitPlayer(() => res.state);
+    const logicPassed = totalQuestions > 0 && correctCount / totalQuestions >= 0.6;
+    const nextState = logicPassed
+      ? recordAdventureStamp(res.state, todayKeyNow, 'logic')
+      : res.state;
+    commitPlayer(() => nextState);
     return { tokensAwarded: res.tokensAwarded, remainingDailyCap: res.remainingDailyCap };
   };
 
@@ -559,19 +569,41 @@ export const App: React.FC = () => {
     mode: MixedWarmupMode,
     outcomes: MixedWarmupOutcomeInput[],
   ) => {
+    const todayKeyNow = getLocalDateKey();
     const res = awardMixedWarmupCompletion(
       playerRef.current,
       mode,
       outcomes,
-      getLocalDateKey(),
+      todayKeyNow,
     );
-    commitPlayer(() => res.state);
+    const nextState = res.passed
+      ? recordAdventureStamp(res.state, todayKeyNow, 'warmup')
+      : res.state;
+    commitPlayer(() => nextState);
     return {
       tokensAwarded: res.tokensAwarded,
       healedCount: res.healedCount,
       alreadyClaimedToday: res.alreadyClaimedToday,
       passed: res.passed,
     };
+  };
+
+  const handleClaimAdventureMilestone = (days: 3 | 5 | 7) => {
+    const res = claimAdventureMilestone(playerRef.current, days, getLocalDateKey());
+    if (res.tokensAwarded <= 0) {
+      return { tokensAwarded: 0, unlockedDecorId: null };
+    }
+    commitPlayer(() => res.state);
+    audioService.playChest();
+    return { tokensAwarded: res.tokensAwarded, unlockedDecorId: res.unlockedDecorId };
+  };
+
+  const handleApplyAdventureMakeup = (targetDateKey: string) => {
+    const res = applyAdventureMakeupStamp(playerRef.current, targetDateKey, getLocalDateKey());
+    if (!res.applied) return false;
+    commitPlayer(() => res.state);
+    audioService.playToken();
+    return true;
   };
 
   const handleCompleteEnglishRun = (payload: RunCompletionPayload) => {
@@ -955,7 +987,11 @@ export const App: React.FC = () => {
     };
     const finalState =
       acc >= 50
-        ? recordDailySubjectCompletion(withHistory, 'math', todayKeyNow)
+        ? recordAdventureStamp(
+            recordDailySubjectCompletion(withHistory, 'math', todayKeyNow),
+            todayKeyNow,
+            'math',
+          )
         : withHistory;
     commitPlayer(() => finalState);
     return { tokensAwarded: res.tokensAwarded, remainingDailyCap: res.remainingDailyCap };
@@ -1692,6 +1728,8 @@ export const App: React.FC = () => {
                   commitPlayer((prev) => setPinnedWishlistPack(prev, undefined));
                   audioService.playToken();
                 }}
+                onClaimAdventureMilestone={handleClaimAdventureMilestone}
+                onApplyAdventureMakeup={handleApplyAdventureMakeup}
               />
             ) : activeTab === 'market' ? (
               <MarketView

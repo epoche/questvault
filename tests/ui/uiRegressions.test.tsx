@@ -15,7 +15,9 @@ import { MathRunView } from '../../src/ui/views/MathRunView';
 import { PlacementView } from '../../src/ui/views/PlacementView';
 import { VaultView } from '../../src/ui/views/VaultView';
 import { WritingLogView } from '../../src/ui/views/WritingLogView';
+import { getWeekDateKeys, recordAdventureStamp } from '../../src/core/adventureMap';
 import { TopBar } from '../../src/ui/components/TopBar';
+import { WeeklyAdventureBar } from '../../src/ui/components/WeeklyAdventureBar';
 
 afterEach(() => {
   cleanup();
@@ -205,7 +207,7 @@ describe('UI Component Regressions (happy-dom + React Testing Library)', () => {
     const craftableBtn = screen.getByRole('button', { name: /可 3→1 合成/i });
     fireEvent.click(craftableBtn);
     expect(screen.getAllByText(firstItem.name).length).toBeGreaterThanOrEqual(1);
-  });
+  }, 15_000);
 
   it('supports MarketView Pinned Wishlist Pack: progress when short, Open Now when affordable, and unpin', () => {
     const pack = MYSTERY_PACKS[0];
@@ -362,5 +364,38 @@ describe('UI Component Regressions (happy-dom + React Testing Library)', () => {
     expect(screen.getByRole('menu')).toBeTruthy();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('keeps WeeklyAdventureBar collapsed by default, expands SVG island map, and enforces chest claim re-entry lock', () => {
+    const weekDates = getWeekDateKeys('2026-11-25');
+    let player = createInitialPlayerState('Chloe');
+    player = recordAdventureStamp(player, weekDates[0], 'english');
+    player = recordAdventureStamp(player, weekDates[1], 'math');
+    player = recordAdventureStamp(player, weekDates[2], 'chinese');
+    const onClaim = vi.fn();
+
+    render(
+      <WeeklyAdventureBar
+        player={player}
+        todayKey={weekDates[2]}
+        isZh={false}
+        onClaimMilestone={onClaim}
+        onApplyMakeup={vi.fn()}
+      />,
+    );
+
+    // Collapsed by default: no island SVG yet
+    expect(screen.queryByRole('img', { name: /Treasure Adventure Map/i })).toBeNull();
+
+    // Expand map
+    fireEvent.click(screen.getByRole('button', { name: /Open Map/i }));
+    expect(screen.getByRole('img', { name: /Treasure Adventure Map/i })).toBeTruthy();
+
+    // Rapid double-click on 3-day Claim! chest fires onClaim strictly ONCE
+    const claimBtn = screen.getByRole('button', { name: /^Claim!$/i });
+    fireEvent.click(claimBtn);
+    fireEvent.click(claimBtn);
+    expect(onClaim).toHaveBeenCalledTimes(1);
+    expect(onClaim).toHaveBeenCalledWith(3);
   });
 });

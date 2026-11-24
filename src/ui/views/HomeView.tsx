@@ -33,7 +33,12 @@ import { getDueReviewItems, getTrickyWords } from '../../core/mastery';
 import { countClinicPatients, type MixedWarmupMode } from '../../core/mixedWarmupEngine';
 import { getPackById, MIN_PACK_COST } from '../../core/packs';
 import type { ReadingQuestSet } from '../../core/readingTypes';
-import type { DifficultyTier, PlayerState, SubjectId } from '../../core/types';
+import type {
+  AdventureMilestoneDays,
+  DifficultyTier,
+  PlayerState,
+  SubjectId,
+} from '../../core/types';
 import {
   BUILTIN_CHAPTER_SERIES,
   getSeriesCompletedCount,
@@ -106,6 +111,7 @@ import { CollectibleArt, PackEnvelopeArt } from '../artwork/CollectibleArt';
 import { HeroStage } from '../components/HeroStage';
 import { QuestCard } from '../components/QuestCard';
 import { RubyWord } from '../components/RubyWord';
+import { WeeklyAdventureBar } from '../components/WeeklyAdventureBar';
 
 interface HomeViewProps {
   player: PlayerState;
@@ -146,6 +152,10 @@ interface HomeViewProps {
   onDeleteCustomSet: (id: string) => void;
   onGoToMarket: () => void;
   onClearWishlistPack?: () => void;
+  onClaimAdventureMilestone?: (
+    days: AdventureMilestoneDays,
+  ) => { tokensAwarded: number; unlockedDecorId: string | null } | void;
+  onApplyAdventureMakeup?: (targetDateKey: string) => boolean | void;
 }
 
 type QuestMode =
@@ -213,6 +223,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onDeleteCustomSet,
   onGoToMarket,
   onClearWishlistPack,
+  onClaimAdventureMilestone,
+  onApplyAdventureMakeup,
 }) => {
   const [questMode, setQuestMode] = useState<QuestMode>('words');
   const [showArcadeDrawer, setShowArcadeDrawer] = useState(false);
@@ -446,6 +458,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpenMixedWarmup={onOpenMixedWarmup}
         onStartFactFluency={onStartFactFluency}
         onStartChineseListening={onStartChineseListening}
+      />
+
+      {/* 🗺️ Weekly 7-Day Adventure Map (Compact collapsed strip by default) */}
+      <WeeklyAdventureBar
+        player={player}
+        todayKey={todayKey}
+        isZh={isZh}
+        onClaimMilestone={(days) => onClaimAdventureMilestone?.(days)}
+        onApplyMakeup={(dateKey) => onApplyAdventureMakeup?.(dateKey)}
       />
 
       {/* ⭐ Pinned Wishlist Pack Progress Strip (Bilingual) */}

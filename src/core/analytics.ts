@@ -17,6 +17,7 @@ import {
   type LogicModuleMeta,
 } from '../subjects/logic/logicTypes';
 import { countTotalCompletedQuests } from './achievements';
+import { getAdventureMapSnapshot } from './adventureMap';
 import { isoToLocalDateKey } from './date';
 import { classifyWordMastery } from './mastery';
 
@@ -500,6 +501,8 @@ export function formatWeeklyReportText(
   const weakZh = getWeakSpotRadar(player.wordMastery, 'chinese', 5);
   const weakMath = getWeakSpotRadar(player.wordMastery, 'math', 5);
   const dateLabel = isoToLocalDateKey(nowIso);
+  const adventure = getAdventureMapSnapshot(player, dateLabel);
+  const clearedWeeks = player.adventureWeeksCleared ?? 0;
 
   const lines: string[] = [
     `QuestVault 每週學習報告（${player.displayName}｜截至 ${dateLabel}）`,
@@ -507,6 +510,7 @@ export function formatWeeklyReportText(
     `近 7 天完成關卡：${snap.totalRuns} 次（英文 ${snap.runsBySubject.english}｜數學 ${snap.runsBySubject.math}｜中文 ${snap.runsBySubject.chinese}）`,
     `平均正確率：${snap.totalRuns > 0 ? `${snap.avgAccuracyPct}%` : '尚無本週紀錄'}`,
     `近 7 天活躍天數：${snap.activeDays} 天｜連續學習：${snap.streakDays} 天`,
+    `本週 7 天尋寶地圖：${adventure.stampedCount} / 7 天（${adventure.weekKey}${clearedWeeks > 0 ? `｜累計全勤 ${clearedWeeks} 週` : ''}）`,
     `近 7 天賺取 Tokens：+${snap.tokensEarned}｜本週造句：${snap.writingCountThisWeek} 句`,
     `累積精熟詞彙／技能：${snap.masteredWordsCount} / ${snap.practicedWordsCount}`,
     `中文偏旁工廠：${snap.completedRadicalsCount} / ${snap.totalRadicalsCount} 家族｜章節微小說：${snap.completedChapterEpisodesCount} / ${snap.totalChapterEpisodesCount} 集（全系列通關 ${snap.completedChapterSeriesCount}/${snap.totalChapterSeriesCount}）`,

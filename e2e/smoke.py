@@ -92,6 +92,11 @@ def main() -> int:
                     if page.locator("[role='menu']").count() != 0:
                         errors.append("[ipad] TopBar subject menu did not close on Escape")
 
+                    # Collapsible 7-Day Adventure Map
+                    page.get_by_role("button", name="Open Map").click()
+                    page.wait_for_selector("svg[aria-label*='Adventure Map']", timeout=5000)
+                    page.get_by_role("button", name="Hide Map").click()
+
                     # Collapsible 5-game Arcade Hall
                     page.get_by_role("button", name="Arcade Games (5)").click()
                     page.wait_for_selector("text=Tower Defense", timeout=5000)
