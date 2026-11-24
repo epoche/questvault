@@ -1283,3 +1283,19 @@ export function recordDailyQuestClaim(
     },
   };
 }
+
+export function setPinnedWishlistPack(
+  state: PlayerState,
+  packId: PackId | undefined,
+): PlayerState {
+  if (!packId) {
+    const next = { ...state };
+    delete next.pinnedWishlistPackId;
+    return next;
+  }
+  if (!getPackById(packId)) return state;
+  return {
+    ...state,
+    pinnedWishlistPackId: packId,
+  };
+}

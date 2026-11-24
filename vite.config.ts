@@ -79,6 +79,9 @@ export default defineConfig({
                 if (id.includes('/src/ui/artwork/phase6Collectibles')) {
                   return 'artwork-phase6-collectibles';
                 }
+                if (id.includes('/src/ui/artwork/phase8Collectibles')) {
+                  return 'artwork-phase8-collectibles';
+                }
                 if (id.includes('/src/ui/artwork/TowerDefenseSvg')) {
                   return 'artwork-phase6';
                 }

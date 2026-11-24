@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { BookOpen, Coins, Crown, Info, Sparkles } from 'lucide-react';
+import { BookOpen, Coins, Crown, Info, Sparkles, Star, X } from 'lucide-react';
 import {
   getCollectiblesByPack,
+  getPackById,
   MYSTERY_PACKS,
   PACK_CATEGORIES,
   PACK_COST,
@@ -15,17 +16,20 @@ interface MarketViewProps {
   player: PlayerState;
   onOpenPack: (packId: PackId) => void;
   onGoToQuests: () => void;
+  onToggleWishlistPack?: (packId: PackId) => void;
 }
 
 export const MarketView: React.FC<MarketViewProps> = ({
   player,
   onOpenPack,
   onGoToQuests,
+  onToggleWishlistPack,
 }) => {
   const [showOdds, setShowOdds] = useState(false);
   const [category, setCategory] = useState<'all' | PackCategory>('all');
   const minPackCost = Math.min(...MYSTERY_PACKS.map((p) => p.cost));
   const canAffordAny = player.tokens >= minPackCost;
+  const pinnedPack = player.pinnedWishlistPackId ? getPackById(player.pinnedWishlistPackId) : undefined;
 
   const visiblePacks =
     category === 'all'
@@ -62,6 +66,74 @@ export const MarketView: React.FC<MarketViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* ⭐ Pinned Wishlist Pack Goal Banner */}
+      {pinnedPack && (() => {
+        const remaining = Math.max(0, pinnedPack.cost - player.tokens);
+        const pct = Math.max(0, Math.min(100, Math.round((player.tokens / Math.max(1, pinnedPack.cost)) * 100)));
+        const ready = remaining === 0;
+        return (
+          <div className="rounded-3xl border-2 border-[#F59E0B] bg-gradient-to-r from-[#FFFBEB] to-[#FEF3C7] p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3 min-w-0">
+              <PackEnvelopeArt packId={pinnedPack.id} size={46} />
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#B45309]">
+                  <Star className="h-3.5 w-3.5 fill-[#F59E0B] text-[#D97706]" />
+                  <span>願望目標卡包 · Wishlist Goal</span>
+                </div>
+                <div className="font-display text-base sm:text-lg font-extrabold text-[#1C1917] truncate">
+                  {pinnedPack.name}
+                </div>
+                <div className="mt-1 flex items-center gap-2">
+                  <div className="h-2.5 w-32 sm:w-44 overflow-hidden rounded-full bg-white/90 border border-[#FCD34D]">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${pct}%`, backgroundColor: ready ? '#059669' : '#F59E0B' }}
+                    />
+                  </div>
+                  <span className="text-xs font-extrabold text-[#92400E] tabular-nums">
+                    {ready
+                      ? '🎉 夠抽了！'
+                      : `還差 ${remaining} Tokens (${player.tokens}/${pinnedPack.cost})`}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {ready ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenPack(pinnedPack.id)}
+                  className="qv-arcade-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#059669] px-4 py-2 font-display text-xs sm:text-sm font-extrabold text-white"
+                  style={{ borderBottomColor: '#065F46' }}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>Open Now · {pinnedPack.cost}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onGoToQuests}
+                  className="qv-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-[#2563EB] px-3.5 py-2 text-xs font-extrabold text-white"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  <span>賺代幣去</span>
+                </button>
+              )}
+              {onToggleWishlistPack && (
+                <button
+                  type="button"
+                  aria-label="Unpin wishlist pack"
+                  onClick={() => onToggleWishlistPack(pinnedPack.id)}
+                  className="qv-btn inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#FCD34D] bg-white text-[#92400E]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Category filter pills */}
       <div className="flex flex-wrap items-center gap-2">
@@ -126,6 +198,7 @@ export const MarketView: React.FC<MarketViewProps> = ({
           const items = getCollectiblesByPack(pack.id);
           const ownedCount = items.filter((item) => (player.vault[item.id] ?? 0) > 0).length;
           const isComplete = ownedCount === items.length;
+          const isPinned = player.pinnedWishlistPackId === pack.id;
           const canAffordPack = player.tokens >= pack.cost;
           const sizeBadge =
             pack.cost < PACK_COST
@@ -140,7 +213,11 @@ export const MarketView: React.FC<MarketViewProps> = ({
             <div
               key={pack.id}
               className={`qv-surface qv-hover-lift rounded-3xl p-5 flex flex-col items-center text-center justify-between gap-3.5 ${
-                isComplete ? 'ring-2 ring-[#F59E0B]' : ''
+                isPinned
+                  ? 'ring-2 ring-[#F59E0B] bg-[#FFFDF7]'
+                  : isComplete
+                    ? 'ring-2 ring-[#F59E0B]'
+                    : ''
               }`}
             >
               <div className="w-full flex items-center justify-between gap-1.5 text-xs font-extrabold text-[#57534E] tabular-nums">
@@ -154,10 +231,21 @@ export const MarketView: React.FC<MarketViewProps> = ({
                       {sizeBadge.label}
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1 text-[#DB2777]">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Chroma
-                  </span>
+                  {onToggleWishlistPack && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleWishlistPack(pack.id)}
+                      aria-label={isPinned ? `Unpin ${pack.name} wishlist` : `Pin ${pack.name} as wishlist`}
+                      className={`qv-btn inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-extrabold transition-colors ${
+                        isPinned
+                          ? 'border-[#D97706] bg-[#FEF3C7] text-[#92400E]'
+                          : 'border-[#E7E2D8] bg-white text-[#78716C] hover:border-[#F59E0B] hover:text-[#B45309]'
+                      }`}
+                    >
+                      <Star className={`h-3 w-3 ${isPinned ? 'fill-[#F59E0B] text-[#D97706]' : ''}`} />
+                      <span>{isPinned ? '願望中' : '願望'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

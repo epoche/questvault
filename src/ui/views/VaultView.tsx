@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Check,
   Coins,
@@ -6,6 +6,7 @@ import {
   Dices,
   Home,
   Lock,
+  Search,
   Sparkles,
   Star,
   Trophy,
@@ -58,7 +59,7 @@ interface VaultViewProps {
   onToggleRoomDecor?: (decorId: string) => void;
 }
 
-type PackFilter = 'all' | 'owned' | 'shiny' | 'unowned' | PackId;
+type PackFilter = 'all' | 'owned' | 'shiny' | 'unowned' | 'favorites' | 'craftable' | PackId;
 
 const FUSE_SOURCE_RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'epic'];
 
@@ -79,6 +80,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const [vaultSection, setVaultSection] = useState<'collection' | 'room' | 'achievements'>('collection');
   const [categoryFilter, setCategoryFilter] = useState<'all' | PackCategory>('all');
   const [filter, setFilter] = useState<PackFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [studioBanner, setStudioBanner] = useState<string | null>(null);
   const claimableAchievements = getClaimableAchievementCount(player);
 
@@ -88,28 +90,66 @@ export const VaultView: React.FC<VaultViewProps> = ({
     .map((id) => getCollectibleById(id))
     .filter((c): c is Collectible => Boolean(c && (player.vault[c.id] ?? 0) > 0));
 
+  const packNameById = useMemo(
+    () => new Map(MYSTERY_PACKS.map((p) => [p.id, p.name.toLowerCase()])),
+    [],
+  );
+
   const categoryPacks =
     categoryFilter === 'all'
       ? MYSTERY_PACKS
       : MYSTERY_PACKS.filter((p) => p.category === categoryFilter);
 
-  const visibleItems =
+  const craftableCount = COLLECTIBLES.filter(
+    (item) =>
+      (player.vault[item.id] ?? 0) >= SHINY_CRAFT_COPIES_REQUIRED &&
+      !player.shinyVault?.[item.id],
+  ).length;
+
+  const baseItems =
     filter === 'shiny'
       ? COLLECTIBLES.filter((item) => Boolean(player.shinyVault?.[item.id]))
       : filter === 'owned'
         ? COLLECTIBLES.filter((item) => (player.vault[item.id] ?? 0) > 0)
         : filter === 'unowned'
           ? COLLECTIBLES.filter((item) => (player.vault[item.id] ?? 0) === 0)
-          : filter === 'all'
-            ? categoryFilter === 'all'
-              ? COLLECTIBLES
-              : COLLECTIBLES.filter((item) => categoryPacks.some((p) => p.id === item.packId))
-            : COLLECTIBLES.filter((item) => item.packId === filter);
+          : filter === 'favorites'
+            ? COLLECTIBLES.filter((item) => favoriteIds.includes(item.id) && (player.vault[item.id] ?? 0) > 0)
+            : filter === 'craftable'
+              ? COLLECTIBLES.filter(
+                  (item) =>
+                    (player.vault[item.id] ?? 0) >= SHINY_CRAFT_COPIES_REQUIRED &&
+                    !player.shinyVault?.[item.id],
+                )
+              : filter === 'all'
+                ? categoryFilter === 'all'
+                  ? COLLECTIBLES
+                  : COLLECTIBLES.filter((item) => categoryPacks.some((p) => p.id === item.packId))
+                : COLLECTIBLES.filter((item) => item.packId === filter);
+
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const visibleItems = trimmedQuery
+    ? baseItems.filter((item) => {
+        const packName = packNameById.get(item.packId) ?? '';
+        const rarityLabel = RARITY_CONFIGS[item.rarity].label.toLowerCase();
+        return (
+          item.name.toLowerCase().includes(trimmedQuery) ||
+          packName.includes(trimmedQuery) ||
+          rarityLabel.includes(trimmedQuery) ||
+          item.tagline.toLowerCase().includes(trimmedQuery)
+        );
+      })
+    : baseItems;
 
   const totalDiscovered = COLLECTIBLES.filter((c) => (player.vault[c.id] ?? 0) > 0).length;
   const totalShiny = COLLECTIBLES.filter((c) => Boolean(player.shinyVault?.[c.id])).length;
-  const showPackSubPills =
-    categoryFilter !== 'all' && filter !== 'shiny' && filter !== 'owned' && filter !== 'unowned';
+  const isSpecialFilter =
+    filter === 'shiny' ||
+    filter === 'owned' ||
+    filter === 'unowned' ||
+    filter === 'favorites' ||
+    filter === 'craftable';
+  const showPackSubPills = categoryFilter !== 'all' && !isSpecialFilter;
 
   const handleFuseClick = (sourceRarity: Rarity) => {
     const res = onFuseFiveUp(sourceRarity);
@@ -208,6 +248,34 @@ export const VaultView: React.FC<VaultViewProps> = ({
         />
       ) : (
         <>
+          {/* 🔍 Formless Live Vault Search & Quick Filters */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+            <div className="relative flex-1 min-w-0">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78716C]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search Vault collectibles"
+                placeholder="搜尋角色名稱、主題卡包或稀有度（例如 Fox、Origami、Chroma）..."
+                className="w-full min-h-[42px] rounded-2xl border-2 border-[#E5DFD3] bg-white pl-10 pr-10 py-2 text-xs sm:text-sm font-bold text-[#1C1917] placeholder:text-[#A8A29E] focus:border-[#1C1917] focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  aria-label="Clear Vault search"
+                  onClick={() => setSearchQuery('')}
+                  className="qv-btn absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#F3EFE7] text-[#57534E]"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <span className="shrink-0 text-xs font-extrabold text-[#78716C] tabular-nums">
+              顯示 {visibleItems.length} / {COLLECTIBLES.length} 隻
+            </span>
+          </div>
+
           <div className="flex flex-wrap gap-1.5">
           {PACK_CATEGORIES.map((cat) => (
             <button
@@ -218,10 +286,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 setFilter('all');
               }}
               className={`qv-btn min-h-[38px] rounded-xl px-3 py-1.5 text-xs font-extrabold border ${
-                categoryFilter === cat.id &&
-                filter !== 'shiny' &&
-                filter !== 'owned' &&
-                filter !== 'unowned'
+                categoryFilter === cat.id && !isSpecialFilter
                   ? 'border-[#1C1917] bg-[#1C1917] text-white'
                   : 'border-[#E5DFD3] bg-white text-[#57534E]'
               }`}
@@ -263,6 +328,30 @@ export const VaultView: React.FC<VaultViewProps> = ({
           >
             <Sparkles className="h-3.5 w-3.5" />
             <span>Shiny ({totalShiny})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('favorites')}
+            className={`qv-btn inline-flex min-h-[38px] items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-extrabold border ${
+              filter === 'favorites'
+                ? 'border-[#DB2777] bg-[#FDF2F8] text-[#BE185D]'
+                : 'border-[#E5DFD3] bg-white text-[#BE185D]'
+            }`}
+          >
+            <Star className="h-3.5 w-3.5" />
+            <span>Favorites ({favoriteItems.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('craftable')}
+            className={`qv-btn inline-flex min-h-[38px] items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-extrabold border ${
+              filter === 'craftable'
+                ? 'border-[#EA580C] bg-[#FFF7ED] text-[#C2410C]'
+                : 'border-[#E5DFD3] bg-white text-[#C2410C]'
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>可 3→1 合成 ({craftableCount})</span>
           </button>
         </div>
 
@@ -440,18 +529,47 @@ export const VaultView: React.FC<VaultViewProps> = ({
       )}
 
       {visibleItems.length === 0 ? (
-        <div className="qv-surface rounded-3xl p-8 text-center space-y-2">
+        <div className="qv-surface rounded-3xl p-8 text-center space-y-2.5">
           <Sparkles className="mx-auto h-8 w-8 text-[#D97706]" />
           <h2 className="font-display text-lg font-extrabold text-[#1C1917]">
-            {filter === 'unowned'
-              ? 'Amazing! You collected every single character!'
-              : 'No Shiny Foils Crafted Yet!'}
+            {trimmedQuery
+              ? `找不到符合「${searchQuery.trim()}」的盲盒夥伴`
+              : filter === 'unowned'
+                ? 'Amazing! You collected every single character!'
+                : filter === 'owned'
+                  ? '還沒有收集到任何夥伴喔！'
+                  : filter === 'favorites'
+                    ? '尚未釘選任何最愛夥伴！'
+                    : filter === 'craftable'
+                      ? '目前沒有可 3→1 合成閃卡的重複夥伴'
+                      : 'No Shiny Foils Crafted Yet!'}
           </h2>
           <p className="text-sm font-medium text-[#57534E]">
-            {filter === 'unowned'
-              ? 'Your entire QuestVault collection is 100% complete!'
-              : 'Collect 3 copies of any character to craft its gleaming Shiny Foil edition (3 → 1).'}
+            {trimmedQuery
+              ? '試試搜尋別的關鍵字，或點下方按鈕回到全部收藏！'
+              : filter === 'unowned'
+                ? 'Your entire QuestVault collection is 100% complete!'
+                : filter === 'owned'
+                  ? '快去完成任務賺取 Tokens，再到 Packs 抽盲盒收集第一位夥伴吧！'
+                  : filter === 'favorites'
+                    ? '點選任何已擁有卡片右上角的 ★ 就能放上最愛展示架喔！'
+                    : filter === 'craftable'
+                      ? '集滿 3 隻相同夥伴，就能在這裡一鍵合成金色閃卡（3 → 1）！'
+                      : 'Collect 3 copies of any character to craft its gleaming Shiny Foil edition (3 → 1).'}
           </p>
+          {(trimmedQuery || isSpecialFilter) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setFilter('all');
+                setCategoryFilter('all');
+              }}
+              className="qv-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-2xl border-2 border-[#1C1917] bg-white px-4 py-2 text-xs font-extrabold text-[#1C1917]"
+            >
+              <span>顯示全部 {COLLECTIBLES.length} 隻夥伴</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">

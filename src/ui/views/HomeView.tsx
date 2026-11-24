@@ -24,6 +24,7 @@ import {
   Ruler,
   Search,
   Sparkles,
+  Star,
   Swords,
   Target,
   Trash2,
@@ -40,7 +41,7 @@ import {
 } from '../../core/economy';
 import { getDueReviewItems, getTrickyWords } from '../../core/mastery';
 import { countClinicPatients, type MixedWarmupMode } from '../../core/mixedWarmupEngine';
-import { MIN_PACK_COST } from '../../core/packs';
+import { getPackById, MIN_PACK_COST } from '../../core/packs';
 import type { ReadingQuestSet } from '../../core/readingTypes';
 import type { DifficultyTier, PlayerState, SubjectId } from '../../core/types';
 import {
@@ -111,7 +112,7 @@ import { buildMathSrsReviewSet, buildMathTrickyRematchSet } from '../../subjects
 import { MATH_PLACEMENT_BONUS_TOKENS } from '../../subjects/math/mathPlacement';
 import { BUILTIN_MATH_SETS, getMathSetsByTier, MATH_TIER_META } from '../../subjects/math/questSets';
 import type { MathQuestSet } from '../../subjects/math/types';
-import { CollectibleArt } from '../artwork/CollectibleArt';
+import { CollectibleArt, PackEnvelopeArt } from '../artwork/CollectibleArt';
 import { RubyWord } from '../components/RubyWord';
 
 interface HomeViewProps {
@@ -152,6 +153,7 @@ interface HomeViewProps {
   onOpenCustomImporter: (subjectId: 'english' | 'chinese') => void;
   onDeleteCustomSet: (id: string) => void;
   onGoToMarket: () => void;
+  onClearWishlistPack?: () => void;
 }
 
 const SUBJECT_TABS: {
@@ -203,6 +205,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenCustomImporter,
   onDeleteCustomSet,
   onGoToMarket,
+  onClearWishlistPack,
 }) => {
   const [questMode, setQuestMode] = useState<
     | 'words'
@@ -644,6 +647,64 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </span>
         </button>
       </section>
+
+      {/* ⭐ Pinned Wishlist Pack Progress Strip */}
+      {(() => {
+        const pinnedPack = player.pinnedWishlistPackId
+          ? getPackById(player.pinnedWishlistPackId)
+          : undefined;
+        if (!pinnedPack) return null;
+        const remaining = Math.max(0, pinnedPack.cost - player.tokens);
+        const pct = Math.max(0, Math.min(100, Math.round((player.tokens / Math.max(1, pinnedPack.cost)) * 100)));
+        const ready = remaining === 0;
+        return (
+          <section className="rounded-2xl border-2 border-[#F59E0B] bg-gradient-to-r from-[#FFFBEB] to-[#FEF3C7] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <PackEnvelopeArt packId={pinnedPack.id} size={38} />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 text-xs font-extrabold text-[#92400E]">
+                  <Star className="h-3.5 w-3.5 fill-[#F59E0B] text-[#D97706] shrink-0" />
+                  <span>願望卡包：{pinnedPack.name}</span>
+                  <span className="tabular-nums text-[#B45309]">
+                    ({Math.min(player.tokens, pinnedPack.cost)}/{pinnedPack.cost} Tokens)
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-2">
+                  <div className="h-2 w-28 sm:w-40 overflow-hidden rounded-full bg-white/90 border border-[#FCD34D]">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${pct}%`, backgroundColor: ready ? '#059669' : '#F59E0B' }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-bold text-[#78350F] tabular-nums">
+                    {ready ? '🎉 代幣夠抽了！' : `還差 ${remaining} Tokens 就能抽！`}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onGoToMarket}
+                className="qv-btn inline-flex min-h-[36px] items-center gap-1 rounded-xl border-2 border-[#1C1917] bg-white px-3 py-1 text-xs font-extrabold text-[#1C1917]"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-[#D97706]" />
+                <span>{ready ? '去開願望盒 →' : '看卡包 →'}</span>
+              </button>
+              {onClearWishlistPack && (
+                <button
+                  type="button"
+                  aria-label="Clear pinned wishlist pack"
+                  onClick={onClearWishlistPack}
+                  className="qv-btn inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#FCD34D] bg-white/80 text-[#92400E]"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Daily Tri-Subject Quest + Streak Chest Strip */}
       <section className="qv-surface rounded-2xl px-4 py-3 sm:px-5 flex flex-wrap items-center justify-between gap-3">

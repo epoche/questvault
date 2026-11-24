@@ -185,7 +185,7 @@ describe('Phase 6C Layer 1 — 30 Achievement Badges & Printable Bilingual Honor
     expect(cert.weeklyTokens).toBe(125);
     expect(cert.streakDays).toBe(6);
     expect(cert.vaultOwned).toBe(2);
-    expect(cert.vaultTotal).toBe(358);
+    expect(cert.vaultTotal).toBe(390);
     expect(cert.achievementsTotal).toBe(38);
     expect(cert.honorTitleZh).toBe('三科學習模範生');
     expect(cert.honorTitleEn).toBe('Tri-Subject Honor Champion');

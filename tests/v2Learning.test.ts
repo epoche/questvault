@@ -24,10 +24,10 @@ import {
 } from '../src/subjects/english/wordSets';
 import { evaluateWritingSubmission } from '../src/subjects/english/writingChecks';
 
-describe('v2+ 44-Pack 358-Collectible Variable-Size Catalog', () => {
-  it('ships 44 Mystery Packs (6–12 collectibles each, 358 total) and 1 Chroma per pack', () => {
-    expect(MYSTERY_PACKS).toHaveLength(44);
-    expect(COLLECTIBLES).toHaveLength(358);
+describe('v2+ 48-Pack 390-Collectible Variable-Size Catalog', () => {
+  it('ships 48 Mystery Packs (6–12 collectibles each, 390 total) and 1 Chroma per pack', () => {
+    expect(MYSTERY_PACKS).toHaveLength(48);
+    expect(COLLECTIBLES).toHaveLength(390);
 
     for (const pack of MYSTERY_PACKS) {
       const items = COLLECTIBLES.filter((c) => c.packId === pack.id);

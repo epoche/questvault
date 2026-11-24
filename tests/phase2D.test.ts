@@ -40,12 +40,12 @@ import {
   renderPhase2DCollectible,
 } from '../src/ui/artwork/phase2DCollectibles';
 
-describe('Phase 2D Layer 1: 8 Variable-Size Original Packs (70 SVGs, 44 Packs / 358 Total)', () => {
+describe('Phase 2D Layer 1: 8 Variable-Size Original Packs (70 SVGs, 48 Packs / 390 Total)', () => {
   it('validates variable sizes (6/8/9/10/12), tiered pricing (20/25/30), 100% SVG coverage & 0 copyright risks', () => {
     expect(PHASE2D_PACKS).toHaveLength(8);
     expect(PHASE2D_COLLECTIBLES).toHaveLength(70);
-    expect(MYSTERY_PACKS).toHaveLength(44);
-    expect(COLLECTIBLES).toHaveLength(358);
+    expect(MYSTERY_PACKS).toHaveLength(48);
+    expect(COLLECTIBLES).toHaveLength(390);
     expect(MIN_PACK_COST).toBe(20);
 
     const expectedSizes: Record<string, { count: number; cost: number }> = {

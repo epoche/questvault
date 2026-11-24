@@ -1,12 +1,12 @@
 import { hashParentPin, ISO_WEEK_KEY_RE, PARENT_PIN_HASH_RE } from './analytics';
 import { createInitialPlayerState } from './economy';
-import { getCollectibleById, STARTER_COLLECTIBLE_ID } from './packs';
+import { getCollectibleById, getPackById, STARTER_COLLECTIBLE_ID } from './packs';
 import {
   CRITTER_ROOM_MAX_DECOR,
   VALID_CRITTER_ROOM_THEME_IDS,
   VALID_ROOM_DECOR_IDS,
 } from './roomCatalog';
-import type { CritterRoomThemeId, PlayerState } from './types';
+import type { CritterRoomThemeId, PackId, PlayerState } from './types';
 
 export const STORAGE_KEY = 'questvault.player.v1';
 
@@ -583,6 +583,10 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
         },
       };
     })(),
+    ...(typeof obj.pinnedWishlistPackId === 'string' &&
+    getPackById(obj.pinnedWishlistPackId as PackId)
+      ? { pinnedWishlistPackId: obj.pinnedWishlistPackId as PackId }
+      : {}),
     ...(typeof obj.lastBackupAt === 'string' && Number.isFinite(Date.parse(obj.lastBackupAt))
       ? { lastBackupAt: obj.lastBackupAt }
       : {}),

@@ -64,7 +64,11 @@ export type PackId =
   | 'unicorns'
   | 'mermaids'
   | 'patisserie'
-  | 'fairies';
+  | 'fairies'
+  | 'geometry'
+  | 'sciencelab'
+  | 'robosquad'
+  | 'origami';
 
 export interface RarityConfig {
   id: Rarity;
@@ -251,6 +255,7 @@ export interface PlayerState {
   towerHighScores?: Partial<Record<SubjectId, number>>;
   arcadeDailyTokens?: BlitzDailyTokens;
   weeklyGoal?: WeeklyGoalConfig;
+  pinnedWishlistPackId?: PackId;
   lastBackupAt?: string;
   parentPinHash?: string;
   showZhuyin?: boolean;

@@ -28,6 +28,7 @@ import {
   recordDailyQuestClaim,
   recordDailySubjectCompletion,
   sellDuplicateCollectible,
+  setPinnedWishlistPack,
   toggleCritterRoomDecor,
   toggleFavoriteCollectible,
   updateCritterRoomTheme,
@@ -406,6 +407,17 @@ export const App: React.FC = () => {
     if (!res.ok) return;
     playerRef.current = res.state;
     setPlayer(res.state);
+    audioService.playToken();
+  };
+
+  const handleToggleWishlistPack = (packId: PackId) => {
+    const current = playerRef.current.pinnedWishlistPackId;
+    const nextState = setPinnedWishlistPack(
+      playerRef.current,
+      current === packId ? undefined : packId,
+    );
+    playerRef.current = nextState;
+    setPlayer(nextState);
     audioService.playToken();
   };
 
@@ -2087,12 +2099,19 @@ export const App: React.FC = () => {
               onOpenCustomImporter={(subj) => setImporterSubject(subj)}
               onDeleteCustomSet={handleDeleteCustomSet}
               onGoToMarket={() => setActiveTab('market')}
+              onClearWishlistPack={() => {
+                const nextState = setPinnedWishlistPack(playerRef.current, undefined);
+                playerRef.current = nextState;
+                setPlayer(nextState);
+                audioService.playToken();
+              }}
             />
           ) : activeTab === 'market' ? (
             <MarketView
               player={player}
               onOpenPack={handleOpenPack}
               onGoToQuests={() => setActiveTab('quests')}
+              onToggleWishlistPack={handleToggleWishlistPack}
             />
           ) : activeTab === 'vault' ? (
             <VaultView

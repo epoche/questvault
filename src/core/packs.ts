@@ -1,12 +1,13 @@
 import { PHASE2D_COLLECTIBLES, PHASE2D_PACKS } from './packsPhase2D';
 import { PHASE6_COLLECTIBLES, PHASE6_PACKS } from './packsPhase6';
+import { PHASE8_COLLECTIBLES, PHASE8_PACKS } from './packsPhase8';
 import type { Collectible, MysteryPack, PackCategory, PackId, Rarity, RarityConfig } from './types';
 
 export const PACK_COST = 25;
 export const MIN_PACK_COST = 20;
 
 export const PACK_CATEGORIES: { id: 'all' | PackCategory; label: string }[] = [
-  { id: 'all', label: 'All 44' },
+  { id: 'all', label: 'All 48' },
   { id: 'holidays', label: 'Holidays' },
   { id: 'pets', label: 'Cute Animals' },
   { id: 'squishy', label: 'Squishy & Fairytale' },
@@ -365,6 +366,7 @@ export const MYSTERY_PACKS: MysteryPack[] = [
   },
   ...PHASE2D_PACKS,
   ...PHASE6_PACKS,
+  ...PHASE8_PACKS,
 ];
 
 export const COLLECTIBLES: Collectible[] = [
@@ -669,6 +671,7 @@ export const COLLECTIBLES: Collectible[] = [
   { id: 'fairyland-chroma-queen', name: 'Aurora Fairy Sovereign', packId: 'fairyland', rarity: 'chroma', tagline: 'Crowned in northern lights across the entire starlight realm.', accentHex: '#DB2777', bgHex: '#FCE7F3' },
   ...PHASE2D_COLLECTIBLES,
   ...PHASE6_COLLECTIBLES,
+  ...PHASE8_COLLECTIBLES,
 ];
 
 export const STARTER_COLLECTIBLE_ID = 'critter-sprout-bunny';

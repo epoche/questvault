@@ -2,12 +2,14 @@ import React from 'react';
 import { getCollectibleById } from '../../core/packs';
 import { PHASE2D_ENVELOPE_THEMES } from '../../core/packsPhase2D';
 import { PHASE6_ENVELOPE_THEMES } from '../../core/packsPhase6';
+import { PHASE8_ENVELOPE_THEMES } from '../../core/packsPhase8';
 import type { PackId } from '../../core/types';
 import { renderExtraCollectible } from './extraCollectibles';
 import { renderPhase1Collectible } from './phase1Collectibles';
 import { renderPhase2Collectible } from './phase2Collectibles';
 import { renderPhase2DCollectible } from './phase2DCollectibles';
 import { renderPhase6Collectible } from './phase6Collectibles';
+import { renderPhase8Collectible } from './phase8Collectibles';
 
 interface CollectibleArtProps {
   id: string;
@@ -573,7 +575,7 @@ export const CollectibleArt: React.FC<CollectibleArtProps> = ({
             </linearGradient>
           </defs>
         )}
-        {renderPhase6Collectible(id, uid) ?? renderPhase2DCollectible(id, uid) ?? renderPhase2Collectible(id) ?? renderPhase1Collectible(id) ?? renderExtraCollectible(id) ?? renderCharacter(id)}
+        {renderPhase8Collectible(id, uid) ?? renderPhase6Collectible(id, uid) ?? renderPhase2DCollectible(id, uid) ?? renderPhase2Collectible(id) ?? renderPhase1Collectible(id) ?? renderExtraCollectible(id) ?? renderCharacter(id)}
         {showShiny && (
           <g>
             <rect x="0" y="0" width="100" height="100" fill={`url(#${foilGradId})`} />
@@ -625,6 +627,7 @@ export const PackEnvelopeArt: React.FC<{ packId: PackId; size?: number }> = ({
     fairyland: { main: '#9333EA', top: '#E9D5FF', accent: '#FAF5FF', emblem: 'fairyland-dewdrop-pixie' },
     ...PHASE2D_ENVELOPE_THEMES,
     ...PHASE6_ENVELOPE_THEMES,
+    ...PHASE8_ENVELOPE_THEMES,
   };
 
   const p = palette[packId];
@@ -646,7 +649,7 @@ export const PackEnvelopeArt: React.FC<{ packId: PackId; size?: number }> = ({
         <rect x="16" y="116" width="88" height="14" fill={p.top} opacity="0.6" />
         <rect x="26" y="34" width="68" height="68" rx="16" fill={p.accent} stroke="#1C1917" strokeWidth="3" />
         <g transform="translate(26, 34) scale(0.68)">
-          {renderPhase6Collectible(p.emblem, uid) ?? renderPhase2DCollectible(p.emblem, uid) ?? renderPhase2Collectible(p.emblem) ?? renderPhase1Collectible(p.emblem) ?? renderExtraCollectible(p.emblem) ?? renderCharacter(p.emblem)}
+          {renderPhase8Collectible(p.emblem, uid) ?? renderPhase6Collectible(p.emblem, uid) ?? renderPhase2DCollectible(p.emblem, uid) ?? renderPhase2Collectible(p.emblem) ?? renderPhase1Collectible(p.emblem) ?? renderExtraCollectible(p.emblem) ?? renderCharacter(p.emblem)}
         </g>
         <circle cx="28" cy="112" r="3" fill="#FFFFFF" opacity="0.85" />
         <circle cx="92" cy="112" r="3" fill="#FFFFFF" opacity="0.85" />
