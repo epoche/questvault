@@ -7,6 +7,8 @@ import { COLLECTIBLES, MYSTERY_PACKS } from '../../src/core/packs';
 import { BUILTIN_LOOK_ALIKE_SETS } from '../../src/subjects/chinese/lookAlikeSets';
 import { BUILTIN_FIGURATIVE_SETS } from '../../src/subjects/english/figurativeSets';
 import { BUILTIN_MATH_SETS } from '../../src/subjects/math/questSets';
+import { CLOCK_MEASURE_UNITS } from '../../src/subjects/math/clockMeasureEngine';
+import { ClockMeasureQuestView } from '../../src/ui/views/ClockMeasureQuestView';
 import { FigurativeLabView } from '../../src/ui/views/FigurativeLabView';
 import { HomeView } from '../../src/ui/views/HomeView';
 import { LookAlikeHanziView } from '../../src/ui/views/LookAlikeHanziView';
@@ -523,6 +525,41 @@ describe('UI Component Regressions (happy-dom + React Testing Library)', () => {
     expect(onImportState.mock.calls[0][0].tokens).toBe(320);
     expect(screen.queryByLabelText('Generated QuestVault sync code')).toBeNull();
   });
+
+  it('renders ClockMeasureQuestView with analog clock SVG, Zh hint toggle, re-entry lock, and zero <form>', () => {
+    const unit = CLOCK_MEASURE_UNITS[0]; // clock-basic
+    const onComplete = vi.fn();
+
+    const { container } = render(
+      <ClockMeasureQuestView
+        unit={unit}
+        equippedCollectibleId="critter-sprout-bunny"
+        rewardPolicy={FULL_POLICY}
+        onComplete={onComplete}
+        onExit={vi.fn()}
+        onGoToMarket={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelectorAll('form, [type="submit"]').length).toBe(0);
+    expect(container.querySelectorAll('h1').length).toBe(1);
+    expect(screen.getByRole('img', { name: /Analog clock/i })).toBeTruthy();
+
+    // Toggle Traditional Chinese helper hint on/off
+    const hintBtn = screen.getByRole('button', { name: /繁中提示：關/ });
+    fireEvent.click(hintBtn);
+    expect(screen.getByRole('button', { name: /繁中提示：開/ })).toBeTruthy();
+
+    // Same-tick double-click on choice button triggers single answer evaluation (never double-completes)
+    const choiceBtns = Array.from(container.querySelectorAll('section button')).filter(
+      (b) => b.getAttribute('aria-label') !== 'Read question aloud',
+    );
+    expect(choiceBtns.length).toBe(4);
+    fireEvent.click(choiceBtns[0]);
+    fireEvent.click(choiceBtns[1]);
+    expect(onComplete).not.toHaveBeenCalled();
+  });
 });
+
 
 

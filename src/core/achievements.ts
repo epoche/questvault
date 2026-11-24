@@ -127,6 +127,7 @@ export function countTotalCompletedQuests(state: PlayerState): number {
     (state.completedSpellingIds?.length ?? 0) +
     (state.completedEnglishChapterIds?.length ?? 0) +
     (state.completedBarModelIds?.length ?? 0) +
+    (state.completedClockMeasureIds?.length ?? 0) +
     (state.completedSentencePatternIds?.length ?? 0) +
     (state.completedLookAlikeIds?.length ?? 0) +
     (state.completedFigurativeIds?.length ?? 0) +

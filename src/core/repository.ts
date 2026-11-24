@@ -1,4 +1,5 @@
 import { ALL_LOGIC_MODULES } from '../subjects/logic/logicTypes';
+import { VALID_CLOCK_MEASURE_UNIT_IDS } from '../subjects/math/clockMeasureEngine';
 import { ADVENTURE_REWARD_DECOR_IDS, DATE_KEY_RE } from './adventureMap';
 import { hashParentPin, ISO_WEEK_KEY_RE, PARENT_PIN_HASH_RE } from './analytics';
 import { createInitialPlayerState } from './economy';
@@ -381,6 +382,16 @@ function sanitizePlayerState(raw: unknown): PlayerState | null {
     completedBarModelIds: Array.isArray(obj.completedBarModelIds)
       ? Array.from(
           new Set(obj.completedBarModelIds.filter((id): id is string => typeof id === 'string')),
+        )
+      : [],
+    completedClockMeasureIds: Array.isArray(obj.completedClockMeasureIds)
+      ? Array.from(
+          new Set(
+            obj.completedClockMeasureIds.filter(
+              (id): id is string =>
+                typeof id === 'string' && VALID_CLOCK_MEASURE_UNIT_IDS.has(id),
+            ),
+          ),
         )
       : [],
     completedSentencePatternIds: Array.isArray(obj.completedSentencePatternIds)

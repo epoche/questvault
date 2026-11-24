@@ -253,6 +253,7 @@ export interface PlayerState {
   completedEnglishChapterIds?: string[];
   claimedEnglishChapterSeriesIds?: string[];
   completedBarModelIds?: string[];
+  completedClockMeasureIds?: string[];
   completedSentencePatternIds?: string[];
   completedLookAlikeIds?: string[];
   completedFigurativeIds?: string[];

@@ -52,7 +52,7 @@ def main() -> int:
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
-                args=["--disable-dev-shm-usage", "--disable-gpu", "--no-sandbox"],
+                args=["--disable-dev-shm-usage", "--disable-gpu"],
             )
 
             viewports = [
@@ -137,9 +137,17 @@ def main() -> int:
                     page.get_by_role("button", name="Quests").first.click()
                     page.locator("h1", has_text="Hi, Player!").wait_for(timeout=10000)
 
-                    # Math early exit
+                    # Math early exit + Clock & Measure Lab smoke check
                     page.get_by_role("button", name="Math").first.click()
                     page.wait_for_selector("text=Math Quests", timeout=10000)
+                    page.get_by_role("button", name="Clock & Measure (8)").click()
+                    page.wait_for_selector("text=Read the Clock", timeout=10000)
+                    page.locator("main button", has_text="Read the Clock").first.click()
+                    page.wait_for_selector("svg[aria-label*='Analog clock']", timeout=10000)
+                    page.get_by_role("button", name="Exit").first.click()
+                    page.locator("h1", has_text="Hi, Player!").wait_for(timeout=10000)
+
+                    page.get_by_role("button", name="Math Quests").first.click()
                     page.locator("main button", has_text="Play ").first.click()
                     page.get_by_role("button", name="Exit").first.wait_for(timeout=10000)
                     page.get_by_role("button", name="Exit").first.click()

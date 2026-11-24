@@ -18,6 +18,7 @@ export type QuestCompletionListField =
   | 'completedSpellingIds'
   | 'completedEnglishChapterIds'
   | 'completedBarModelIds'
+  | 'completedClockMeasureIds'
   | 'completedSentencePatternIds'
   | 'completedLookAlikeIds'
   | 'completedFigurativeIds'

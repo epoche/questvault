@@ -819,7 +819,8 @@ export const ParentView: React.FC<ParentViewProps> = ({
               {(player.completedSentencePatternIds ?? []).length}/16
             </div>
             <div className="mt-0.5 text-[11px] font-semibold text-[#0F766E] tabular-nums">
-              數學圖解 {(player.completedBarModelIds ?? []).length}/8 · 12×12 心算精熟{' '}
+              數學圖解 {(player.completedBarModelIds ?? []).length}/8 · 時鐘度量衡{' '}
+              {(player.completedClockMeasureIds ?? []).length}/8 · 12×12 心算精熟{' '}
               {(() => {
                 let m = 0;
                 for (let a = 2; a <= 12; a += 1) {

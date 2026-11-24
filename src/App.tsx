@@ -85,6 +85,7 @@ import type { SpellingSet } from './subjects/english/spellingTypes';
 import type { WordSet } from './subjects/english/types';
 import type { LogicModuleId } from './subjects/logic/logicTypes';
 import type { BarModelUnitMeta } from './subjects/math/barModelEngine';
+import type { ClockMeasureUnitMeta } from './subjects/math/clockMeasureEngine';
 import { MATH_PLACEMENT_BONUS_TOKENS } from './subjects/math/mathPlacement';
 import type { MathQuestSet } from './subjects/math/types';
 import { CustomWordSetDrawer } from './ui/components/CustomWordSetDrawer';
@@ -102,6 +103,7 @@ import type { CafeCompletionPayload } from './ui/views/CafeGameView';
 import type { ChapterEpisodeCompletionPayload } from './ui/views/ChapterSeriesView';
 import type { ChineseListeningCompletionPayload } from './ui/views/ChineseListeningView';
 import type { ChineseCompletionPayload } from './ui/views/ChineseRunView';
+import type { ClockMeasureCompletionPayload } from './ui/views/ClockMeasureQuestView';
 import type { EnglishChapterEpisodeCompletionPayload } from './ui/views/EnglishChapterSeriesView';
 import type { EnglishRootCompletionPayload } from './ui/views/EnglishRootQuestView';
 import type { FactFluencyCompletionPayload } from './ui/views/FactFluencyView';
@@ -122,6 +124,9 @@ import type { TowerDefenseCompletionPayload } from './ui/views/TowerDefenseView'
 // (vite-plugin-singlefile automatically inlines these for npm run build:single)
 const BarModelQuestView = lazy(() =>
   import('./ui/views/BarModelQuestView').then((m) => ({ default: m.BarModelQuestView })),
+);
+const ClockMeasureQuestView = lazy(() =>
+  import('./ui/views/ClockMeasureQuestView').then((m) => ({ default: m.ClockMeasureQuestView })),
 );
 const BlitzView = lazy(() =>
   import('./ui/views/BlitzView').then((m) => ({ default: m.BlitzView })),
@@ -240,6 +245,7 @@ export type ActiveSession =
   | { kind: 'en-chapter'; series: EnglishChapterSeries }
   | { kind: 'math-fluency' }
   | { kind: 'bar-model'; unit: BarModelUnitMeta }
+  | { kind: 'clock-measure'; unit: ClockMeasureUnitMeta }
   | { kind: 'sentence-pattern'; set: SentencePatternSet }
   | { kind: 'look-alike'; set: LookAlikeHanziSet }
   | { kind: 'figurative'; set: FigurativeQuestSet }
@@ -279,6 +285,7 @@ function getSessionKey(session: ActiveSession): string {
     case 'english-root':
       return `${session.kind}:${session.family.id}`;
     case 'bar-model':
+    case 'clock-measure':
       return `${session.kind}:${session.unit.id}`;
   }
 }
@@ -1048,6 +1055,25 @@ export const App: React.FC = () => {
     );
   };
 
+  const handleCompleteClockMeasure = (payload: ClockMeasureCompletionPayload) => {
+    commitPlayer(
+      (prev) =>
+        completeQuestRun(prev, {
+          subjectId: 'math',
+          kind: 'math',
+          questSetId: payload.unitId,
+          questSetTitle: `Clock & Measure: ${payload.unitTitle}`,
+          completionField: 'completedClockMeasureIds',
+          rawTokensEarned: payload.rawTokensEarned ?? payload.tokensEarned,
+          accuracyPct: payload.accuracyPct,
+          maxCombo: 5,
+          todayKey: getLocalDateKey(),
+          runIdPrefix: 'math-cm',
+          wordOutcomes: payload.wordOutcomes,
+        }).state,
+    );
+  };
+
   const handleCompleteSentencePattern = (payload: SentencePatternCompletionPayload) => {
     commitPlayer(
       (prev) =>
@@ -1606,6 +1632,25 @@ export const App: React.FC = () => {
             onGoToMarket={goToMarket}
           />
         );
+      case 'clock-measure':
+        return (
+          <ClockMeasureQuestView
+            key={key}
+            unit={active.unit}
+            equippedCollectibleId={player.equippedCollectibleId}
+            isAvatarShiny={isAvatarShiny}
+            rewardPolicy={getQuestRewardPolicy(player, {
+              questSetId: active.unit.id,
+              kind: 'math',
+              subjectId: 'math',
+              todayKey,
+              completedIds: player.completedClockMeasureIds ?? [],
+            })}
+            onComplete={handleCompleteClockMeasure}
+            onExit={clearActiveSession}
+            onGoToMarket={goToMarket}
+          />
+        );
       case 'sentence-pattern':
         return (
           <SentencePatternView
@@ -1751,6 +1796,7 @@ export const App: React.FC = () => {
                 onStartMathRun={(set) => setSession({ kind: 'math-run', set })}
                 onStartFactFluency={() => setSession({ kind: 'math-fluency' })}
                 onStartBarModelUnit={(unit) => setSession({ kind: 'bar-model', unit })}
+                onStartClockMeasureUnit={(unit) => setSession({ kind: 'clock-measure', unit })}
                 onStartChineseRun={(set) => setSession({ kind: 'chinese-run', set })}
                 onStartChineseListening={() => setSession({ kind: 'zh-listening' })}
                 onStartRadicalFamily={(family) => setSession({ kind: 'radical', family })}

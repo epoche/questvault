@@ -7,6 +7,7 @@ import {
   Brain,
   Calculator,
   CheckCircle2,
+  Clock,
   Dna,
   Flame,
   Gift,
@@ -103,6 +104,10 @@ import type { SpellingSet } from '../../subjects/english/spellingTypes';
 import type { WordSet } from '../../subjects/english/types';
 import { BUILTIN_WORD_SETS, getWordSetsByTier, TIER_META } from '../../subjects/english/wordSets';
 import { BAR_MODEL_UNITS, type BarModelUnitMeta } from '../../subjects/math/barModelEngine';
+import {
+  CLOCK_MEASURE_UNITS,
+  type ClockMeasureUnitMeta,
+} from '../../subjects/math/clockMeasureEngine';
 import { buildMathSrsReviewSet, buildMathTrickyRematchSet } from '../../subjects/math/mathEngine';
 import { MATH_PLACEMENT_BONUS_TOKENS } from '../../subjects/math/mathPlacement';
 import { BUILTIN_MATH_SETS, getMathSetsByTier, MATH_TIER_META } from '../../subjects/math/questSets';
@@ -140,6 +145,7 @@ interface HomeViewProps {
   onStartMathRun: (questSet: MathQuestSet) => void;
   onStartFactFluency?: () => void;
   onStartBarModelUnit?: (unit: BarModelUnitMeta) => void;
+  onStartClockMeasureUnit?: (unit: ClockMeasureUnitMeta) => void;
   onStartChineseRun: (wordSet: ChineseWordSet) => void;
   onStartChineseListening: () => void;
   onStartRadicalFamily: (family: RadicalFamily) => void;
@@ -172,7 +178,8 @@ type QuestMode =
   | 'patterns'
   | 'lookAlike'
   | 'chapters'
-  | 'barModels';
+  | 'barModels'
+  | 'clockMeasure';
 
 const SUBJECT_TABS: {
   id: SubjectId;
@@ -212,6 +219,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartMathRun,
   onStartFactFluency,
   onStartBarModelUnit,
+  onStartClockMeasureUnit,
   onStartChineseRun,
   onStartChineseListening,
   onStartRadicalFamily,
@@ -254,8 +262,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const effectiveQuestMode: QuestMode =
     activeSubjectId === 'math'
-      ? questMode === 'barModels'
-        ? 'barModels'
+      ? questMode === 'barModels' || questMode === 'clockMeasure'
+        ? questMode
         : 'words'
       : activeSubjectId === 'chinese' &&
           (questMode === 'roots' ||
@@ -263,7 +271,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             questMode === 'spelling' ||
             questMode === 'enChapters' ||
             questMode === 'figurative' ||
-            questMode === 'barModels')
+            questMode === 'barModels' ||
+            questMode === 'clockMeasure')
         ? 'words'
         : activeSubjectId === 'english' &&
             (questMode === 'radicals' ||
@@ -271,7 +280,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               questMode === 'patterns' ||
               questMode === 'lookAlike' ||
               questMode === 'chapters' ||
-              questMode === 'barModels')
+              questMode === 'barModels' ||
+              questMode === 'clockMeasure')
           ? 'words'
           : questMode;
 
@@ -983,6 +993,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <BarChart3 className="h-4 w-4 text-[#2563EB]" />
               <span>Bar Model Lab ({BAR_MODEL_UNITS.length})</span>
             </button>
+            <button type="button" onClick={() => setQuestMode('clockMeasure')} className={modeTabClass('clockMeasure')}>
+              <Clock className="h-4 w-4 text-[#D97706]" />
+              <span>Clock & Measure ({CLOCK_MEASURE_UNITS.length})</span>
+            </button>
           </div>
         )}
 
@@ -1668,6 +1682,66 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </QuestCard>
               );
             })}
+          </div>
+        )}
+
+        {/* Math Clock & Measure Lab Grid (4 Time & Clocks + 4 Measurement & Units) */}
+        {activeSubjectId === 'math' && effectiveQuestMode === 'clockMeasure' && (
+          <div className="space-y-5">
+            {([
+              {
+                category: 'clock' as const,
+                heading: '⏰ Time & Analog Clocks 時鐘專訓（4 單元 · 含互動撥指針）',
+                badgeColor: '#2563EB',
+              },
+              {
+                category: 'measure' as const,
+                heading: '📏 Measurement & Units 度量衡專訓（4 單元 · 美制＋公制雙修）',
+                badgeColor: '#059669',
+              },
+            ]).map((group) => (
+              <div key={group.category} className="space-y-3">
+                <h2
+                  className="font-display text-sm sm:text-base font-extrabold"
+                  style={{ color: group.badgeColor }}
+                >
+                  {group.heading}
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {CLOCK_MEASURE_UNITS.filter((u) => u.category === group.category).map((unit) => {
+                    const done = (player.completedClockMeasureIds ?? []).includes(unit.id);
+                    const policy = getQuestRewardPolicy(player, {
+                      questSetId: unit.id,
+                      kind: 'math',
+                      subjectId: 'math',
+                      todayKey,
+                      completedIds: player.completedClockMeasureIds ?? [],
+                    });
+                    return (
+                      <QuestCard
+                        key={unit.id}
+                        emblemCollectibleId={unit.emblemCollectibleId}
+                        emblemSize={64}
+                        bgHex={unit.bgHex}
+                        accentHex={unit.accentHex}
+                        tag={`Tier ${unit.tier} · ${unit.shortTag}`}
+                        done={done}
+                        policy={policy}
+                        doneDefaultLabel="Mastered"
+                        rewardRange="+10–30"
+                        title={`${unit.emoji} ${unit.title}`}
+                        subtitle={unit.description}
+                        onClick={() => onStartClockMeasureUnit?.(unit)}
+                      >
+                        <p className="text-[11px] font-extrabold text-[#57534E]">
+                          {unit.zhTitle} · ♾️ Fresh Dynamic Visuals
+                        </p>
+                      </QuestCard>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
