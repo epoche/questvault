@@ -37,9 +37,44 @@ export const DeviceVoiceSyncPanel: React.FC<DeviceVoiceSyncPanelProps> = ({
   const [syncNotice, setSyncNotice] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const busyRef = useRef(false);
   const mountedRef = useRef(true);
+  const [offlineStatus, setOfflineStatus] = useState<'ready' | 'warming' | 'standalone'>('standalone');
+  const [cachedAssetCount, setCachedAssetCount] = useState<number>(0);
 
   useEffect(() => {
     mountedRef.current = true;
+    const probeOfflineCache = async () => {
+      try {
+        if (
+          typeof navigator === 'undefined' ||
+          !('serviceWorker' in navigator) ||
+          typeof window === 'undefined' ||
+          !('caches' in window)
+        ) {
+          return;
+        }
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!mountedRef.current) return;
+        if (!reg) {
+          setOfflineStatus('standalone');
+          return;
+        }
+        const names = await window.caches.keys();
+        const qvCacheName = names.find((n) => n.startsWith('questvault-pwa-'));
+        if (!qvCacheName) {
+          if (mountedRef.current) setOfflineStatus('warming');
+          return;
+        }
+        const cache = await window.caches.open(qvCacheName);
+        const keys = await cache.keys();
+        if (!mountedRef.current) return;
+        setCachedAssetCount(keys.length);
+        setOfflineStatus(reg.active && keys.length > 0 ? 'ready' : 'warming');
+      } catch {
+        // Strict sandbox / blocked caches API: stay safely in standalone fallback
+        if (mountedRef.current) setOfflineStatus('standalone');
+      }
+    };
+    void probeOfflineCache();
     return () => {
       mountedRef.current = false;
     };
@@ -319,9 +354,27 @@ export const DeviceVoiceSyncPanel: React.FC<DeviceVoiceSyncPanelProps> = ({
               📲 iPad 加入主畫面（全螢幕 App 體驗 3 步驟）
             </h3>
           </div>
-          <span className="rounded-full bg-[#FEF3C7] border border-[#F59E0B] px-2.5 py-0.5 text-[11px] font-extrabold text-[#92400E]">
-            免下載商店 · 進度更穩固
-          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span
+              data-testid="pwa-offline-status-badge"
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold tabular-nums ${
+                offlineStatus === 'ready'
+                  ? 'border-[#10B981] bg-[#ECFDF5] text-[#047857]'
+                  : offlineStatus === 'warming'
+                    ? 'border-[#60A5FA] bg-[#EFF6FF] text-[#1D4ED8]'
+                    : 'border-[#D6D3D1] bg-[#F5F5F4] text-[#57534E]'
+              }`}
+            >
+              {offlineStatus === 'ready'
+                ? `📡 離線快取就緒（已快取 ${cachedAssetCount} 項資源）`
+                : offlineStatus === 'warming'
+                  ? '📡 離線快取同步中…'
+                  : '📡 離線單檔 / 沙盒安全模式'}
+            </span>
+            <span className="rounded-full bg-[#FEF3C7] border border-[#F59E0B] px-2.5 py-0.5 text-[11px] font-extrabold text-[#92400E]">
+              免下載商店 · 進度更穩固
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">

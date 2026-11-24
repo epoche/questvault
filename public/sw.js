@@ -1,5 +1,5 @@
-const CACHE_NAME = 'questvault-pwa-v2';
-const MAX_HASHED_ASSET_ENTRIES = 80;
+const CACHE_NAME = 'questvault-pwa-v3';
+const MAX_HASHED_ASSET_ENTRIES = 160;
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -36,7 +36,11 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))),
+        Promise.all(
+          keys
+            .filter((k) => k.startsWith('questvault-pwa-') && k !== CACHE_NAME)
+            .map((k) => caches.delete(k)),
+        ),
       )
       .then(() => self.clients.claim())
       .catch(() => undefined),

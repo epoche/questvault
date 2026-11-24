@@ -6,8 +6,10 @@ import type {
 } from './types';
 import { BUILTIN_CHAPTER_SERIES, isSeriesFullyCompleted } from '../subjects/chinese/chapterStories';
 import { BUILTIN_RADICAL_FAMILIES } from '../subjects/chinese/radicalFamilies';
+import { CHINESE_READING_QUESTS } from '../subjects/chinese/readingQuests';
 import type { ChineseTargetWord, ChineseWordSet } from '../subjects/chinese/types';
 import { BUILTIN_CHINESE_SETS } from '../subjects/chinese/wordSets';
+import { ENGLISH_READING_QUESTS } from '../subjects/english/readingQuests';
 import type { TargetWord, WordSet } from '../subjects/english/types';
 import { BUILTIN_WORD_SETS } from '../subjects/english/wordSets';
 import {
@@ -16,10 +18,25 @@ import {
   SPATIAL_MODULES,
   type LogicModuleMeta,
 } from '../subjects/logic/logicTypes';
+import { BUILTIN_MATH_SETS } from '../subjects/math/questSets';
 import { countTotalCompletedQuests } from './achievements';
 import { getAdventureMapSnapshot } from './adventureMap';
 import { isoToLocalDateKey } from './date';
 import { classifyWordMastery } from './mastery';
+
+const VALID_EN_CORE_IDS = new Set<string>([
+  ...BUILTIN_WORD_SETS.map((s) => s.id),
+  ...ENGLISH_READING_QUESTS.map((r) => r.id),
+]);
+const VALID_MATH_CORE_IDS = new Set<string>(BUILTIN_MATH_SETS.map((m) => m.id));
+const VALID_ZH_CORE_IDS = new Set<string>([
+  ...BUILTIN_CHINESE_SETS.map((s) => s.id),
+  ...CHINESE_READING_QUESTS.map((r) => r.id),
+]);
+const VALID_RADICAL_IDS = new Set<string>(BUILTIN_RADICAL_FAMILIES.map((r) => r.id));
+const VALID_ZH_CHAPTER_EP_IDS = new Set<string>(
+  BUILTIN_CHAPTER_SERIES.flatMap((sr) => sr.episodes.map((ep) => ep.id)),
+);
 
 export interface WeeklySnapshot {
   windowDays: number;
@@ -674,4 +691,217 @@ export function isBackupOverdue(
     daysSinceBackup: diffDays,
   };
 }
+
+export interface DailyTrendPoint {
+  dateKey: string;
+  shortLabel: string;
+  runs: number;
+  avgAccuracyPct: number | null;
+  tokensEarned: number;
+}
+
+export interface LabCoverageItem {
+  id: 'english' | 'math' | 'chinese' | 'logic';
+  label: string;
+  zhLabel: string;
+  emoji: string;
+  completed: number;
+  total: number;
+  pct: number;
+  colorHex: string;
+  bgHex: string;
+}
+
+export interface Learning14DayTrend {
+  days: DailyTrendPoint[];
+  totalRuns14d: number;
+  activeDays14d: number;
+  avgAccuracy14d: number | null;
+  maxDailyRuns: number;
+  labCoverage: LabCoverageItem[];
+}
+
+function parseDateKeyLocal(dateKey: string): { y: number; m: number; d: number } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (m) {
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const day = Number(m[3]);
+    const dt = new Date(y, mo - 1, day);
+    if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === day) {
+      return { y, m: mo, d: day };
+    }
+  }
+  const now = new Date();
+  return { y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() };
+}
+
+function formatDateKeyYmd(dt: Date): string {
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const d = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function countUniqueIds(ids?: string[], whitelist?: Set<string>): number {
+  if (!Array.isArray(ids) || ids.length === 0) return 0;
+  const unique = new Set<string>();
+  for (const id of ids) {
+    if (typeof id !== 'string' || id.length === 0) continue;
+    if (whitelist && !whitelist.has(id)) continue;
+    unique.add(id);
+  }
+  return unique.size;
+}
+
+/**
+ * Pure 14-day learning trend + 4-Hall coverage breakdown for Parent Corner SVG charts.
+ * Uses local calendar arithmetic so month/year boundaries (including leap years) stay exact.
+ */
+export function compute14DayTrend(
+  player: PlayerState,
+  todayKey: string,
+): Learning14DayTrend {
+  const { y, m, d } = parseDateKeyLocal(todayKey);
+  const buckets = new Map<
+    string,
+    { runs: number; accSum: number; accCount: number; tokens: number }
+  >();
+  const orderedKeys: { dateKey: string; shortLabel: string }[] = [];
+
+  for (let offset = 13; offset >= 0; offset -= 1) {
+    const dt = new Date(y, m - 1, d - offset);
+    const dk = formatDateKeyYmd(dt);
+    const shortLabel = `${dt.getMonth() + 1}/${dt.getDate()}`;
+    orderedKeys.push({ dateKey: dk, shortLabel });
+    buckets.set(dk, { runs: 0, accSum: 0, accCount: 0, tokens: 0 });
+  }
+
+  for (const run of player.runHistory) {
+    if (
+      !run ||
+      typeof run.completedAt !== 'string' ||
+      !Number.isFinite(Date.parse(run.completedAt))
+    ) {
+      continue;
+    }
+    const dk = isoToLocalDateKey(run.completedAt);
+    const bucket = buckets.get(dk);
+    if (!bucket) continue;
+    bucket.runs += 1;
+    if (typeof run.accuracyPct === 'number' && Number.isFinite(run.accuracyPct)) {
+      bucket.accSum += Math.max(0, Math.min(100, run.accuracyPct));
+      bucket.accCount += 1;
+    }
+    if (typeof run.tokensEarned === 'number' && Number.isFinite(run.tokensEarned) && run.tokensEarned > 0) {
+      bucket.tokens += Math.floor(run.tokensEarned);
+    }
+  }
+
+  let totalRuns14d = 0;
+  let activeDays14d = 0;
+  let totalAccSum = 0;
+  let totalAccCount = 0;
+  let maxDailyRuns = 1;
+
+  const days: DailyTrendPoint[] = orderedKeys.map(({ dateKey, shortLabel }) => {
+    const b = buckets.get(dateKey)!;
+    totalRuns14d += b.runs;
+    if (b.runs > 0) activeDays14d += 1;
+    if (b.runs > maxDailyRuns) maxDailyRuns = b.runs;
+    totalAccSum += b.accSum;
+    totalAccCount += b.accCount;
+    return {
+      dateKey,
+      shortLabel,
+      runs: b.runs,
+      avgAccuracyPct: b.accCount > 0 ? Math.round(b.accSum / b.accCount) : null,
+      tokensEarned: b.tokens,
+    };
+  });
+
+  const completedEnCore = countUniqueIds(player.completedQuestSetIds, VALID_EN_CORE_IDS);
+  const enDone =
+    completedEnCore +
+    countUniqueIds(player.completedEnglishRootIds) +
+    countUniqueIds(player.completedGrammarIds) +
+    countUniqueIds(player.completedSpellingIds) +
+    countUniqueIds(player.completedFigurativeIds) +
+    countUniqueIds(player.completedEnglishChapterIds);
+  // 80 Word Sets + 8 Reading Quests + 16 Roots + 12 Grammar + 16 Spelling + 12 Figurative + 20 Chapter Episodes = 164
+  const enTotal = Math.max(1, VALID_EN_CORE_IDS.size + 16 + 12 + 16 + 12 + 20);
+
+  const completedMathCore = countUniqueIds(player.completedQuestSetIds, VALID_MATH_CORE_IDS);
+  const mathDone =
+    completedMathCore +
+    countUniqueIds(player.completedBarModelIds) +
+    countUniqueIds(player.completedClockMeasureIds);
+  // 28 Core Math Units + 8 Bar Model Labs + 8 Clock & Measure Units = 44
+  const mathTotal = Math.max(1, VALID_MATH_CORE_IDS.size + 8 + 8);
+
+  const completedZhCore = countUniqueIds(player.completedQuestSetIds, VALID_ZH_CORE_IDS);
+  const zhDone =
+    completedZhCore +
+    countUniqueIds(player.completedRadicalIds, VALID_RADICAL_IDS) +
+    countUniqueIds(player.completedMeasureIds) +
+    countUniqueIds(player.completedSentencePatternIds) +
+    countUniqueIds(player.completedLookAlikeIds) +
+    countUniqueIds(player.completedChapterEpisodeIds, VALID_ZH_CHAPTER_EP_IDS);
+  // 80 Word Sets + 8 Reading Quests + 24 Radicals + 24 Measure/Idiom + 16 Sentence Patterns + 16 Look-Alike + 40 Chapter Episodes = 208
+  const zhTotal = Math.max(
+    1,
+    VALID_ZH_CORE_IDS.size + VALID_RADICAL_IDS.size + 24 + 16 + 16 + VALID_ZH_CHAPTER_EP_IDS.size,
+  );
+
+  const logicOverview = computeLogicLabOverview(player);
+
+  const mkCoverage = (
+    id: LabCoverageItem['id'],
+    label: string,
+    zhLabel: string,
+    emoji: string,
+    completed: number,
+    total: number,
+    colorHex: string,
+    bgHex: string,
+  ): LabCoverageItem => {
+    const safeTotal = Math.max(1, total);
+    const safeCompleted = Math.max(0, Math.min(safeTotal, completed));
+    return {
+      id,
+      label,
+      zhLabel,
+      emoji,
+      completed: safeCompleted,
+      total: safeTotal,
+      pct: Math.min(100, Math.round((safeCompleted / safeTotal) * 100)),
+      colorHex,
+      bgHex,
+    };
+  };
+
+  return {
+    days,
+    totalRuns14d,
+    activeDays14d,
+    avgAccuracy14d: totalAccCount > 0 ? Math.round(totalAccSum / totalAccCount) : null,
+    maxDailyRuns,
+    labCoverage: [
+      mkCoverage('english', 'English ELA', '英文讀寫', '📘', enDone, enTotal, '#2563EB', '#EFF6FF'),
+      mkCoverage('math', 'Math & Measure', '數學＆時鐘度量衡', '🧮', mathDone, mathTotal, '#059669', '#ECFDF5'),
+      mkCoverage('chinese', 'Traditional Chinese', '繁體中文', '🏮', zhDone, zhTotal, '#DB2777', '#FDF2F8'),
+      mkCoverage(
+        'logic',
+        'Logic & Spatial',
+        '邏輯與空間',
+        '🧠',
+        logicOverview.totalCleared,
+        logicOverview.totalModules,
+        '#7C3AED',
+        '#F5F3FF',
+      ),
+    ],
+  };
+}
+
 

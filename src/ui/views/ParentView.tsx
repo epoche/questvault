@@ -26,6 +26,7 @@ import { getLocalDateKey } from '../../core/date';
 import {
   buildWeeklyReviewChineseSet,
   buildWeeklyReviewEnglishSet,
+  compute14DayTrend,
   computeLogicLabOverview,
   computeWeeklyGoalProgress,
   computeWeeklySnapshot,
@@ -47,6 +48,7 @@ import {
   classifyHeatmapCell,
   getFactHeatmapKey,
 } from '../../subjects/math/factFluencyEngine';
+import { ParentTrendSvg } from '../artwork/ParentTrendSvg';
 import { DeviceVoiceSyncPanel } from '../components/DeviceVoiceSyncPanel';
 import { PrintableCertificateModal } from '../components/PrintableCertificateModal';
 
@@ -135,6 +137,10 @@ export const ParentView: React.FC<ParentViewProps> = ({
   }, [cooldownSec]);
 
   const snapshot = useMemo(() => computeWeeklySnapshot(player), [player]);
+  const trend14d = useMemo(
+    () => compute14DayTrend(player, getLocalDateKey()),
+    [player],
+  );
   const logicOverview = useMemo(() => computeLogicLabOverview(player), [player]);
   const weeklyGoalProgress = useMemo(() => computeWeeklyGoalProgress(player), [player]);
   const backupStatus = useMemo(() => isBackupOverdue(player), [player]);
@@ -904,6 +910,58 @@ export const ParentView: React.FC<ParentViewProps> = ({
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Phase 10A: 14-Day Learning Trend SVG Chart + 4-Hall Coverage */}
+      <section
+        data-testid="parent-14d-trend-section"
+        className="qv-surface rounded-3xl p-5 sm:p-6 space-y-4 border-2 border-[#BFDBFE] bg-[#F8FBFF]"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-[#2563EB]" />
+            <h2 className="font-display text-lg font-extrabold text-[#1C1917]">
+              📊 近 14 天學習趨勢曲線＆四大學習館覆蓋率
+            </h2>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#93C5FD] px-3 py-1 text-xs font-extrabold text-[#1D4ED8] tabular-nums">
+            近 14 天共 {trend14d.totalRuns14d} 關 · 活躍 {trend14d.activeDays14d} 天
+            {trend14d.avgAccuracy14d !== null ? ` · 平均正確率 ${trend14d.avgAccuracy14d}%` : ''}
+          </span>
+        </div>
+
+        <ParentTrendSvg trend={trend14d} />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {trend14d.labCoverage.map((lab) => (
+            <div
+              key={lab.id}
+              className="rounded-2xl border border-[#E5DFD3] p-3 space-y-2"
+              style={{ backgroundColor: lab.bgHex }}
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs font-extrabold text-[#1C1917]">
+                  {lab.emoji} {lab.zhLabel}
+                </span>
+                <span
+                  className="font-display text-xs font-extrabold tabular-nums"
+                  style={{ color: lab.colorHex }}
+                >
+                  {lab.pct}%
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-white/80 overflow-hidden border border-[#E5DFD3]/70">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{ width: `${lab.pct}%`, backgroundColor: lab.colorHex }}
+                />
+              </div>
+              <div className="text-[11px] font-bold text-[#57534E] tabular-nums">
+                已通關 {lab.completed} / {lab.total} 單元
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

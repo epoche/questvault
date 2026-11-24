@@ -94,6 +94,9 @@ export default defineConfig({
                 if (id.includes('/src/ui/artwork/ClockMeasureSvg')) {
                   return 'artwork-clock-measure';
                 }
+                if (id.includes('/src/ui/artwork/ParentTrendSvg')) {
+                  return 'artwork-parent';
+                }
                 if (id.includes('/src/ui/artwork/')) return 'artwork-svg';
                 return undefined;
               },

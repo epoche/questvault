@@ -18,7 +18,9 @@ import { PlacementView } from '../../src/ui/views/PlacementView';
 import { VaultView } from '../../src/ui/views/VaultView';
 import { WritingLogView } from '../../src/ui/views/WritingLogView';
 import { getWeekDateKeys, recordAdventureStamp } from '../../src/core/adventureMap';
+import { compute14DayTrend } from '../../src/core/analytics';
 import { feedCritterTreat, petCritter, recordCritterPopQuizResult } from '../../src/core/critterCare';
+import { ParentTrendSvg } from '../../src/ui/artwork/ParentTrendSvg';
 import { CritterRoomPanel } from '../../src/ui/components/CritterRoomPanel';
 import { DeviceVoiceSyncPanel } from '../../src/ui/components/DeviceVoiceSyncPanel';
 import { TopBar } from '../../src/ui/components/TopBar';
@@ -559,7 +561,57 @@ describe('UI Component Regressions (happy-dom + React Testing Library)', () => {
     fireEvent.click(choiceBtns[1]);
     expect(onComplete).not.toHaveBeenCalled();
   });
+
+  it('renders ParentTrendSvg with isolated useId defs and DeviceVoiceSyncPanel sandbox-safe offline badge', () => {
+    const emptyPlayer = createInitialPlayerState('Chloe');
+    const emptyTrend = compute14DayTrend(emptyPlayer, '2026-03-05');
+
+    const activePlayer = createInitialPlayerState('Chloe');
+    activePlayer.runHistory = [
+      {
+        id: 'r1',
+        subjectId: 'math',
+        questSetId: 'clock-basic',
+        questSetTitle: 'Clock Basic',
+        completedAt: new Date(2026, 2, 5, 11, 0, 0).toISOString(),
+        accuracyPct: 90,
+        maxCombo: 5,
+        tokensEarned: 35,
+      },
+      {
+        id: 'r2',
+        subjectId: 'english',
+        questSetId: 'en-t1-action-heroes',
+        questSetTitle: 'Action Heroes',
+        completedAt: new Date(2026, 2, 4, 15, 0, 0).toISOString(),
+        accuracyPct: 100,
+        maxCombo: 6,
+        tokensEarned: 35,
+      },
+    ];
+    const activeTrend = compute14DayTrend(activePlayer, '2026-03-05');
+
+    const { container } = render(
+      <>
+        <ParentTrendSvg trend={emptyTrend} />
+        <ParentTrendSvg trend={activeTrend} />
+        <DeviceVoiceSyncPanel player={activePlayer} />
+      </>,
+    );
+
+    expect(container.querySelectorAll('form, [type="submit"]').length).toBe(0);
+    // Two charts rendered concurrently must have distinct linearGradient IDs (zero static SVG ID collision)
+    const gradIds = Array.from(container.querySelectorAll('linearGradient')).map((g) => g.id);
+    expect(gradIds.length).toBe(2);
+    expect(new Set(gradIds).size).toBe(2);
+    // Empty state callout shows on empty chart, polyline shows on populated chart
+    expect(screen.getByText(/近 14 天尚無闖關紀錄/)).toBeTruthy();
+    expect(container.querySelectorAll('svg path').length).toBeGreaterThanOrEqual(1);
+    // Offline badge safely degrades in happy-dom / strict sandbox without throwing
+    expect(screen.getByTestId('pwa-offline-status-badge').textContent).toContain('離線');
+  });
 });
+
 
 
 
