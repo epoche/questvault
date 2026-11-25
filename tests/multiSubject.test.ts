@@ -160,6 +160,66 @@ describe('Traditional Chinese Subject (80 Sets, Zhuyin, Anti-Cheese Writing, Imp
     expect(evaluateChineseWriting('我的的的的觀察的。', targets, scenario).canUnlockChest).toBe(false);
     expect(evaluateChineseWriting('觀察觀察觀察觀察。', targets, scenario).canUnlockChest).toBe(false);
     expect(evaluateChineseWriting('asdfghjkl 觀察。', targets, scenario).canUnlockChest).toBe(false);
+    // Starter + target word + 。 must NOT unlock chest
+    const zhStarters = ['下課的時候，我和同學在操場', '星期天下午，我們全家'];
+    const zhCheese = evaluateChineseWriting('下課的時候，我和同學在操場觀察。', targets, scenario, zhStarters);
+    expect(zhCheese.usedStarter).toBe(true);
+    expect(zhCheese.ownCharCount).toBe(0);
+    expect(zhCheese.canUnlockChest).toBe(false);
+    // Genuine Chinese sentence with starter + target + 5+ own CJK chars passes
+    const zhGenuine = evaluateChineseWriting(
+      '下課的時候，我和同學在操場觀察一隻色彩繽紛的蝴蝶。',
+      targets,
+      scenario,
+      zhStarters,
+    );
+    expect(zhGenuine.usedStarter).toBe(true);
+    expect(zhGenuine.ownCharCount).toBeGreaterThanOrEqual(5);
+    expect(zhGenuine.allPassed).toBe(true);
+    expect(zhGenuine.canUnlockChest).toBe(true);
+    // Pasting target words without original writing MUST be blocked
+    expect(evaluateChineseWriting('觀察躲藏追趕分享。', targets, scenario).canUnlockChest).toBe(false);
+    // Expressive punctuation (！！！ / ...) must NOT be blocked as spam
+    expect(
+      evaluateChineseWriting('下課時間我在操場觀察一隻可愛的蝴蝶！！！', targets, scenario).allPassed,
+    ).toBe(true);
+    // Exhaustive check across ALL 80 built-in Chinese sets (240 starters)
+    for (const set of BUILTIN_CHINESE_SETS) {
+      const tws = set.words.map((w) => w.word);
+      const t0 = tws[0];
+      const starters = set.starterChips ?? [];
+      for (const chip of starters) {
+        // Starter + target + 。 must fail
+        expect(
+          evaluateChineseWriting(`${chip}${t0}。`, tws, set.forgeScenario, starters).canUnlockChest,
+          `ZH cheese passed: ${set.id} ${chip}`,
+        ).toBe(false);
+        // Comma removed + target + 。 must fail
+        const noComma = chip.replace(/[，,、]/g, '');
+        expect(
+          evaluateChineseWriting(`${noComma}${t0}。`, tws, set.forgeScenario, starters).canUnlockChest,
+          `ZH no-comma cheese passed: ${set.id} ${noComma}`,
+        ).toBe(false);
+        // Last char deleted + target + 。 must fail
+        if (chip.length >= 4) {
+          const trimmed1 = chip.slice(0, -1);
+          expect(
+            evaluateChineseWriting(`${trimmed1}${t0}。`, tws, set.forgeScenario, starters).canUnlockChest,
+            `ZH 1-char-deleted cheese passed: ${set.id} ${trimmed1}`,
+          ).toBe(false);
+        }
+        // Genuine continuation passes
+        expect(
+          evaluateChineseWriting(
+            `${chip}用彩色筆記本認真記錄「${t0}」這個新詞彙。`,
+            tws,
+            set.forgeScenario,
+            starters,
+          ).canUnlockChest,
+          `ZH genuine failed: ${set.id} ${chip}`,
+        ).toBe(true);
+      }
+    }
     expect(
       evaluateChineseWriting('下課時間我在操場觀察一隻可愛的蝴蝶。', targets, scenario).allPassed,
     ).toBe(true);

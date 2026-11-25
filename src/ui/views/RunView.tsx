@@ -26,6 +26,7 @@ import type { SprintQuestion, UpgradeQuestion, WordSet } from '../../subjects/en
 import { deterministicWritingEvaluator } from '../../subjects/english/writingChecks';
 import { CollectibleArt } from '../artwork/CollectibleArt';
 import { RewardPolicyBanner } from '../components/RewardPolicyBanner';
+import { useKeyboardSafeArea } from '../hooks/useKeyboardSafeArea';
 
 type RunStage = 'spotlight' | 'sprint' | 'upgrade' | 'forge' | 'complete';
 
@@ -132,6 +133,12 @@ export const RunView: React.FC<RunViewProps> = ({
   );
   const [chestTokens, setChestTokens] = useState(0);
   const [finalSentence, setFinalSentence] = useState('');
+  const forgeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const {
+    bottomPaddingPx: forgeBottomPad,
+    handleFocus: handleForgeFocus,
+    handleBlur: handleForgeBlur,
+  } = useKeyboardSafeArea();
 
   const currentSpot = plan.spotlightWords[spotIdx];
   const currentSprintItem = sprintQueue[0];
@@ -147,8 +154,14 @@ export const RunView: React.FC<RunViewProps> = ({
         sentence,
         plan.forgePrompt.targetWords,
         plan.forgePrompt.scenario,
+        plan.forgePrompt.starterChips,
       ),
-    [sentence, plan.forgePrompt.targetWords, plan.forgePrompt.scenario],
+    [
+      sentence,
+      plan.forgePrompt.targetWords,
+      plan.forgePrompt.scenario,
+      plan.forgePrompt.starterChips,
+    ],
   );
 
   const handleExitWithMastery = () => {
@@ -784,156 +797,226 @@ export const RunView: React.FC<RunViewProps> = ({
           </motion.section>
         )}
 
-        {/* STAGE 3: WRITER'S FORGE */}
+        {/* STAGE 3: WRITER'S FORGE (iPad keyboard-safe high textarea layout) */}
         {stage === 'forge' && (
-          <motion.section
-            key="forge"
-            initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="qv-surface rounded-3xl p-5 sm:p-6 space-y-4"
+          <div
+            key="forge-wrap"
+            style={forgeBottomPad > 0 ? { paddingBottom: `${forgeBottomPad}px` } : undefined}
           >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <CollectibleArt
-                  id={equippedCollectibleId}
-                  size={48}
-                  className="border-2 border-[#1C1917]"
-                />
-                <h1 className="font-display text-xl sm:text-2xl font-extrabold">Write 1 Sentence!</h1>
+            <motion.section
+              key="forge"
+              initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="qv-surface rounded-3xl p-4 sm:p-6 space-y-3.5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <CollectibleArt
+                    id={equippedCollectibleId}
+                    size={42}
+                    className="border-2 border-[#1C1917] shrink-0"
+                  />
+                  <div>
+                    <h1 className="font-display text-lg sm:text-2xl font-extrabold leading-tight">
+                      Write 1 Original Sentence!
+                    </h1>
+                    <p className="text-xs sm:text-sm font-bold text-[#1E3A8A]">
+                      {plan.forgePrompt.scenario}
+                    </p>
+                  </div>
+                </div>
+                <span className="shrink-0 rounded-full bg-[#FEF3C7] border border-[#1C1917] px-3 py-1 text-xs font-extrabold text-[#92400E] tabular-nums">
+                  +{Math.round(25 * multiplier)} Chest
+                </span>
               </div>
-              <span className="rounded-full bg-[#FEF3C7] border border-[#1C1917] px-3 py-1 text-xs font-extrabold text-[#92400E] tabular-nums">
-                +{Math.round(25 * multiplier)} Chest
-              </span>
-            </div>
 
-            <p className="rounded-2xl bg-[#EFF6FF] border border-[#BFDBFE] p-3.5 text-sm sm:text-base font-bold text-[#1E3A8A]">
-              {plan.forgePrompt.scenario}
-            </p>
+              {/* Compact Target Word Pills (tap for meaning + insert) */}
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {plan.forgePrompt.wordGlossary.map((item) => {
+                    const used = writingEval.matchedWords.includes(item.word);
+                    const selected = inspectedWord === item.word;
+                    return (
+                      <button
+                        key={item.word}
+                        type="button"
+                        onClick={() => {
+                          setInspectedWord(item.word);
+                          audioService.speak(item.word, 'en-US');
+                        }}
+                        className={`qv-btn inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs sm:text-sm font-extrabold ${
+                          used
+                            ? 'border-[#059669] bg-[#ECFDF5] text-[#047857]'
+                            : selected
+                              ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
+                              : 'border-[#E7E2D8] bg-white'
+                        }`}
+                      >
+                        {used ? <Check className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5 opacity-70" />}
+                        <span>{item.word}</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                {plan.forgePrompt.wordGlossary.map((item) => {
-                  const used = writingEval.matchedWords.includes(item.word);
-                  const selected = inspectedWord === item.word;
-                  return (
+                {inspectedEntry && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#FAF7F2] px-3 py-1.5 text-xs font-semibold text-[#57534E]">
+                    <span>
+                      <strong className="text-[#1C1917]">{inspectedEntry.word}</strong> = {inspectedEntry.plainBridge}
+                    </span>
                     <button
-                      key={item.word}
                       type="button"
                       onClick={() => {
-                        setInspectedWord(item.word);
-                        audioService.speak(item.word, 'en-US');
+                        insertWordIntoSentence(inspectedEntry.word);
+                        forgeTextareaRef.current?.focus();
+                        try {
+                          window.requestAnimationFrame(() => {
+                            const el = forgeTextareaRef.current;
+                            if (!el) return;
+                            const len = el.value.length;
+                            el.setSelectionRange?.(len, len);
+                          });
+                        } catch {
+                          // Ignore sandbox rAF limitations
+                        }
                       }}
-                      className={`qv-btn inline-flex items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-extrabold ${
-                        used
-                          ? 'border-[#059669] bg-[#ECFDF5] text-[#047857]'
-                          : selected
-                            ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
-                            : 'border-[#E7E2D8] bg-white'
-                      }`}
+                      className="qv-btn rounded-lg bg-white border border-[#E7E2D8] px-2.5 py-1 font-extrabold text-[#2563EB]"
                     >
-                      {used ? <Check className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5 opacity-70" />}
-                      <span>{item.word}</span>
+                      + Insert
                     </button>
-                  );
-                })}
+                  </div>
+                )}
               </div>
 
-              {inspectedEntry && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#FAF7F2] px-3.5 py-2 text-xs font-semibold text-[#57534E]">
-                  <span>
-                    <strong className="text-[#1C1917]">{inspectedEntry.word}</strong> = {inspectedEntry.plainBridge}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => insertWordIntoSentence(inspectedEntry.word)}
-                    className="qv-btn rounded-lg bg-white border border-[#E7E2D8] px-2.5 py-1 font-extrabold text-[#2563EB]"
-                  >
-                    + Insert
-                  </button>
+              {/* Writing Input Box positioned HIGH in the card so iPad keyboard never covers it */}
+              <div className="space-y-2.5">
+                <div className="relative">
+                  <textarea
+                    ref={forgeTextareaRef}
+                    data-testid="forge-textarea"
+                    rows={2}
+                    value={sentence}
+                    autoCapitalize="sentences"
+                    onFocus={(e) => handleForgeFocus(e.currentTarget)}
+                    onBlur={handleForgeBlur}
+                    onChange={(e) => setSentence(e.target.value)}
+                    placeholder="Type a complete sentence using 1 Target Word above..."
+                    style={{ scrollMarginTop: '88px', scrollMarginBottom: '260px' }}
+                    className="w-full rounded-2xl border-2 border-[#D8D0C1] bg-white p-3.5 pr-12 text-base font-medium focus:border-[#2563EB] focus:outline-none"
+                  />
+                  {sentence.trim().length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => audioService.speak(sentence.trim(), 'en-US')}
+                      aria-label="Hear my sentence aloud"
+                      title="Hear my sentence aloud"
+                      className="qv-btn absolute right-2.5 top-2.5 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] text-[#2563EB]"
+                    >
+                      <Volume2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
-              )}
 
-              {/* Quick Sentence Starter Chips for smooth iPad / tablet writing */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <span className="text-xs font-bold text-[#78716C]">Quick start:</span>
-                {plan.forgePrompt.starterChips.map((chip) => (
-                  <button
-                    key={chip}
-                    type="button"
-                    onClick={() =>
-                      setSentence((prev) =>
-                        prev.trim().length === 0 ? chip : `${prev.trimEnd()} ${chip.toLowerCase()}`,
-                      )
-                    }
-                    className="qv-btn rounded-full border border-[#D8D0C1] bg-white px-3 py-1 text-xs font-bold text-[#44403C] hover:border-[#2563EB] hover:text-[#1D4ED8]"
-                  >
-                    + “{chip.trim()}…”
-                  </button>
-                ))}
-              </div>
-            </div>
+                {/* Live Guidance & 4-Check Progress Bubbles */}
+                <p
+                  data-testid="forge-encouragement"
+                  className={`rounded-xl px-3 py-1.5 text-xs font-extrabold ${
+                    writingEval.allPassed
+                      ? 'bg-[#ECFDF5] text-[#047857]'
+                      : 'bg-[#FFFBEB] text-[#92400E]'
+                  }`}
+                >
+                  {writingEval.encouragement}
+                </p>
 
-            <div className="space-y-3.5">
-              <textarea
-                rows={2}
-                value={sentence}
-                onChange={(e) => setSentence(e.target.value)}
-                placeholder="Tap a quick start above or type your sentence here..."
-                className="w-full rounded-2xl border-2 border-[#D8D0C1] bg-white p-3.5 text-base font-medium focus:border-[#2563EB] focus:outline-none"
-              />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {writingEval.checks.map((check) => (
-                  <div
-                    key={check.id}
-                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-extrabold ${
-                      check.passed
-                        ? 'border-[#A7F3D0] bg-[#ECFDF5] text-[#047857]'
-                        : 'border-[#E7E2D8] bg-[#FAF7F2] text-[#57534E]'
-                    }`}
-                  >
-                    <span
-                      className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                        check.passed ? 'bg-[#059669] text-white' : 'bg-[#E7E2D8] text-[#78716C]'
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {writingEval.checks.map((check) => (
+                    <div
+                      key={check.id}
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-extrabold ${
+                        check.passed
+                          ? 'border-[#A7F3D0] bg-[#ECFDF5] text-[#047857]'
+                          : 'border-[#E7E2D8] bg-[#FAF7F2] text-[#57534E]'
                       }`}
                     >
-                      <Check className="h-3 w-3" />
-                    </span>
-                    <span className="tabular-nums">{check.label}</span>
-                  </div>
-                ))}
-              </div>
+                      <span
+                        className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                          check.passed ? 'bg-[#059669] text-white' : 'bg-[#E7E2D8] text-[#78716C]'
+                        }`}
+                      >
+                        <Check className="h-3 w-3" />
+                      </span>
+                      <span className="tabular-nums">{check.label}</span>
+                    </div>
+                  ))}
+                </div>
 
-              <button
-                type="button"
-                onClick={handleForgeSubmit}
-                disabled={!writingEval.canUnlockChest}
-                className={`qv-arcade-btn inline-flex w-full items-center justify-center gap-2 rounded-2xl border-2 px-5 py-3.5 font-display text-lg font-extrabold tabular-nums ${
-                  writingEval.allPassed
-                    ? 'border-[#1C1917] bg-[#F59E0B] text-[#1C1917]'
-                    : writingEval.canUnlockChest
-                      ? 'border-[#1C1917] bg-[#2563EB] text-white'
+                <button
+                  type="button"
+                  onClick={handleForgeSubmit}
+                  disabled={!writingEval.canUnlockChest}
+                  className={`qv-arcade-btn inline-flex w-full items-center justify-center gap-2 rounded-2xl border-2 px-5 py-3 font-display text-lg font-extrabold tabular-nums ${
+                    writingEval.allPassed
+                      ? 'border-[#1C1917] bg-[#F59E0B] text-[#1C1917]'
                       : 'border-[#D8D0C1] bg-[#F3EFE7] text-[#A8A29E] cursor-not-allowed'
-                }`}
-                style={
-                  writingEval.allPassed
-                    ? { borderBottomColor: '#B45309' }
-                    : writingEval.canUnlockChest
-                      ? { borderBottomColor: '#1E3A8A' }
+                  }`}
+                  style={
+                    writingEval.allPassed
+                      ? { borderBottomColor: '#B45309' }
                       : undefined
-                }
-              >
-                <Sparkles className="h-5 w-5" />
-                <span>
-                  {writingEval.allPassed
-                    ? `Open Chest! +${Math.round(25 * multiplier)} Tokens`
-                    : writingEval.canUnlockChest
-                      ? `Open Chest! +${Math.round(15 * multiplier)} Tokens`
-                      : 'Finish Checks to Open Chest'}
-                </span>
-              </button>
-            </div>
-          </motion.section>
+                  }
+                >
+                  <Sparkles className="h-5 w-5" />
+                  <span>
+                    {writingEval.allPassed
+                      ? `Open Chest! +${Math.round(25 * multiplier)} Tokens`
+                      : `Finish All 4 Checks (${writingEval.passedCount}/4)`}
+                  </span>
+                </button>
+
+                {/* Optional Quick-Start Inspiration Chips (swaps starter cleanly; does not count as student's own words) */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#F0EAE0]">
+                  <span className="text-[11px] font-bold text-[#78716C]">
+                    Need a starter? (add 4+ own words after):
+                  </span>
+                  {plan.forgePrompt.starterChips.map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => {
+                        const chipText = chip.endsWith(' ') ? chip : `${chip} `;
+                        setSentence((prev) => {
+                          const trimmedPrev = prev.trimStart();
+                          const existing = plan.forgePrompt.starterChips.find((c) =>
+                            trimmedPrev.toLowerCase().startsWith(c.trim().toLowerCase()),
+                          );
+                          if (existing) {
+                            const rest = trimmedPrev.slice(existing.trim().length).trimStart();
+                            return rest ? `${chipText}${rest}` : chipText;
+                          }
+                          return trimmedPrev.length === 0 ? chipText : `${chipText}${trimmedPrev}`;
+                        });
+                        forgeTextareaRef.current?.focus();
+                        try {
+                          window.requestAnimationFrame(() => {
+                            const el = forgeTextareaRef.current;
+                            if (!el) return;
+                            const len = el.value.length;
+                            el.setSelectionRange?.(len, len);
+                          });
+                        } catch {
+                          // Ignore sandbox rAF limitations
+                        }
+                      }}
+                      className="qv-btn rounded-full border border-[#D8D0C1] bg-white px-2.5 py-1 text-xs font-bold text-[#44403C] hover:border-[#2563EB] hover:text-[#1D4ED8]"
+                    >
+                      + “{chip.trim()}…”
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.section>
+          </div>
         )}
 
         {/* STAGE 4: RUN COMPLETE */}

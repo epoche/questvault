@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { exportPlayerStateJson } from '../../src/core/repository';
 import { createInitialPlayerState, getQuestRewardPolicy } from '../../src/core/economy';
 import { COLLECTIBLES, MYSTERY_PACKS } from '../../src/core/packs';
@@ -31,6 +31,7 @@ import { CritterRoomPanel } from '../../src/ui/components/CritterRoomPanel';
 import { DeviceVoiceSyncPanel } from '../../src/ui/components/DeviceVoiceSyncPanel';
 import { TopBar } from '../../src/ui/components/TopBar';
 import { WeeklyAdventureBar } from '../../src/ui/components/WeeklyAdventureBar';
+import { useKeyboardSafeArea } from '../../src/ui/hooks/useKeyboardSafeArea';
 
 afterEach(() => {
   cleanup();
@@ -779,7 +780,64 @@ describe('UI Component Regressions (happy-dom + React Testing Library)', () => {
       stopSpy.mockRestore();
     }
   });
+
+  it('keeps Stage 3 textarea safe above iPad virtual keyboard and avoids synchronous blur layout shift', () => {
+    vi.useFakeTimers();
+
+    function KeyboardSafeHarness() {
+      const { bottomPaddingPx, handleFocus, handleBlur } = useKeyboardSafeArea();
+      return (
+        <div data-testid="kb-wrap" style={{ paddingBottom: `${bottomPaddingPx}px` }}>
+          <textarea
+            data-testid="kb-input"
+            onFocus={(e) => handleFocus(e.currentTarget)}
+            onBlur={handleBlur}
+          />
+        </div>
+      );
+    }
+
+    render(<KeyboardSafeHarness />);
+    const wrap = screen.getByTestId('kb-wrap');
+    const input = screen.getByTestId('kb-input') as HTMLTextAreaElement;
+    const scrollSpy = vi.fn();
+    input.scrollIntoView = scrollSpy;
+
+    expect(wrap.style.paddingBottom).toBe('0px');
+
+    // Focusing textarea immediately adds >=320px bottom room and schedules 300ms re-center scroll
+    fireEvent.focus(input);
+    expect(Number.parseInt(wrap.style.paddingBottom, 10)).toBeGreaterThanOrEqual(320);
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(310);
+    });
+    expect(scrollSpy).toHaveBeenCalledTimes(2);
+
+    // Blurring keeps padding stable during the 220ms tap window so Open Chest / Quick-Start buttons never jump
+    fireEvent.blur(input);
+    expect(Number.parseInt(wrap.style.paddingBottom, 10)).toBeGreaterThanOrEqual(320);
+
+    // Re-focusing inside 220ms cancels the collapse
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    fireEvent.focus(input);
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    expect(Number.parseInt(wrap.style.paddingBottom, 10)).toBeGreaterThanOrEqual(320);
+
+    // Final blur settles back to 0px cleanly after 220ms
+    fireEvent.blur(input);
+    act(() => {
+      vi.advanceTimersByTime(240);
+    });
+    expect(wrap.style.paddingBottom).toBe('0px');
+  });
 });
+
 
 
 
